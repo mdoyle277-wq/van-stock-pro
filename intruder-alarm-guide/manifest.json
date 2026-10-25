@@ -1,7 +1,7 @@
 {
-  "name": "Intruder Alarm Engineer Guide",
-  "short_name": "Alarm Guide",
-  "description": "Engineer pocket reference for intruder alarm fault finding.",
+  "name": "AlarmTech Field Guide",
+  "short_name": "AlarmTech",
+  "description": "Independent field reference for intruder alarm engineers: fault finding, manufacturer resources, visit notes and checklists.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
