@@ -76,40 +76,29 @@ $('loadBackupTop').addEventListener('click',()=>$('restoreFile').click());
 function restoreBackupObject(parsed){
 const root=parsed&&typeof parsed==='object'?parsed:{};
 const data=root.data&&typeof root.data==='object'&&!Array.isArray(root.data)?root.data:{};
-let incoming=Array.isArray(parsed)?parsed:null;
-if(!incoming){
-const candidates=[data[KEY],data.items,data.stock,data.inventory,data['items'],root.items,root.stock,root.inventory,root.stockItems,root.inventoryItems];
-incoming=candidates.find(Array.isArray)||null;
-}
-if(!Array.isArray(incoming))throw new Error('This file does not contain a recognised stock list. Please choose a Van Stock Pro full-backup JSON file.');
+let incoming=Array.isArray(parsed)?parsed:[data[KEY],data.items,data.stock,data.inventory,root.items,root.stock,root.inventory,root.stockItems,root.inventoryItems].find(Array.isArray);
+if(!Array.isArray(incoming))throw new Error('No stock list found in this file. Select a Van Stock Pro backup JSON file.');
 incoming=incoming.map(i=>i&&typeof i==='object'?({...i,qty:i.qty??i.quantity??i.stockQty??i.currentStock,minQty:i.minQty??i.minimum??i.min??0}):i);
-const valid=incoming.every(i=>i&&typeof i==='object'&&typeof i.name==='string'&&i.name.trim()&&i.id!==undefined&&Number.isFinite(Number(i.qty))&&Number(i.qty)>=0&&Number.isFinite(Number(i.minQty))&&Number(i.minQty)>=0);
-if(!valid)throw new Error('The backup stock list was found, but one or more items have invalid names, IDs or quantities.');
-const ids=new Set();for(const i of incoming){if(ids.has(String(i.id)))throw new Error('Backup contains duplicate item IDs');ids.add(String(i.id));if(i.photo&&typeof i.photo!=='string')throw new Error('Backup contains an invalid photo')}
-const preview=incoming.slice(0,5).map(i=>i.name+': '+i.qty).join('; ');
-if(!confirm('BACKUP CHECK\nFile contains '+incoming.length+' stock items.\nExample quantities: '+preview+(incoming.length>5?' …':'')+'\n\nPress OK to replace current stock with these saved quantities.'))return false;
-const stockRaw=JSON.stringify(incoming);
-localStorage.setItem(KEY,stockRaw);
-const stored=JSON.parse(localStorage.getItem(KEY)||'null');
-if(!Array.isArray(stored)||stored.length!==incoming.length||stored.some((x,n)=>String(x.id)!==String(incoming[n].id)||Number(x.qty)!==Number(incoming[n].qty)||Number(x.minQty)!==Number(incoming[n].minQty)))throw new Error('Stock restore verification failed: browser storage did not retain the backup quantities.');
-items=stored;
-let skipped=[];
-const restoreData={...data,[KEY]:incoming};
-const backupKeys=[];for(let n=0;n<localStorage.length;n++){const k=localStorage.key(n);if(k&&k.startsWith(BACKUP_PREFIX)&&k!==KEY)backupKeys.push(k)}
-for(const key of backupKeys){if(!(key in restoreData)){try{localStorage.removeItem(key)}catch(err){skipped.push(key)}}}
-for(const [key,value] of Object.entries(restoreData)){
-if(!key.startsWith(BACKUP_PREFIX)||key===KEY)continue;
-try{localStorage.setItem(key,typeof value==='string'&&key===MOVEMENT_KEY?value:JSON.stringify(value))}catch(err){skipped.push(key)}
+if(!incoming.length)throw new Error('The backup contains no stock items.');
+const valid=incoming.every(i=>i&&typeof i==='object'&&i.id!==undefined&&typeof i.name==='string'&&i.name.trim()&&Number.isFinite(Number(i.qty))&&Number(i.qty)>=0);
+if(!valid)throw new Error('The backup stock list has an invalid item or quantity.');
+const preview=incoming.slice(0,4).map(i=>i.name+': '+i.qty).join('\n');
+if(!confirm('RESTORE THESE STOCK LEVELS?\n\n'+preview+'\n\nTotal items: '+incoming.length+'\n\nThis will replace the current stock quantities with those in the selected file.'))return false;
+// Intentionally restore only the stock list. Other settings/history are left alone to keep this path simple.
+const payload=JSON.stringify(incoming);
+localStorage.setItem(KEY,payload);
+const check=JSON.parse(localStorage.getItem(KEY)||'null');
+if(!Array.isArray(check)||check.length!==incoming.length||check.some((i,n)=>String(i.id)!==String(incoming[n].id)||Number(i.qty)!==Number(incoming[n].qty)))throw new Error('The browser did not save the restored quantities. Try opening the app directly in Chrome.');
+items=check;
+selectedRestock.clear();
+try{render()}catch(err){console.error('Stock table refresh failed',err)}
+try{showSelectedItem(items[0]||null)}catch(err){}
+const msg='STOCK RESTORED: '+check.length+' items. '+check.slice(0,3).map(i=>i.name+' = '+i.qty).join('; ');
+const status=$('backupStatus');if(status){status.textContent=msg;status.style.borderColor='var(--mint)'}
+toast(msg);
+return true;
 }
-loadMovementLog();selectedRestock.clear();render();renderMinMax();renderStockAlerts();renderSupplierDirectory();renderSupplierDetails();renderOrderHistory();
-if(items.length){const withPhoto=items.find(i=>i.photo);showSelectedItem(withPhoto||items[0])}else showSelectedItem(null);
-resetForm();updateBackupStatus();
-const msg='RESTORE SUCCESS: '+stored.length+' items loaded. First quantities: '+stored.slice(0,3).map(i=>i.name+' = '+i.qty).join(', ')+(skipped.length?'. Some settings/history could not be restored due to browser storage limits.':'');
-const status=$('backupStatus');if(status){status.textContent=msg;status.style.borderColor=skipped.length?'var(--amber)':'var(--mint)'}
-toast(msg);return true;
-}
-
-$('restoreFile').addEventListener('change',e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>25000000){toast('Backup is over 25 MB. Choose a smaller backup file.');e.target.value='';return}const reader=new FileReader();reader.onerror=()=>{toast('Could not read backup file');e.target.value=''};reader.onload=()=>{try{restoreBackupObject(JSON.parse(reader.result))}catch(err){console.error('Restore failed',err);toast('Restore failed or backup is invalid. Existing saved data was preserved where possible.')}finally{e.target.value=''}};reader.readAsText(file)});
+$('restoreFile').addEventListener('change',e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>25000000){toast('Backup is over 25 MB. Choose a smaller backup file.');e.target.value='';return}const reader=new FileReader();reader.onerror=()=>{toast('Could not read backup file');e.target.value=''};reader.onload=()=>{try{restoreBackupObject(JSON.parse(reader.result))}catch(err){console.error('Restore failed',err);const msg='RESTORE FAILED: '+(err?.message||String(err));const status=$('backupStatus');if(status){status.textContent=msg;status.style.borderColor='var(--red)'}toast(msg)}finally{e.target.value=''}};reader.readAsText(file)});
 
 let pendingUsageItemId=null;$('stockRows').addEventListener('click',function handleUseOnJob(e){const b=e.target.closest('button[data-usejob]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();const item=items.find(x=>String(x.id)===String(b.getAttribute('data-usejob')));if(!item){toast('Could not find this stock item.');return}pendingUsageItemId=item.id;$('jobUseItemName').textContent=item.name+' · '+item.qty+' in stock';$('jobUseRef').value='';$('jobUseQty').value='1';const panel=$('jobUsePanel');panel.hidden=false;panel.style.display='flex';panel.style.position='fixed';panel.style.inset='0';panel.style.zIndex='100000';panel.style.background='rgba(3,8,18,.9)';panel.style.alignItems='center';panel.style.justifyContent='center';panel.style.padding='16px';const card=panel.querySelector('.job-use-card');card.style.display='block';card.style.background='#101b2d';card.style.color='#fff';card.style.padding='20px';card.style.borderRadius='16px';card.style.maxWidth='480px';card.style.width='100%';card.style.maxHeight='85vh';card.style.overflow='auto';setTimeout(()=>$('jobUseRef').focus(),50)});function closeJobUsePanel(){const panel=$('jobUsePanel');panel.hidden=true;panel.style.display='none';pendingUsageItemId=null}
 function confirmJobUsage(e){if(e)e.preventDefault();const i=items.find(x=>String(x.id)===String(pendingUsageItemId));if(!i){toast('Please close this form and tap Use on job again');return}const job=$('jobUseRef').value.trim();const amount=Number($('jobUseQty').value);if(!job){toast('Enter a job reference first');$('jobUseRef').focus();return}if(!Number.isInteger(amount)||amount<1){toast('Enter a whole quantity greater than zero');$('jobUseQty').focus();return}if(amount>Number(i.qty)){toast('Not enough stock available');$('jobUseQty').focus();return}const now=new Date(),localDate=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');const entry={id:(window.crypto&&window.crypto.randomUUID?window.crypto.randomUUID():String(Date.now())),date:now.toISOString(),usageDate:localDate,job,itemId:i.id,itemName:i.name,sku:i.sku||'',category:i.category,quantity:amount};let nextLog=[];try{const parsed=JSON.parse(localStorage.getItem('van-stock-pro-usage-v1')||'[]');nextLog=Array.isArray(parsed)?parsed:[]}catch{nextLog=[]}const before=Number(i.qty),after=before-amount;try{localStorage.setItem('van-stock-pro-usage-v1',JSON.stringify([entry,...nextLog]));i.qty=after;localStorage.setItem(KEY,JSON.stringify(items))}catch(err){i.qty=before;try{localStorage.setItem(KEY,JSON.stringify(items))}catch{}toast('Could not save job usage. Check device storage and try again.');return}closeJobUsePanel();try{recordMovement(i,-amount,'Used on job: '+job)}catch(err){}try{render()}catch(err){}toast(amount+' used on '+job)}
