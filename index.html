@@ -11,7 +11,7 @@
 </style>
 </head>
 <body><main class="wrap">
-<header class="top"><div class="brand"><div class="logo">V</div><div><div class="eyebrow">Field inventory system</div><h1>Van Stock Pro</h1><div class="sub">Your stock. Your van. Under control.</div></div></div><div class="actions"><button type="button" id="saveAllBackupTop">💾 Save All & Backup</button><button class="secondary" id="loadBackupTop" type="button">📂 Load Backup Data</button><button class="secondary" id="loadLocalBackupBtn" type="button">🗄️ Load Van Pro Local Backup</button><button class="secondary" id="exportBtn">Export CSV</button><button class="secondary" id="reorderPlannerBtn" type="button">🛒 Reorder planner</button><button class="secondary" id="supplierDirectoryBtn" type="button">🏷️ Suppliers</button><button class="secondary" id="supplierDetailsBtn" type="button">✏️ Supplier contacts</button><button class="secondary" id="supplierImportBtn" type="button">📥 Import contacts</button><button class="secondary" id="receiveStockBtn" type="button">📦 Receive delivery</button><button class="secondary" id="stockAlertsBtn" type="button">🔔 Stock alerts</button><button class="secondary" id="minMaxBtn" type="button">🎯 Min / max levels</button><button class="secondary" id="stocktakeBtn" type="button">📋 Stocktake</button><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="jobReportBtn" type="button">📊 Job usage report</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open'));">Stock history</button><button class="secondary" id="emailRestockTop">Email restock</button><button class="secondary" id="addSelectedTop">＋ Add selected</button><button id="addFocusBtn">＋ Add item</button></div></header>
+<header class="top"><div class="brand"><div class="logo">V</div><div><div class="eyebrow">Field inventory system</div><h1>Van Stock Pro</h1><div class="sub">Your stock. Your van. Under control.</div></div></div><div class="actions"><button type="button" id="saveAllBackupTop">💾 Save All & Backup</button><button class="secondary" id="loadBackupTop" type="button">📂 Restore Backup File</button><button class="secondary" id="exportBtn">Export CSV</button><button class="secondary" id="reorderPlannerBtn" type="button">🛒 Reorder planner</button><button class="secondary" id="supplierDirectoryBtn" type="button">🏷️ Suppliers</button><button class="secondary" id="supplierDetailsBtn" type="button">✏️ Supplier contacts</button><button class="secondary" id="supplierImportBtn" type="button">📥 Import contacts</button><button class="secondary" id="receiveStockBtn" type="button">📦 Receive delivery</button><button class="secondary" id="stockAlertsBtn" type="button">🔔 Stock alerts</button><button class="secondary" id="minMaxBtn" type="button">🎯 Min / max levels</button><button class="secondary" id="stocktakeBtn" type="button">📋 Stocktake</button><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="jobReportBtn" type="button">📊 Job usage report</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open'));">Stock history</button><button class="secondary" id="emailRestockTop">Email restock</button><button class="secondary" id="addSelectedTop">＋ Add selected</button><button id="addFocusBtn">＋ Add item</button></div></header>
 <section class="stats">
 <div class="stat mint selected-photo-card"><div class="label">SELECTED ITEM</div><div class="selected-photo-tile" id="selectedPhotoTile"><div class="selected-photo-placeholder">📦</div></div><div class="selected-photo-name" id="selectedPhotoName">Select an item below</div><div class="hint" id="selectedPhotoDetails">Item photo and details will appear here</div></div>
 <div class="stat"><div class="label">SKU COUNT</div><div class="num" id="skuCount">0</div><div class="hint">Unique stock lines</div></div>
@@ -55,29 +55,19 @@ const BACKUP_PREFIX='van-stock-pro-';
 function collectBackupData(){const data={};for(let n=0;n<localStorage.length;n++){const key=localStorage.key(n);if(!key||!key.startsWith(BACKUP_PREFIX))continue;const raw=localStorage.getItem(key);try{data[key]=JSON.parse(raw)}catch{data[key]=raw}}data[KEY]=items;data[MOVEMENT_KEY]=movementLog;data['van-stock-pro-usage-v1']=JSON.parse(localStorage.getItem('van-stock-pro-usage-v1')||'[]');data[ORDER_HISTORY_KEY]=JSON.parse(localStorage.getItem(ORDER_HISTORY_KEY)||'[]');data[SUPPLIER_DETAILS_KEY]=readSupplierDetails();return data}
 const LAST_BACKUP_KEY='van-stock-pro-last-backup-v1';
 function updateBackupStatus(){const el=$('backupStatus');if(!el)return;const raw=localStorage.getItem(LAST_BACKUP_KEY);if(!raw){el.innerHTML='<strong>⚠️ Backup needed.</strong> No backup has been created from this browser yet. Tap <strong>Save All & Backup</strong> and keep the downloaded JSON file somewhere safe.';el.style.borderColor='var(--amber)';return}const date=new Date(raw);if(Number.isNaN(date.getTime())){el.textContent='Backup status unknown. Create a new backup to reset the status.';return}const age=Date.now()-date.getTime(),due=age>=24*60*60*1000;el.style.borderColor=due?'var(--amber)':'var(--line)';el.innerHTML=(due?'<strong>⚠️ Backup due.</strong> ':'<strong>✅ Backup recently created.</strong> ')+'Last backup created: '+date.toLocaleString()+'. '+(due?'It has been at least 24 hours — create a fresh backup.':'Reminder: create a new backup at least once every 24 hours. This reminder appears while the app is open.')}
-const SNAPSHOT_PREFIX='van-stock-pro-snapshot-v1-';
-function listLocalSnapshots(){const list=[];for(let n=0;n<localStorage.length;n++){const k=localStorage.key(n);if(k&&k.startsWith(SNAPSHOT_PREFIX)){try{const obj=JSON.parse(localStorage.getItem(k));if(obj&&obj.data&&Array.isArray(obj.data[KEY]))list.push({key:k,obj,date:obj.exportedAt||k.slice(SNAPSHOT_PREFIX.length),count:obj.data[KEY].length})}catch{}}}return list.sort((a,b)=>String(b.date).localeCompare(String(a.date)))}
 function saveAllAndBackup(){try{
-const liveStock=JSON.stringify(items);localStorage.setItem(KEY,liveStock);if(localStorage.getItem(KEY)!==liveStock)throw new Error('Current stock could not be verified in browser storage');
-const data=collectBackupData();data[KEY]=JSON.parse(liveStock);data[MOVEMENT_KEY]=movementLog;
-const backupTime=new Date().toISOString();const backup={app:'Van Stock Pro',formatVersion:3,exportedAt:backupTime,snapshotId:backupTime,data};
-const stamp=backupTime.replace(/[:.]/g,'-');const filename='van-stock-pro-backup-'+stamp+'.json';
+const stockRaw=JSON.stringify(items);localStorage.setItem(KEY,stockRaw);
+if(localStorage.getItem(KEY)!==stockRaw)throw new Error('Could not verify current stock save');
+const data=collectBackupData();data[KEY]=JSON.parse(stockRaw);data[MOVEMENT_KEY]=movementLog;
+const when=new Date().toISOString();
+const backup={app:'Van Stock Pro',formatVersion:4,exportedAt:when,data};
+const filename='Van-Stock-Pro-backup-'+when.replace(/[:.]/g,'-')+'.json';
 downloadJson(filename,backup);
-let localSaved=false;
-try{
-const key=SNAPSHOT_PREFIX+backupTime;
-const raw=JSON.stringify(backup);
-localStorage.setItem(key,raw);
-localStorage.setItem('van pro',raw);
-localSaved=localStorage.getItem(key)===raw&&localStorage.getItem('van pro')===raw;
-// Keep the latest five snapshots only, without deleting the just-created one.
-const snapshots=listLocalSnapshots();for(const entry of snapshots.slice(5)){localStorage.removeItem(entry.key)}
-}catch(storageErr){console.warn('Snapshot archive could not be stored; downloadable backup was still generated.',storageErr)}
-try{localStorage.setItem(LAST_BACKUP_KEY,backupTime)}catch{}
+try{localStorage.setItem(LAST_BACKUP_KEY,when)}catch{}
 updateBackupStatus();
-if(localSaved)toast('New separate backup snapshot saved: '+new Date(backupTime).toLocaleString()+'. Previous snapshots are kept separately.');
-else toast('Unique backup file created for download. Browser storage could not keep another snapshot; keep the downloaded file safe.');
-}catch(err){console.error('Save all & backup failed',err);const el=$('backupStatus');if(el){el.textContent='Backup failed: '+(err?.message||String(err));el.style.borderColor='var(--red)'}toast('Backup failed: '+(err?.message||'unexpected error'))}}
+const status=$('backupStatus');if(status){status.textContent='Backup downloaded: '+new Date(when).toLocaleString()+'. Each backup is a separate file. Keep it safe; loading a backup will restore the quantities saved in that file.';status.style.borderColor='var(--mint)'}
+toast('Backup downloaded. Each save creates a separate file.');
+}catch(err){console.error('Backup failed',err);const status=$('backupStatus');if(status){status.textContent='Backup failed: '+(err?.message||String(err));status.style.borderColor='var(--red)'}toast('Backup failed: '+(err?.message||'unexpected error'))}}
 
 $('backupBtn').addEventListener('click',saveAllAndBackup);
 $('saveAllBackupTop').addEventListener('click',saveAllAndBackup);
@@ -118,18 +108,7 @@ const msg='RESTORE SUCCESS: '+stored.length+' items loaded. First quantities: '+
 const status=$('backupStatus');if(status){status.textContent=msg;status.style.borderColor=skipped.length?'var(--amber)':'var(--mint)'}
 toast(msg);return true;
 }
-$('loadLocalBackupBtn').addEventListener('click',()=>{
-try{
-const snapshots=listLocalSnapshots();
-if(!snapshots.length){const raw=localStorage.getItem('van pro');if(!raw){toast('No local backup snapshots found. Tap Save All & Backup to create one.');return}const parsed=JSON.parse(raw);if(restoreBackupObject(parsed))toast('Local backup loaded');return}
-const menu=snapshots.map((s,i)=>(i+1)+'. '+new Date(s.date).toLocaleString()+' — '+s.count+' items').join('\n');
-const choice=prompt('Choose a saved snapshot to restore. Newest first; older snapshots remain unchanged.\n\n'+menu+'\n\nEnter a number:','1');
-if(choice===null)return;
-const index=Number(choice)-1;
-if(!Number.isInteger(index)||index<0||index>=snapshots.length){toast('No valid snapshot selected');return}
-restoreBackupObject(snapshots[index].obj);
-}catch(err){console.error('Local snapshot load failed',err);toast('Could not load that local snapshot: '+(err?.message||'unknown error'))}
-});
+
 $('restoreFile').addEventListener('change',e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>25000000){toast('Backup is over 25 MB. Choose a smaller backup file.');e.target.value='';return}const reader=new FileReader();reader.onerror=()=>{toast('Could not read backup file');e.target.value=''};reader.onload=()=>{try{restoreBackupObject(JSON.parse(reader.result))}catch(err){console.error('Restore failed',err);toast('Restore failed or backup is invalid. Existing saved data was preserved where possible.')}finally{e.target.value=''}};reader.readAsText(file)});
 
 let pendingUsageItemId=null;$('stockRows').addEventListener('click',function handleUseOnJob(e){const b=e.target.closest('button[data-usejob]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();const item=items.find(x=>String(x.id)===String(b.getAttribute('data-usejob')));if(!item){toast('Could not find this stock item.');return}pendingUsageItemId=item.id;$('jobUseItemName').textContent=item.name+' · '+item.qty+' in stock';$('jobUseRef').value='';$('jobUseQty').value='1';const panel=$('jobUsePanel');panel.hidden=false;panel.style.display='flex';panel.style.position='fixed';panel.style.inset='0';panel.style.zIndex='100000';panel.style.background='rgba(3,8,18,.9)';panel.style.alignItems='center';panel.style.justifyContent='center';panel.style.padding='16px';const card=panel.querySelector('.job-use-card');card.style.display='block';card.style.background='#101b2d';card.style.color='#fff';card.style.padding='20px';card.style.borderRadius='16px';card.style.maxWidth='480px';card.style.width='100%';card.style.maxHeight='85vh';card.style.overflow='auto';setTimeout(()=>$('jobUseRef').focus(),50)});function closeJobUsePanel(){const panel=$('jobUsePanel');panel.hidden=true;panel.style.display='none';pendingUsageItemId=null}
