@@ -60,7 +60,30 @@ $('backupBtn').addEventListener('click',saveAllAndBackup);
 $('saveAllBackupTop').addEventListener('click',saveAllAndBackup);
 $('restoreBtn').addEventListener('click',()=>$('restoreFile').click());
 $('loadBackupTop').addEventListener('click',()=>$('restoreFile').click());
-function restoreBackupObject(parsed){const incoming=Array.isArray(parsed)?parsed:parsed?.data?.[KEY]||parsed?.items;if(!Array.isArray(incoming))throw new Error('missing items');const valid=incoming.every(i=>i&&typeof i==='object'&&typeof i.name==='string'&&i.name.trim()&&i.id!==undefined&&Number.isFinite(Number(i.qty))&&Number(i.qty)>=0&&Number.isFinite(Number(i.minQty))&&Number(i.minQty)>=0);if(!valid)throw new Error('invalid items');const ids=new Set();for(const i of incoming){if(ids.has(String(i.id)))throw new Error('duplicate ids');ids.add(String(i.id));if(i.photo&&typeof i.photo!=='string')throw new Error('invalid photo')}if(!confirm('Restore '+incoming.length+' stock items and saved app data from this backup? This replaces saved data on this device. Make a separate backup first if needed.'))return false;const data=parsed?.data&&typeof parsed.data==='object'?parsed.data:{[KEY]:incoming};const previous={};for(let n=0;n<localStorage.length;n++){const k=localStorage.key(n);if(k&&k.startsWith(BACKUP_PREFIX))previous[k]=localStorage.getItem(k)}try{for(const key of Object.keys(previous))if(!(key in data))localStorage.removeItem(key);for(const [key,value] of Object.entries(data)){if(!key.startsWith(BACKUP_PREFIX))continue;localStorage.setItem(key,JSON.stringify(value))}const saved=JSON.parse(localStorage.getItem(KEY)||'null');if(!Array.isArray(saved)||saved.length!==incoming.length)throw new Error('restore verify failed');items=saved;loadMovementLog();selectedRestock.clear();render();renderMinMax();if(items.length){const withPhoto=items.find(i=>i.photo);showSelectedItem(withPhoto||items[0])}else showSelectedItem(null);resetForm();toast('Backup restored and verified');return true}catch(err){for(const k of Object.keys(data)){if(k.startsWith(BACKUP_PREFIX)&&!(k in previous))localStorage.removeItem(k)}for(const [k,v] of Object.entries(previous))localStorage.setItem(k,v);items=JSON.parse(localStorage.getItem(KEY)||'[]');loadMovementLog();render();throw err}}
+function restoreBackupObject(parsed){
+const incoming=Array.isArray(parsed)?parsed:(parsed&&parsed.data&&Array.isArray(parsed.data[KEY])?parsed.data[KEY]:(parsed&&Array.isArray(parsed.items)?parsed.items:null));
+if(!Array.isArray(incoming))throw new Error('Backup does not contain a stock item list');
+const valid=incoming.every(i=>i&&typeof i==='object'&&typeof i.name==='string'&&i.name.trim()&&i.id!==undefined&&Number.isFinite(Number(i.qty))&&Number(i.qty)>=0&&Number.isFinite(Number(i.minQty))&&Number(i.minQty)>=0);
+if(!valid)throw new Error('Backup stock data is invalid');
+const ids=new Set();for(const i of incoming){if(ids.has(String(i.id)))throw new Error('Backup contains duplicate item IDs');ids.add(String(i.id));if(i.photo&&typeof i.photo!=='string')throw new Error('Backup contains an invalid photo')}
+const data=parsed&&parsed.data&&typeof parsed.data==='object'&&!Array.isArray(parsed.data)?{...parsed.data}:{[KEY]:incoming};
+data[KEY]=incoming;
+if(!confirm('Restore '+incoming.length+' stock items and saved app data from this backup? This replaces saved data on this device. Make a separate backup first if needed.'))return false;
+const previous={};for(let n=0;n<localStorage.length;n++){const k=localStorage.key(n);if(k&&k.startsWith(BACKUP_PREFIX))previous[k]=localStorage.getItem(k)}
+try{
+for(const key of Object.keys(previous)){if(!(key in data))localStorage.removeItem(key)}
+for(const [key,value] of Object.entries(data)){if(key.startsWith(BACKUP_PREFIX)){localStorage.setItem(key,typeof value==='string'&&key!==KEY?value:JSON.stringify(value))}}
+const raw=localStorage.getItem(KEY);const saved=raw?JSON.parse(raw):null;
+if(!Array.isArray(saved)||saved.length!==incoming.length||saved.some((x,n)=>String(x.id)!==String(incoming[n].id)))throw new Error('Stock restore verification failed');
+for(const [key,value] of Object.entries(data)){if(!key.startsWith(BACKUP_PREFIX))continue;const stored=localStorage.getItem(key);if(stored===null)throw new Error('Could not restore '+key)}
+items=saved;loadMovementLog();selectedRestock.clear();render();renderMinMax();renderStockAlerts();renderSupplierDirectory();renderSupplierDetails();renderOrderHistory();
+if(items.length){const withPhoto=items.find(i=>i.photo);showSelectedItem(withPhoto||items[0])}else showSelectedItem(null);
+resetForm();updateBackupStatus();toast('Backup restored and verified: '+saved.length+' stock items');return true;
+}catch(err){
+for(let n=localStorage.length-1;n>=0;n--){const k=localStorage.key(n);if(k&&k.startsWith(BACKUP_PREFIX)&&!(k in previous))localStorage.removeItem(k)}
+for(const [k,v] of Object.entries(previous))localStorage.setItem(k,v);
+items=JSON.parse(localStorage.getItem(KEY)||'[]');loadMovementLog();render();throw err
+}}
 $('loadLocalBackupBtn').addEventListener('click',()=>{try{const raw=localStorage.getItem('van pro');if(!raw){toast('No local backup found. Tap Save All & Backup first.');return}const parsed=JSON.parse(raw);if(restoreBackupObject(parsed))toast('Van Pro local backup loaded')}catch(err){console.error('Local backup load failed',err);toast('Could not load the Van Pro local backup.')}});
 $('restoreFile').addEventListener('change',e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>25000000){toast('Backup is over 25 MB. Choose a smaller backup file.');e.target.value='';return}const reader=new FileReader();reader.onerror=()=>{toast('Could not read backup file');e.target.value=''};reader.onload=()=>{try{restoreBackupObject(JSON.parse(reader.result))}catch(err){console.error('Restore failed',err);toast('Restore failed or backup is invalid. Existing saved data was preserved where possible.')}finally{e.target.value=''}};reader.readAsText(file)});
 
