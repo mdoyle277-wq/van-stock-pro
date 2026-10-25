@@ -91,9 +91,17 @@ const check=JSON.parse(localStorage.getItem(KEY)||'null');
 if(!Array.isArray(check)||check.length!==incoming.length||check.some((i,n)=>String(i.id)!==String(incoming[n].id)||Number(i.qty)!==Number(incoming[n].qty)))throw new Error('The browser did not save the restored quantities. Try opening the app directly in Chrome.');
 items=check;
 selectedRestock.clear();
-try{render()}catch(err){console.error('Stock table refresh failed',err)}
+// Clear filters so restored rows cannot be hidden by the current view.
+try{$('search').value='';$('categoryFilter').value='';$('statusFilter').value=''}catch(err){}
+try{
+const verifiedAgain=JSON.parse(localStorage.getItem(KEY)||'null');
+if(!Array.isArray(verifiedAgain)||verifiedAgain.length!==incoming.length||verifiedAgain.some((i,n)=>String(i.id)!==String(incoming[n].id)||Number(i.qty)!==Number(incoming[n].qty)))throw new Error('Stock changed after restore verification');
+items=verifiedAgain;
+render();
+$('stockRows').scrollIntoView({behavior:'smooth',block:'start'});
+}catch(err){console.error('Stock table refresh failed',err);throw new Error('Saved quantities were written, but the stock table could not refresh: '+(err?.message||String(err)))}
 try{showSelectedItem(items[0]||null)}catch(err){}
-const msg='STOCK RESTORED: '+check.length+' items. '+check.slice(0,3).map(i=>i.name+' = '+i.qty).join('; ');
+const msg='STOCK RESTORED AND TABLE REFRESHED: '+items.length+' items. '+items.slice(0,3).map(i=>i.name+' = '+i.qty).join('; ');
 const status=$('backupStatus');if(status){status.textContent=msg;status.style.borderColor='var(--mint)'}
 toast(msg);
 return true;
