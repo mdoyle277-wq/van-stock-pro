@@ -61,35 +61,39 @@ $('saveAllBackupTop').addEventListener('click',saveAllAndBackup);
 $('restoreBtn').addEventListener('click',()=>$('restoreFile').click());
 $('loadBackupTop').addEventListener('click',()=>$('restoreFile').click());
 function restoreBackupObject(parsed){
-const incoming=Array.isArray(parsed)?parsed:(parsed&&parsed.data&&Array.isArray(parsed.data[KEY])?parsed.data[KEY]:(parsed&&Array.isArray(parsed.items)?parsed.items:null));
-if(!Array.isArray(incoming))throw new Error('Backup does not contain a stock item list');
+const root=parsed&&typeof parsed==='object'?parsed:{};
+const data=root.data&&typeof root.data==='object'&&!Array.isArray(root.data)?root.data:{};
+let incoming=Array.isArray(parsed)?parsed:null;
+if(!incoming){
+const candidates=[data[KEY],data.items,data.stock,data.inventory,data['items'],root.items,root.stock,root.inventory,root.stockItems,root.inventoryItems];
+incoming=candidates.find(Array.isArray)||null;
+}
+if(!Array.isArray(incoming))throw new Error('This file does not contain a recognised stock list. Please choose a Van Stock Pro full-backup JSON file.');
+incoming=incoming.map(i=>i&&typeof i==='object'?({...i,qty:i.qty??i.quantity??i.stockQty??i.currentStock,minQty:i.minQty??i.minimum??i.min??0}):i);
 const valid=incoming.every(i=>i&&typeof i==='object'&&typeof i.name==='string'&&i.name.trim()&&i.id!==undefined&&Number.isFinite(Number(i.qty))&&Number(i.qty)>=0&&Number.isFinite(Number(i.minQty))&&Number(i.minQty)>=0);
-if(!valid)throw new Error('Backup stock data is invalid');
+if(!valid)throw new Error('The backup stock list was found, but one or more items have invalid names, IDs or quantities.');
 const ids=new Set();for(const i of incoming){if(ids.has(String(i.id)))throw new Error('Backup contains duplicate item IDs');ids.add(String(i.id));if(i.photo&&typeof i.photo!=='string')throw new Error('Backup contains an invalid photo')}
-const data=parsed&&parsed.data&&typeof parsed.data==='object'&&!Array.isArray(parsed.data)?{...parsed.data}:{};
 const preview=incoming.slice(0,5).map(i=>i.name+': '+i.qty).join('; ');
-if(!confirm('Restore '+incoming.length+' stock items from backup? Example saved quantities: '+preview+(incoming.length>5?' …':'')+'. Stock quantities are restored first; other settings restore where browser storage allows.'))return false;
-// Stock is the critical data: write and verify it before attempting larger optional records,
-// so a full localStorage quota cannot silently cancel a stock restore.
+if(!confirm('BACKUP CHECK\nFile contains '+incoming.length+' stock items.\nExample quantities: '+preview+(incoming.length>5?' …':'')+'\n\nPress OK to replace current stock with these saved quantities.'))return false;
 const stockRaw=JSON.stringify(incoming);
 localStorage.setItem(KEY,stockRaw);
 const stored=JSON.parse(localStorage.getItem(KEY)||'null');
-if(!Array.isArray(stored)||stored.length!==incoming.length||stored.some((x,n)=>String(x.id)!==String(incoming[n].id)||Number(x.qty)!==Number(incoming[n].qty)||Number(x.minQty)!==Number(incoming[n].minQty)||((x.maxQty??null)!==(incoming[n].maxQty??null))))throw new Error('Stock restore could not be verified. Browser storage may be full.');
+if(!Array.isArray(stored)||stored.length!==incoming.length||stored.some((x,n)=>String(x.id)!==String(incoming[n].id)||Number(x.qty)!==Number(incoming[n].qty)||Number(x.minQty)!==Number(incoming[n].minQty)))throw new Error('Stock restore verification failed: browser storage did not retain the backup quantities.');
 items=stored;
 let skipped=[];
-data[KEY]=incoming;
+const restoreData={...data,[KEY]:incoming};
 const backupKeys=[];for(let n=0;n<localStorage.length;n++){const k=localStorage.key(n);if(k&&k.startsWith(BACKUP_PREFIX)&&k!==KEY)backupKeys.push(k)}
-for(const key of backupKeys){if(!(key in data)){try{localStorage.removeItem(key)}catch(err){skipped.push(key)}}}
-for(const [key,value] of Object.entries(data)){
+for(const key of backupKeys){if(!(key in restoreData)){try{localStorage.removeItem(key)}catch(err){skipped.push(key)}}}
+for(const [key,value] of Object.entries(restoreData)){
 if(!key.startsWith(BACKUP_PREFIX)||key===KEY)continue;
-try{const raw=typeof value==='string'&&key===MOVEMENT_KEY?value:JSON.stringify(value);localStorage.setItem(key,raw)}catch(err){skipped.push(key)}
+try{localStorage.setItem(key,typeof value==='string'&&key===MOVEMENT_KEY?value:JSON.stringify(value))}catch(err){skipped.push(key)}
 }
 loadMovementLog();selectedRestock.clear();render();renderMinMax();renderStockAlerts();renderSupplierDirectory();renderSupplierDetails();renderOrderHistory();
 if(items.length){const withPhoto=items.find(i=>i.photo);showSelectedItem(withPhoto||items[0])}else showSelectedItem(null);
 resetForm();updateBackupStatus();
-if(skipped.length)toast('Stock restored and verified. '+skipped.length+' other setting/history item(s) could not fit in browser storage.');
-else toast('Restored and verified '+stored.length+' items. Example: '+stored.slice(0,3).map(i=>i.name+' = '+i.qty).join(', '));
-return true;
+const msg='RESTORE SUCCESS: '+stored.length+' items loaded. First quantities: '+stored.slice(0,3).map(i=>i.name+' = '+i.qty).join(', ')+(skipped.length?'. Some settings/history could not be restored due to browser storage limits.':'');
+const status=$('backupStatus');if(status){status.textContent=msg;status.style.borderColor=skipped.length?'var(--amber)':'var(--mint)'}
+toast(msg);return true;
 }
 $('loadLocalBackupBtn').addEventListener('click',()=>{try{const raw=localStorage.getItem('van pro');if(!raw){toast('No local backup found. Tap Save All & Backup first.');return}const parsed=JSON.parse(raw);if(restoreBackupObject(parsed))toast('Van Pro local backup loaded')}catch(err){console.error('Local backup load failed',err);toast('Could not load the Van Pro local backup.')}});
 $('restoreFile').addEventListener('change',e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>25000000){toast('Backup is over 25 MB. Choose a smaller backup file.');e.target.value='';return}const reader=new FileReader();reader.onerror=()=>{toast('Could not read backup file');e.target.value=''};reader.onload=()=>{try{restoreBackupObject(JSON.parse(reader.result))}catch(err){console.error('Restore failed',err);toast('Restore failed or backup is invalid. Existing saved data was preserved where possible.')}finally{e.target.value=''}};reader.readAsText(file)});
