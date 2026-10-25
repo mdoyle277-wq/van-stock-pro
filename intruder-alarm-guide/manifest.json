@@ -1,0 +1,11 @@
+{
+  "name": "Intruder Alarm Engineer Guide",
+  "short_name": "Alarm Guide",
+  "description": "Engineer pocket reference for intruder alarm fault finding.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#101827",
+  "icons": []
+}
