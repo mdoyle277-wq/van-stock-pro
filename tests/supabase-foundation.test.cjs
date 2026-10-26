@@ -137,3 +137,14 @@ assert.match(mockElements.cloudImportWarnings.textContent,/movement entries are 
 assert.match(mockElements.cloudImportWarnings.textContent,/job-usage entries are not valid records/);
 assert.match(mockElements.cloudImportWarnings.textContent,/embedded photos are very large/);
 assert.match(sandbox.importMessage.textContent,/nothing was uploaded or changed/);
+
+assert.doesNotMatch(auth, /localStorage\s*\.\s*(?:setItem|removeItem|clear)\s*\(/,
+  'Cloud auth and import preview must not mutate browser-local stock data');
+assert.doesNotMatch(auth, /\.from\(["'](?:stock_items|stock_movements|job_usage)["']\)\s*\.\s*(?:insert|upsert|update|delete)\s*\(/,
+  'Cloud setup must not write stock, movements, or job usage before migration is explicitly implemented');
+assert.match(auth, /file\.size > 50 \* 1024 \* 1024/,
+  'Backup preview must reject files above its documented safety limit');
+assert.match(auth, /JSON\.parse\(await file\.text\(\)\)/,
+  'Backup preview must parse the selected file contents, not a shared or cached backup');
+assert.match(auth, /catch \(error\) \{\s*importMessage\.textContent = error\?\.message/,
+  'Backup parse errors must be surfaced to the user rather than silently ignored');
