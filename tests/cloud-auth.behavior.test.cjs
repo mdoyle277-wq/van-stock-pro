@@ -83,9 +83,10 @@ function makeHarness(options = {}) {
     SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test',
     console, Set, Number, String, JSON, Error, Promise
   };
+  const executableSource = 'const createClient = () => globalSupabase;\\nconst SUPABASE_URL = "https://example.supabase.co";\\nconst SUPABASE_PUBLISHABLE_KEY = "sb_publishable_test";\\n' + source;
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-  const execute = new AsyncFunction('document','localStorage','supabase','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','console','Set','Number','String','JSON','Error','Promise', source);
-  return execute(context.document, context.localStorage, context.supabase, context.SUPABASE_URL, context.SUPABASE_PUBLISHABLE_KEY, console, Set, Number, String, JSON, Error, Promise)
+  const execute = new AsyncFunction('document','localStorage','globalSupabase','console','Set','Number','String','JSON','Error','Promise', executableSource);
+  return execute(context.document, context.localStorage, context.supabase, console, Set, Number, String, JSON, Error, Promise)
     .then(() => ({ elements, calls, local, authListeners, get workspaceInsertCount() { return workspaceInsertCount; } }));
 }
 
