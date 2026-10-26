@@ -290,7 +290,7 @@ assert.ok(schema.includes("unique (workspace_id, legacy_id)"),
   "Stock import must have a workspace-scoped legacy ID uniqueness guard");
 const createdPolicyNames = [...schema.matchAll(/^create policy "([^"]+)" on ([^\\n]+)$/gm)];
 const droppedPolicyNames = [...schema.matchAll(/^drop policy if exists "([^"]+)" on ([^;]+);$/gm)];
-assert.equal(droppedPolicyNames.length, createdPolicyNames.length,
+assert.equal(droppedPolicyNames.length, (schema.match(/create policy "/g) || []).length,
   "Every policy created by the schema should be dropped first so rerunning after partial setup does not fail");
 for (const policy of createdPolicyNames) {
   assert.ok(droppedPolicyNames.some(drop => drop[1] === policy[1] && drop[2] === policy[2]),
