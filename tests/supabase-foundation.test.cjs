@@ -52,5 +52,8 @@ assert.ok(html.includes("Number(i.maxQty):'—')"), 'job usage report must displ
 assert.equal((schema.match(/create policy \"/g) || []).length, (schema.match(/drop policy if exists \"/g) || []).length, 'schema policies must be safe to recreate on reruns');
 assert.match(auth, /function previewLocalMigration/);
 assert.match(auth, /LOCAL MIGRATION PREVIEW ONLY/);
+assert.match(auth, /Number\.isInteger\(Number\(item\.qty\)\)/, 'preview must reject invalid stock quantities');
+assert.match(auth, /van-stock-pro-supplier-details-v1/, 'preview must inspect saved supplier contact data');
+assert.match(auth, /invalidMovements\.length \+ invalidUsage\.length \+ invalidOrders\.length/, 'preview must flag questionable history records');
 assert.doesNotMatch(auth, /localStorage\.setItem|localStorage\.removeItem/, 'preview must not alter local stock');
 console.log('Supabase foundation static checks passed. No live auth, browser, or database tests were performed.');
