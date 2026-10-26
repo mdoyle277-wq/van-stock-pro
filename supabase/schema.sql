@@ -176,9 +176,9 @@ drop policy if exists "authenticated users can create workspaces" on public.work
 create policy "authenticated users can create workspaces" on public.workspaces
   for insert to authenticated with check (created_by = auth.uid());
 drop policy if exists "workspace admins can update workspaces" on public.workspaces;
-create policy "workspace admins can update workspaces" on public.workspaces
-  for update to authenticated using (public.has_workspace_role(id, array['owner','admin']))
-  with check (public.has_workspace_role(id, array['owner','admin']));
+create policy "workspace owners can update workspaces" on public.workspaces
+  for update to authenticated using (public.has_workspace_role(id, array['owner']))
+  with check (public.has_workspace_role(id, array['owner']));
 
 drop policy if exists "members can view workspace membership" on public.workspace_members;
 create policy "members can view workspace membership" on public.workspace_members
