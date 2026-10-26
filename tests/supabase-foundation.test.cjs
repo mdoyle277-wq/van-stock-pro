@@ -87,7 +87,7 @@ const sandbox = {
 };
 vm.createContext(sandbox);
 vm.runInContext(
-  extractFunction(auth, 'countArray') + '\\n' + extractFunction(auth, 'previewBackup'),
+  extractFunction(auth, 'countArray') + '\n' + extractFunction(auth, 'previewBackup'),
   sandbox
 );
 const validBackup = {
