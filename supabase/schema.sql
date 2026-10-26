@@ -133,48 +133,65 @@ alter table public.stock_items enable row level security;
 alter table public.stock_movements enable row level security;
 alter table public.job_usage enable row level security;
 
+drop policy if exists "members and creators can view their workspaces" on public.workspaces;
 create policy "members and creators can view their workspaces" on public.workspaces
   for select to authenticated using (public.is_workspace_member(id) or public.is_workspace_creator(id));
+drop policy if exists "authenticated users can create workspaces" on public.workspaces;
 create policy "authenticated users can create workspaces" on public.workspaces
   for insert to authenticated with check (created_by = auth.uid());
+drop policy if exists "workspace admins can update workspaces" on public.workspaces;
 create policy "workspace admins can update workspaces" on public.workspaces
   for update to authenticated using (public.has_workspace_role(id, array['owner','admin']))
   with check (public.has_workspace_role(id, array['owner','admin']));
 
+drop policy if exists "members can view workspace membership" on public.workspace_members;
 create policy "members can view workspace membership" on public.workspace_members
   for select to authenticated using (public.is_workspace_member(workspace_id));
+drop policy if exists "workspace admins can add members" on public.workspace_members;
 create policy "workspace admins can add members" on public.workspace_members
   for insert to authenticated with check (
     (user_id = auth.uid() and public.is_workspace_creator(workspace_id))
     or public.has_workspace_role(workspace_id, array['owner','admin'])
   );
+drop policy if exists "workspace admins can update members" on public.workspace_members;
 create policy "workspace admins can update members" on public.workspace_members
   for update to authenticated using (public.has_workspace_role(workspace_id, array['owner','admin']))
   with check (public.has_workspace_role(workspace_id, array['owner','admin']));
+drop policy if exists "workspace admins can remove members" on public.workspace_members;
 create policy "workspace admins can remove members" on public.workspace_members
   for delete to authenticated using (public.has_workspace_role(workspace_id, array['owner','admin']));
 
+drop policy if exists "members can view stock items" on public.stock_items;
 create policy "members can view stock items" on public.stock_items
   for select to authenticated using (public.is_workspace_member(workspace_id));
+drop policy if exists "editors can add stock items" on public.stock_items;
 create policy "editors can add stock items" on public.stock_items
   for insert to authenticated with check (public.has_workspace_role(workspace_id, array['owner','admin','member']));
+drop policy if exists "editors can update stock items" on public.stock_items;
 create policy "editors can update stock items" on public.stock_items
   for update to authenticated using (public.has_workspace_role(workspace_id, array['owner','admin','member']))
   with check (public.has_workspace_role(workspace_id, array['owner','admin','member']));
+drop policy if exists "admins can delete stock items" on public.stock_items;
 create policy "admins can delete stock items" on public.stock_items
   for delete to authenticated using (public.has_workspace_role(workspace_id, array['owner','admin']));
 
+drop policy if exists "members can view movements" on public.stock_movements;
 create policy "members can view movements" on public.stock_movements
   for select to authenticated using (public.is_workspace_member(workspace_id));
+drop policy if exists "editors can add movements" on public.stock_movements;
 create policy "editors can add movements" on public.stock_movements
   for insert to authenticated with check (public.has_workspace_role(workspace_id, array['owner','admin','member']));
+drop policy if exists "admins can delete movements" on public.stock_movements;
 create policy "admins can delete movements" on public.stock_movements
   for delete to authenticated using (public.has_workspace_role(workspace_id, array['owner','admin']));
 
+drop policy if exists "members can view job usage" on public.job_usage;
 create policy "members can view job usage" on public.job_usage
   for select to authenticated using (public.is_workspace_member(workspace_id));
+drop policy if exists "editors can add job usage" on public.job_usage;
 create policy "editors can add job usage" on public.job_usage
   for insert to authenticated with check (public.has_workspace_role(workspace_id, array['owner','admin','member']));
+drop policy if exists "admins can delete job usage" on public.job_usage;
 create policy "admins can delete job usage" on public.job_usage
   for delete to authenticated using (public.has_workspace_role(workspace_id, array['owner','admin']));
 
@@ -183,16 +200,19 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('van-stock-item-photos', 'van-stock-item-photos', false, 5242880, array['image/jpeg','image/png','image/webp'])
 on conflict (id) do nothing;
 
+drop policy if exists "workspace members can view item photos" on storage.objects;
 create policy "workspace members can view item photos" on storage.objects
   for select to authenticated using (
     bucket_id = 'van-stock-item-photos'
     and public.is_workspace_member(((storage.foldername(name))[1])::uuid)
   );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
 create policy "workspace editors can upload item photos" on storage.objects
   for insert to authenticated with check (
     bucket_id = 'van-stock-item-photos'
     and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
   );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
 create policy "workspace editors can update item photos" on storage.objects
   for update to authenticated using (
     bucket_id = 'van-stock-item-photos'
@@ -201,6 +221,7 @@ create policy "workspace editors can update item photos" on storage.objects
     bucket_id = 'van-stock-item-photos'
     and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
   );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
 create policy "workspace admins can delete item photos" on storage.objects
   for delete to authenticated using (
     bucket_id = 'van-stock-item-photos'
