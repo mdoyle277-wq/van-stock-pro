@@ -25,4 +25,5 @@ assert.doesNotMatch(schema, /as \$(?!\$)|\n\$;\n/);
 for (const table of ['workspaces','workspace_members','stock_items','stock_movements','job_usage']) {
   assert.match(schema, new RegExp('alter table public\\.' + table + ' enable row level security'));
 }
+assert.match(schema, /members and creators can view their workspaces[\\s\\S]*?created_by = auth\\.uid\(\)/, 'workspace creator must be able to read INSERT RETURNING before membership is added');
 console.log('Supabase foundation static checks passed. No live auth, browser, or database tests were performed.');
