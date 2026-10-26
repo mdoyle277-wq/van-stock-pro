@@ -98,19 +98,34 @@ language sql
 stable
 security definer
 set search_path = public
-as $$
+as $
   select exists (
     select 1 from public.workspace_members wm
     where wm.workspace_id = target_workspace
       and wm.user_id = auth.uid()
       and wm.role = any(allowed_roles)
   );
-$$;
+$;
+
+create or replace function public.is_workspace_creator(target_workspace uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $
+  select exists (
+    select 1 from public.workspaces w
+    where w.id = target_workspace and w.created_by = auth.uid()
+  );
+$;
 
 revoke all on function public.is_workspace_member(uuid) from public;
 revoke all on function public.has_workspace_role(uuid, text[]) from public;
+revoke all on function public.is_workspace_creator(uuid) from public;
 grant execute on function public.is_workspace_member(uuid) to authenticated;
 grant execute on function public.has_workspace_role(uuid, text[]) to authenticated;
+grant execute on function public.is_workspace_creator(uuid) to authenticated;
 
 alter table public.workspaces enable row level security;
 alter table public.workspace_members enable row level security;
@@ -130,7 +145,8 @@ create policy "members can view workspace membership" on public.workspace_member
   for select to authenticated using (public.is_workspace_member(workspace_id));
 create policy "workspace admins can add members" on public.workspace_members
   for insert to authenticated with check (
-    user_id = auth.uid() or public.has_workspace_role(workspace_id, array['owner','admin'])
+    (user_id = auth.uid() and public.is_workspace_creator(workspace_id))
+    or public.has_workspace_role(workspace_id, array['owner','admin'])
   );
 create policy "workspace admins can update members" on public.workspace_members
   for update to authenticated using (public.has_workspace_role(workspace_id, array['owner','admin']))
