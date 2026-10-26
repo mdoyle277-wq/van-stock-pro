@@ -157,8 +157,12 @@ function previewBackup(payload) {
   const settingCount = Object.keys(data).filter(key => !known.has(key)).length;
   const warnings = [];
   if (!items.length) warnings.push("No stock items were found under the expected stock key.");
-  if (items.some(item => !item || typeof item !== "object" || !String(item.name || "").trim())) warnings.push("Some stock entries are missing a valid item name.");
-  if (items.some(item => item && item.qty != null && (!Number.isFinite(Number(item.qty)) || Number(item.qty) < 0))) warnings.push("Some stock quantities are invalid or negative.");
+  if (items.some(item => !item || typeof item !== "object" || Array.isArray(item) || !String(item.name || "").trim())) warnings.push("Some stock entries are missing a valid item name or are not records.");
+  if (items.some(item => !item || item.qty == null || item.qty === "" || !Number.isFinite(Number(item.qty)) || Number(item.qty) < 0)) warnings.push("Some stock quantities are missing, invalid, or negative.");
+  const itemIds = items.map(item => item && item.id != null ? String(item.id).trim() : "").filter(Boolean);
+  if (new Set(itemIds).size !== itemIds.length) warnings.push("Duplicate stock item IDs were found; review before importing.");
+  if (items.some(item => item && item.maxQty != null && item.maxQty !== "" && (!Number.isFinite(Number(item.maxQty)) || Number(item.maxQty) < 0))) warnings.push("Some maximum stock quantities are invalid or negative.");
+  if (items.some(item => item && item.minQty != null && item.minQty !== "" && (!Number.isFinite(Number(item.minQty)) || Number(item.minQty) < 0))) warnings.push("Some minimum stock quantities are invalid or negative.");
   $("cloudImportItems").textContent = items.length;
   $("cloudImportMovements").textContent = movements.length;
   $("cloudImportUsage").textContent = usage.length;
