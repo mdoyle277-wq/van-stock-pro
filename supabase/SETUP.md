@@ -1,6 +1,6 @@
 # Van Stock Pro — Supabase multi-device setup
 
-This folder is a **preparation branch only**. It does not change the live GitHub Pages app and does not yet connect the app to a cloud database. Keeping the existing live app untouched protects current stock data while the cloud setup is prepared.
+This is a **development branch only**. The app now includes Supabase browser configuration plus a sign-in/account-creation panel and a safe workspace setup action. It is not published to the live GitHub Pages app, and it does not yet sync or migrate stock. Keeping the live app untouched protects current stock data while the cloud workflow is prepared.
 
 ## Architecture
 
@@ -21,15 +21,23 @@ This folder is a **preparation branch only**. It does not change the live GitHub
 
 Never send or put the database password, `service_role` key, secret API keys, or personal access tokens into the browser app or a chat. The browser only uses the public/publishable key; row-level security is required.
 
-## 2. Send the two public configuration values
+## 2. Browser configuration
 
-Provide:
-- Project URL (looks like `https://xxxx.supabase.co`)
-- Publishable/anon public key
+The development branch has `supabase-config.js` with this project's URL and its publishable key. The publishable key is intended for browser use; it is not a database password. Keep service-role keys and secret API keys out of the repository.
 
-These values are intended for a browser client. Do not provide the service-role key.
+## 3. Current development functionality
 
-## 3. Implementation and migration sequence
+- Email/password sign-in and account creation via Supabase Auth.
+- Session persistence in the browser.
+- A schema readiness check.
+- A button to create a `Van Stock Pro` workspace and owner membership when the schema is installed and the signed-in user has no membership.
+- The workspace setup does **not** import, replace, or edit stock data.
+
+The app must be opened from the development branch's preview environment to test this panel; it is not live on the production GitHub Pages site. Account creation may require email confirmation depending on Supabase Auth settings.
+
+## 4. Next implementation steps
+
+## 5. Implementation and migration sequence
 
 Before publishing any integration to `main`:
 
