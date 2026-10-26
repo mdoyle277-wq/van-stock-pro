@@ -135,7 +135,8 @@ function countArray(data, key) {
     const raw = data[key];
     if (raw == null) return [];
     const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-    return Array.isArray(parsed) ? parsed : [];
+    // A present but malformed record list must not look like a valid empty list.
+    return Array.isArray(parsed) ? parsed : null;
   } catch {
     return null;
   }
