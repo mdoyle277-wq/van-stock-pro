@@ -153,3 +153,7 @@ assert.match(auth, /from\(["']workspaces["']\)\.select\(["']id["']\)\.eq\(["']cr
   'Workspace setup should recover a creator-owned workspace before creating a duplicate');
 assert.match(auth, /if \(!workspace\) \{/,
   'Workspace creation should occur only when no creator-owned workspace exists');
+
+assert.match(auth, /let createdNow = false/);
+assert.match(auth, /Existing Van Stock Pro workspace recovered/);
+assert.match(auth, /Workspace " \+ \(createdNow \? "was created" : "was recovered"\)/);
