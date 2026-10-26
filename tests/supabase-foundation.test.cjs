@@ -32,6 +32,17 @@ for (const table of ['supplier_details','order_history']) {
 }
 assert.ok(schema.includes('unique (workspace_id, supplier_name)'), 'supplier details must be unique per workspace');
 assert.ok(schema.includes('quantity numeric not null check (quantity > 0)'), 'order history quantities must be positive');
+for (const table of ['stock_items','stock_movements','job_usage','supplier_details','order_history']) {
+  assert.ok(schema.includes('create policy "members can view') && schema.includes(' on public.' + table), table + ' must have member-scoped read policies');
+  assert.ok(schema.includes('create policy "editors can add') && schema.includes(' on public.' + table), table + ' must have editor-scoped insert policies');
+}
+assert.match(schema, /values \\('van-stock-item-photos', 'van-stock-item-photos', false, 5242880/,
+  'item photo storage must be private with a 5 MiB upload limit');
+assert.match(schema, /array\\['image\\/jpeg','image\\/png','image\\/webp'\\]/,
+  'item photo storage must restrict uploads to supported image MIME types');
+assert.match(schema, /public\\.has_workspace_role\\(\\(\\(storage\\.foldername\\(name\\)\\)\\[1\\]\\)::uuid, array\\['owner','admin','member'\\]\\)/,
+  'photo upload policies must verify workspace role from the storage path');
+
 assert.match(auth, /function previewLocalMigration/);
 assert.match(auth, /LOCAL MIGRATION PREVIEW ONLY/);
 assert.doesNotMatch(auth, /localStorage\.setItem|localStorage\.removeItem/, 'preview must not alter local stock');
