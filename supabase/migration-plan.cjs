@@ -55,6 +55,7 @@ function buildMigrationPlan(payload) {
     };
   });
   function mapHistory(records, kind) {
+    const sourceRecordIds = new Set();
     return records.map((record, index) => {
       if (!record || typeof record !== "object" || Array.isArray(record)) {
         throw new Error(kind + " record " + (index + 1) + " is invalid.");
@@ -66,6 +67,10 @@ function buildMigrationPlan(payload) {
         warnings.push(kind + " record " + (index + 1) + " references missing item " + legacyId + ".");
       }
       const legacyRecordId = record.id == null ? "" : String(record.id).trim();
+      if (legacyRecordId && sourceRecordIds.has(legacyRecordId)) {
+        throw new Error(kind + " history has duplicate source record ID: " + legacyRecordId);
+      }
+      if (legacyRecordId) sourceRecordIds.add(legacyRecordId);
       if (!legacyRecordId) {
         warnings.push(kind + " record " + (index + 1) + " has no stable source record ID; retry-safe import needs a verified idempotency key.");
       }
