@@ -23,6 +23,8 @@ assert.match(config, /sb_publishable_/);
 assert.doesNotMatch(config, /service_role|sb_secret_/);
 assert.equal((schema.match(/as \$\$/g) || []).length, 3);
 assert.equal((schema.match(/\$\$;/g) || []).length, 3);
+assert.equal((schema.match(/set search_path = ''/g) || []).length, 3, 'security-definer functions must use an empty search_path and fully qualified object names');
+assert.doesNotMatch(schema, /set search_path = public/, 'security-definer functions must not trust a writable schema search path');
 assert.equal((schema.match(/create policy "/g) || []).length, (schema.match(/drop policy if exists "/g) || []).length, 'schema policies must be safe to recreate on reruns');
 assert.doesNotMatch(schema, /as \$(?!\$)|\n\$;\n/);
 for (const table of ['workspaces','workspace_members','stock_items','stock_movements','job_usage','supplier_details','order_history']) {
