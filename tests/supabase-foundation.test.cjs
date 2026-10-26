@@ -54,3 +54,66 @@ assert.match(schema, /public\.is_workspace_member\(id\) or public\.is_workspace_
 assert.match(migration, /drop policy if exists/);
 assert.match(migration, /public\.is_workspace_member\(id\) or public\.is_workspace_creator\(id\)/);
 assert.doesNotMatch(migration, /insert into public\.(?:stock_items|stock_movements|job_usage)/);
+
+
+// Exercise the actual read-only backup preview logic with a mocked DOM.
+// This intentionally uses synthetic data only and never reads browser localStorage.
+const vm = require('node:vm');
+function extractFunction(source, name) {
+  const start = source.indexOf('function ' + name + '(');
+  assert.notEqual(start, -1, 'Expected function ' + name);
+  const brace = source.indexOf('{', start);
+  let depth = 0, quote = null, escaped = false, template = false;
+  for (let i = brace; i < source.length; i++) {
+    const ch = source[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (ch === '\\\\') escaped = true;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue; }
+    if (ch === '{') depth++;
+    if (ch === '}' && --depth === 0) return source.slice(start, i + 1);
+  }
+  throw new Error('Unclosed function: ' + name);
+}
+const mockElements = {};
+const sandbox = {
+  Set, Number, String, Array, Object, JSON, Error,
+  $: id => (mockElements[id] ||= { textContent: '', hidden: false }),
+  importSummary: { hidden: true },
+  importMessage: { textContent: '' }
+};
+vm.createContext(sandbox);
+vm.runInContext(
+  extractFunction(auth, 'countArray') + '\\n' + extractFunction(auth, 'previewBackup'),
+  sandbox
+);
+const validBackup = {
+  format: 'van-stock-pro-data-backup',
+  createdAt: '2026-10-26T00:00:00.000Z',
+  data: {
+    'van-stock-pro-items-v1': JSON.stringify([{id:'item-1',name:'Fuse',qty:4,minQty:1,maxQty:10,photo:'data:image/jpeg;base64,abc'}]),
+    'van-stock-pro-movements-v2': JSON.stringify([{itemId:'item-1',change:-1}]),
+    'van-stock-pro-usage-v1': JSON.stringify([{itemId:'item-1',quantity:1}]),
+    'van-stock-pro-supplier-details-v1': '{}'
+  }
+};
+sandbox.previewBackup(validBackup);
+assert.equal(mockElements.cloudImportItems.textContent, 1);
+assert.equal(mockElements.cloudImportMovements.textContent, 1);
+assert.equal(mockElements.cloudImportUsage.textContent, 1);
+assert.equal(mockElements.cloudImportPhotos.textContent, 1);
+assert.equal(sandbox.importSummary.hidden, false);
+assert.match(sandbox.importMessage.textContent, /nothing was uploaded or changed/);
+assert.throws(() => sandbox.previewBackup({format:'wrong',data:{}}), /not a recognised Van Stock Pro/);
+assert.throws(() => sandbox.previewBackup({format:'van-stock-pro-data-backup',data:{'van-stock-pro-items-v1':'{bad'}}), /record list is invalid JSON/);
+const brokenHistory = structuredClone(validBackup);
+brokenHistory.data['van-stock-pro-movements-v2'] = JSON.stringify([{itemId:'missing-item',change:-1}]);
+brokenHistory.data['van-stock-pro-usage-v1'] = JSON.stringify([{itemId:'missing-item',quantity:0}]);
+sandbox.previewBackup(brokenHistory);
+assert.match(mockElements.cloudImportWarnings.textContent, /movements refer to item IDs not present/);
+assert.match(mockElements.cloudImportWarnings.textContent, /job-usage records refer to item IDs not present/);
+assert.match(mockElements.cloudImportWarnings.textContent, /job-usage quantities are missing, invalid, or not positive/);
+assert.match(mockElements.cloudImportWarnings.textContent, /Basic record checks passed/ === false ? /impossible/ : /Review notes/);
