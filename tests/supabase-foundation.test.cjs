@@ -157,3 +157,37 @@ assert.match(auth, /if \(!workspace\) \{/,
 assert.match(auth, /let createdNow = false/);
 assert.match(auth, /Existing Van Stock Pro workspace recovered/);
 assert.match(auth, /Workspace " \+ \(createdNow \? "was created" : "was recovered"\)/);
+
+const { buildMigrationPlan } = require('../supabase/migration-plan.cjs');
+const migrationPlan = buildMigrationPlan({
+  format: 'van-stock-pro-data-backup',
+  data: {
+    'van-stock-pro-items-v1': [{id:'legacy-1',name:'Fuse',qty:3,minQty:1,maxQty:8,photo:'data:image/jpeg;base64,abc'}],
+    'van-stock-pro-movements-v2': [{itemId:'legacy-1',itemName:'Fuse',sku:'F-1',change:-1,balance:3,action:'used'}],
+    'van-stock-pro-usage-v1': [{itemId:'legacy-1',itemName:'Fuse',quantity:1,job:'JOB-7'}],
+    'van-stock-pro-settings-v1': '{}'
+  }
+});
+assert.equal(migrationPlan.readOnly, true);
+assert.deepEqual(migrationPlan.counts, {stockItems:1,stockMovements:1,jobUsage:1});
+assert.equal(migrationPlan.stockItems[0].legacy_id, 'legacy-1');
+assert.equal(migrationPlan.stockItems[0].photo_path, null);
+assert.equal(migrationPlan.stockItems[0].photo_source_present, true);
+assert.equal(migrationPlan.stockMovements[0].legacy_item_id, 'legacy-1');
+assert.equal(migrationPlan.jobUsage[0].legacy_item_id, 'legacy-1');
+assert.equal(migrationPlan.settingsKeys.length, 1);
+assert.throws(() => buildMigrationPlan({format:'bad',data:{}}), /Unrecognised/);
+assert.throws(() => buildMigrationPlan({format:'van-stock-pro-data-backup',data:{
+  'van-stock-pro-items-v1':[{id:'dup',name:'A',qty:1},{id:'dup',name:'B',qty:2}]
+}}), /Duplicate legacy stock ID/);
+assert.throws(() => buildMigrationPlan({format:'van-stock-pro-data-backup',data:{
+  'van-stock-pro-items-v1':[{id:'x',name:'Bad qty',qty:-1}]
+}}), /invalid quantity/);
+assert.throws(() => buildMigrationPlan({format:'van-stock-pro-data-backup',data:{
+  'van-stock-pro-items-v1':[{id:'x',name:'Bad bounds',qty:1,minQty:4,maxQty:2}]
+}}), /invalid minimum\/maximum/);
+assert.throws(() => buildMigrationPlan({format:'van-stock-pro-data-backup',data:{
+  'van-stock-pro-usage-v1':[{itemId:'x',quantity:0}]
+}}), /invalid quantity/);
+assert.match(auth, /Preview only — nothing was uploaded or changed/);
+assert.doesNotMatch(auth, /\.from\(["'](?:stock_items|stock_movements|job_usage)["']\)\s*\.\s*(?:insert|upsert|update|delete)/);
