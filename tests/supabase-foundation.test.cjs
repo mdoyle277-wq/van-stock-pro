@@ -4,7 +4,7 @@ const html = fs.readFileSync('index.html', 'utf8');
 const auth = fs.readFileSync('cloud-auth.js', 'utf8');
 const config = fs.readFileSync('supabase-config.js', 'utf8');
 const schema = fs.readFileSync('supabase/schema.sql', 'utf8');
-const ids = ['cloudStatus','cloudEmail','cloudPassword','cloudMessage','cloudSession','cloudSignIn','cloudSignUp','cloudSignOut','cloudWorkspace'];
+const ids = ['cloudStatus','cloudEmail','cloudPassword','cloudMessage','cloudSession','cloudSignIn','cloudSignUp','cloudSignOut','cloudWorkspace','cloudPreview','cloudPreviewResult'];
 for (const id of ids) {
   const matches = [...html.matchAll(new RegExp('\\bid=["\\\']' + id + '["\\\']', 'g'))];
   assert.equal(matches.length, 1, 'Expected exactly one #' + id);
@@ -26,4 +26,7 @@ for (const table of ['workspaces','workspace_members','stock_items','stock_movem
   assert.match(schema, new RegExp('alter table public\\.' + table + ' enable row level security'));
 }
 assert.ok(schema.includes('members and creators can view their workspaces') && schema.includes('or created_by = auth.uid()'), 'workspace creator must be able to read INSERT RETURNING before membership is added');
+assert.match(auth, /function previewLocalMigration/);
+assert.match(auth, /LOCAL MIGRATION PREVIEW ONLY/);
+assert.doesNotMatch(auth, /localStorage\\.(?:setItem|removeItem)\\(/, 'preview must not alter local stock');
 console.log('Supabase foundation static checks passed. No live auth, browser, or database tests were performed.');
