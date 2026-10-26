@@ -31,6 +31,9 @@ for (const table of ['supplier_details','order_history']) {
   assert.ok(schema.includes('create table if not exists public.' + table), table + ' table must exist');
   assert.ok(schema.includes(' on public.' + table), table + ' must have row-level security policies');
 }
+assert.ok(schema.includes("role <> 'owner' and public.has_workspace_role(workspace_id, array['admin'])"), 'admins must not be able to grant owner role');
+assert.ok(schema.includes("for update to authenticated using (public.has_workspace_role(workspace_id, array['owner']))"), 'only owners may change membership roles');
+assert.ok(schema.includes("for delete to authenticated using (public.has_workspace_role(workspace_id, array['owner']))"), 'only owners may remove workspace members');
 assert.ok(schema.includes('unique (workspace_id, supplier_name)'), 'supplier details must be unique per workspace');
 assert.ok(schema.includes('quantity numeric not null check (quantity > 0)'), 'order history quantities must be positive');
 for (const table of ['stock_items','stock_movements','job_usage','supplier_details','order_history']) {
