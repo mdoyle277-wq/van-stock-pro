@@ -42,6 +42,10 @@ for (const table of ['stock_items','stock_movements','job_usage','supplier_detai
 }
 assert.ok(schema.includes("values ('van-stock-item-photos', 'van-stock-item-photos', false, 5242880"),
   'item photo storage must be private with a 5 MiB upload limit');
+assert.match(schema, /on conflict \(id\) do update[\s\S]*?public = false/,
+  'rerunning schema must enforce a private bucket even if the bucket already exists');
+assert.match(schema, /case[\s\S]*?storage\.foldername\(name\)[\s\S]*?else null[\s\S]*?end/,
+  'storage policies must safely handle object paths that do not start with a UUID');
 assert.ok(schema.includes("array['image/jpeg','image/png','image/webp']"),
   'item photo storage must restrict uploads to supported image MIME types');
 assert.ok(schema.includes("public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])"),
