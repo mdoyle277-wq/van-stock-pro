@@ -63,7 +63,7 @@ function extractFunction(source, name) {
   const start = source.indexOf('function ' + name + '(');
   assert.notEqual(start, -1, 'Expected function ' + name);
   const brace = source.indexOf('{', start);
-  let depth = 0, quote = null, escaped = false, template = false;
+  let depth = 0, quote = null, escaped = false;
   for (let i = brace; i < source.length; i++) {
     const ch = source[i];
     if (quote) {
@@ -116,4 +116,4 @@ sandbox.previewBackup(brokenHistory);
 assert.match(mockElements.cloudImportWarnings.textContent, /movements refer to item IDs not present/);
 assert.match(mockElements.cloudImportWarnings.textContent, /job-usage records refer to item IDs not present/);
 assert.match(mockElements.cloudImportWarnings.textContent, /job-usage quantities are missing, invalid, or not positive/);
-assert.match(mockElements.cloudImportWarnings.textContent, /Basic record checks passed/ === false ? /impossible/ : /Review notes/);
+assert.match(mockElements.cloudImportWarnings.textContent, /Review notes/);
