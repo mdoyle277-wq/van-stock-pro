@@ -4,6 +4,8 @@ const html = fs.readFileSync('index.html', 'utf8');
 const auth = fs.readFileSync('cloud-auth.js', 'utf8');
 const config = fs.readFileSync('supabase-config.js', 'utf8');
 const schema = fs.readFileSync('supabase/schema.sql', 'utf8');
+const allHtmlIds = [...html.matchAll(/\\bid=["']([^"']+)["']/g)].map(match => match[1]);
+assert.equal(new Set(allHtmlIds).size, allHtmlIds.length, 'HTML element IDs must be unique across the whole app');
 const ids = ['cloudStatus','cloudEmail','cloudPassword','cloudMessage','cloudSession','cloudSignIn','cloudSignUp','cloudSignOut','cloudWorkspace','cloudPreview','cloudPreviewResult'];
 for (const id of ids) {
   const matches = [...html.matchAll(new RegExp('\\bid=["\\\']' + id + '["\\\']', 'g'))];
