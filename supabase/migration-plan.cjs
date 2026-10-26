@@ -65,12 +65,20 @@ function buildMigrationPlan(payload) {
       } else if (!ids.has(legacyId)) {
         warnings.push(kind + " record " + (index + 1) + " references missing item " + legacyId + ".");
       }
+      const legacyRecordId = record.id == null ? "" : String(record.id).trim();
+      if (!legacyRecordId) {
+        warnings.push(kind + " record " + (index + 1) + " has no stable source record ID; retry-safe import needs a verified idempotency key.");
+      }
       const common = {
+        legacy_record_id: legacyRecordId || null,
+        source_record_index: index,
         legacy_item_id: legacyId || null,
         item_name: String(record.itemName || ""),
         sku: String(record.sku || ""),
         job_reference: String(record.job || record.job_reference || ""),
-        source_date: String(record.date || record.usageDate || "")
+        source_date: String(record.date || record.usageDate || ""),
+        note: String(record.note || record.notes || ""),
+        category: String(record.category || "")
       };
       if (kind === "Movement") {
         if (record.change == null || record.change === "") {
