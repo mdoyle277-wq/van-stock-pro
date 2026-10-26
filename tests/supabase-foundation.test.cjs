@@ -148,3 +148,8 @@ assert.match(auth, /JSON\.parse\(await file\.text\(\)\)/,
   'Backup preview must parse the selected file contents, not a shared or cached backup');
 assert.match(auth, /catch \(error\) \{\s*importMessage\.textContent = error\?\.message/,
   'Backup parse errors must be surfaced to the user rather than silently ignored');
+
+assert.match(auth, /from\(["']workspaces["']\)\.select\(["']id["']\)\.eq\(["']created_by["'], uid\)/,
+  'Workspace setup should recover a creator-owned workspace before creating a duplicate');
+assert.match(auth, /if \(!workspace\) \{/,
+  'Workspace creation should occur only when no creator-owned workspace exists');
