@@ -59,8 +59,10 @@ function buildMigrationPlan(payload) {
       if (!record || typeof record !== "object" || Array.isArray(record)) {
         throw new Error(kind + " record " + (index + 1) + " is invalid.");
       }
-      const legacyId = record.itemId == null ? "" : String(record.itemId);
-      if (legacyId && !ids.has(legacyId)) {
+      const legacyId = record.itemId == null ? "" : String(record.itemId).trim();
+      if (!legacyId) {
+        warnings.push(kind + " record " + (index + 1) + " has no legacy item ID.");
+      } else if (!ids.has(legacyId)) {
         warnings.push(kind + " record " + (index + 1) + " references missing item " + legacyId + ".");
       }
       const common = {
@@ -71,10 +73,20 @@ function buildMigrationPlan(payload) {
         source_date: String(record.date || record.usageDate || "")
       };
       if (kind === "Movement") {
+        if (record.change == null || record.change === "") {
+          throw new Error("Movement record " + (index + 1) + " has no change quantity.");
+        }
         const change = Number(record.change);
         if (!Number.isFinite(change)) throw new Error("Movement record " + (index + 1) + " has invalid change.");
+        let balanceAfter = null;
+        if (record.balance != null && record.balance !== "") {
+          balanceAfter = Number(record.balance);
+          if (!Number.isFinite(balanceAfter) || balanceAfter < 0) {
+            throw new Error("Movement record " + (index + 1) + " has invalid balance.");
+          }
+        }
         return { ...common, action: String(record.action || "adjustment"),
-          change_qty: change, balance_after: record.balance == null ? null : Number(record.balance) };
+          change_qty: change, balance_after: balanceAfter };
       }
       const quantity = Number(record.quantity);
       if (!Number.isFinite(quantity) || quantity <= 0) {
