@@ -4,7 +4,7 @@ const html = fs.readFileSync('index.html', 'utf8');
 const auth = fs.readFileSync('cloud-auth.js', 'utf8');
 const config = fs.readFileSync('supabase-config.js', 'utf8');
 const schema = fs.readFileSync('supabase/schema.sql', 'utf8');
-const ids = ['cloudStatus','cloudEmail','cloudPassword','cloudMessage','cloudSession','cloudSignIn','cloudSignUp','cloudSignOut','cloudWorkspace'];
+const ids = ['cloudStatus','cloudEmail','cloudPassword','cloudMessage','cloudSession','cloudSignIn','cloudSignUp','cloudSignOut','cloudWorkspace','cloudBackupFile','cloudPreviewImport','cloudClearImport','cloudImportMessage','cloudImportSummary','cloudImportItems','cloudImportMovements','cloudImportUsage','cloudImportPhotos','cloudImportSettings','cloudImportWarnings'];
 for (const id of ids) {
   const matches = [...html.matchAll(new RegExp('\\bid=["\\\']' + id + '["\\\']', 'g'))];
   assert.equal(matches.length, 1, 'Expected exactly one #' + id);
@@ -26,3 +26,9 @@ for (const table of ['workspaces','workspace_members','stock_items','stock_movem
   assert.match(schema, new RegExp('alter table public\\.' + table + ' enable row level security'));
 }
 console.log('Supabase foundation static checks passed. No live auth, browser, or database tests were performed.');
+
+assert.match(auth, /function previewBackup\(payload\)/);
+assert.match(auth, /van-stock-pro-data-backup/);
+assert.match(auth, /Preview only — nothing was uploaded or changed/);
+assert.match(auth, /file\.size > 50 \* 1024 \* 1024/);
+assert.doesNotMatch(auth, /\.from\("(?:stock_items|stock_movements|job_usage)"\)\.(?:insert|upsert|update|delete)/);
