@@ -262,13 +262,46 @@ create policy "admins can delete order history" on public.order_history
 -- Private bucket for item photos. Store files under <workspace-uuid>/<filename>.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('van-stock-item-photos', 'van-stock-item-photos', false, 5242880, array['image/jpeg','image/png','image/webp'])
-on conflict (id) do nothing;
+on conflict (id) do update
+set name = excluded.name,
+    public = false,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "workspace members can view item photos" on storage.objects;
 create policy "workspace members can view item photos" on storage.objects
   for select to authenticated using (
     bucket_id = 'van-stock-item-photos'
-    and public.is_workspace_member(((storage.foldername(name))[1])::uuid)
+    and public.is_workspace_member(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
   );
 drop policy if exists "workspace editors can upload item photos" on storage.objects;
 create policy "workspace editors can upload item photos" on storage.objects
@@ -290,4 +323,1246 @@ create policy "workspace admins can delete item photos" on storage.objects
   for delete to authenticated using (
     bucket_id = 'van-stock-item-photos'
     and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end)
+  );
+drop policy if exists "workspace editors can upload item photos" on storage.objects;
+create policy "workspace editors can upload item photos" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace editors can update item photos" on storage.objects;
+create policy "workspace editors can update item photos" on storage.objects
+  for update to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  ) with check (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin'])
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin','member'])
+  );
+drop policy if exists "workspace admins can delete item photos" on storage.objects;
+create policy "workspace admins can delete item photos" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'van-stock-item-photos'
+    and public.has_workspace_role(case
+      when (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+  );
+
+      then ((storage.foldername(name))[1])::uuid
+      else null
+    end, array['owner','admin'])
   );
