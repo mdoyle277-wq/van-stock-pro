@@ -167,6 +167,11 @@ function previewBackup(payload) {
   if (movements.some(record => !record || typeof record !== "object" || Array.isArray(record))) warnings.push("Some stock movement entries are not valid records.");
   if (usage.some(record => !record || typeof record !== "object" || Array.isArray(record))) warnings.push("Some job-usage entries are not valid records.");
   if (usage.some(record => record && (record.quantity == null || record.quantity === "" || !Number.isFinite(Number(record.quantity)) || Number(record.quantity) <= 0))) warnings.push("Some job-usage quantities are missing, invalid, or not positive.");
+  const knownItemIds = new Set(itemIds);
+  if (movements.some(record => record && record.itemId != null && !knownItemIds.has(String(record.itemId)))) warnings.push("Some stock movements refer to item IDs not present in the stock list.");
+  if (usage.some(record => record && record.itemId != null && !knownItemIds.has(String(record.itemId)))) warnings.push("Some job-usage records refer to item IDs not present in the stock list.");
+  if (items.some(item => item && item.id == null)) warnings.push("Some stock items have no legacy ID; history linking needs manual review.");
+  if (items.some(item => item && [item.photo, item.photoData, item.image, item.imageData].some(value => typeof value === "string" && value.startsWith("data:") && value.length > 7 * 1024 * 1024))) warnings.push("Some embedded photos are very large; photo conversion and upload limits must be checked before migration.");
   $("cloudImportItems").textContent = items.length;
   $("cloudImportMovements").textContent = movements.length;
   $("cloudImportUsage").textContent = usage.length;
