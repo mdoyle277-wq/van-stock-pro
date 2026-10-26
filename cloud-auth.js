@@ -94,9 +94,26 @@ function previewLocalMigration() {
     const usage = readLocalArray("van-stock-pro-usage-v1");
     const orders = readLocalArray("van-stock-pro-orders-v1");
     if (!stock.length) throw new Error("No local stock items were found. Nothing can be prepared for migration.");
-    const invalid = stock.filter(item => !item || item.id === undefined || typeof item.name !== "string" || !Number.isFinite(Number(item.qty)));
-    if (invalid.length) throw new Error(invalid.length + " stock item(s) are missing a valid ID, name, or quantity. No data was changed.");
+    const invalid = stock.filter(item =>
+      !item ||
+      item.id === undefined || item.id === null || String(item.id).trim() === "" ||
+      typeof item.name !== "string" || !item.name.trim() ||
+      !Number.isInteger(Number(item.qty)) || Number(item.qty) < 0
+    );
+    if (invalid.length) throw new Error(invalid.length + " stock item(s) have a missing ID/name or an invalid quantity. No data was changed.");
     const photos = stock.filter(item => typeof item.photo === "string" && item.photo.length > 0).length;
+    const invalidMovements = movements.filter(item => !item || typeof item !== "object" || !item.itemId || !Number.isFinite(Number(item.change)));
+    const invalidUsage = usage.filter(item => !item || typeof item !== "object" || !item.itemId || !Number.isInteger(Number(item.quantity)) || Number(item.quantity) < 1);
+    const invalidOrders = orders.filter(item => !item || typeof item !== "object" || !item.itemName || !Number.isInteger(Number(item.quantity)) || Number(item.quantity) < 1);
+    let supplierCount = 0;
+    const supplierDetailsRaw = localStorage.getItem("van-stock-pro-supplier-details-v1");
+    if (supplierDetailsRaw !== null) {
+      const supplierDetails = JSON.parse(supplierDetailsRaw);
+      if (!supplierDetails || typeof supplierDetails !== "object" || Array.isArray(supplierDetails)) {
+        throw new Error("Saved supplier details are not in the expected format. No data was changed.");
+      }
+      supplierCount = Object.keys(supplierDetails).length;
+    }
     const keys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -107,8 +124,10 @@ function previewLocalMigration() {
       "LOCAL MIGRATION PREVIEW ONLY — nothing has been uploaded or changed. " +
       stock.length + " stock items; " + photos + " item photo(s); " +
       movements.length + " movement record(s); " + usage.length +
-      " job-usage record(s); " + orders.length + " supplier/order history record(s); " +
-      keys.length + " Van Stock Pro local-storage key(s). " +
+      " job-usage record(s); " + orders.length + " order-history record(s); " +
+      supplierCount + " saved supplier contact(s); " +
+      (invalidMovements.length + invalidUsage.length + invalidOrders.length) +
+      " history record(s) needing review; " + keys.length + " Van Stock Pro local-storage key(s). " +
       "Sample items: " + sample + (stock.length > 5 ? ", …" : "") +
       ". Legacy item IDs will be preserved. Download and keep a data backup before any future import.";
     previewResult.dataset.kind = "success";
