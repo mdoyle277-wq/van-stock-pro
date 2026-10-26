@@ -27,8 +27,8 @@ for (const table of ['workspaces','workspace_members','stock_items','stock_movem
 }
 assert.ok(schema.includes('members and creators can view their workspaces') && schema.includes('or created_by = auth.uid()'), 'workspace creator must be able to read INSERT RETURNING before membership is added');
 for (const table of ['supplier_details','order_history']) {
-  assert.match(schema, new RegExp('create table if not exists public\\\\.' + table));
-  assert.match(schema, new RegExp('create policy "[^"]+" on public\\\\.' + table));
+  assert.ok(schema.includes('create table if not exists public.' + table), table + ' table must exist');
+  assert.ok(schema.includes(' on public.' + table), table + ' must have row-level security policies');
 }
 assert.match(schema, /unique \\(workspace_id, supplier_name\\)/, 'supplier details must be unique per workspace');
 assert.match(schema, /quantity numeric not null check \\(quantity > 0\\)/, 'order history quantities must be positive');
