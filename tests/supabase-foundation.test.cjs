@@ -32,3 +32,10 @@ assert.match(auth, /van-stock-pro-data-backup/);
 assert.match(auth, /Preview only — nothing was uploaded or changed/);
 assert.match(auth, /file\.size > 50 \* 1024 \* 1024/);
 assert.doesNotMatch(auth, /\.from\("(?:stock_items|stock_movements|job_usage)"\)\.(?:insert|upsert|update|delete)/);
+
+const migration = fs.readFileSync('supabase/migrations/20261026_fix_workspace_creator_select.sql', 'utf8');
+assert.match(schema, /members and creators can view their workspaces/);
+assert.match(schema, /public\.is_workspace_member\(id\) or public\.is_workspace_creator\(id\)/);
+assert.match(migration, /drop policy if exists/);
+assert.match(migration, /public\.is_workspace_member\(id\) or public\.is_workspace_creator\(id\)/);
+assert.doesNotMatch(migration, /insert into public\.(?:stock_items|stock_movements|job_usage)/);
