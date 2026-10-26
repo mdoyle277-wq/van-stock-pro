@@ -17,3 +17,10 @@ This document is a release gate for Van Stock Pro's Supabase integration. It doe
 ## Current state
 
 The current integration is account/workspace setup plus a read-only backup preview. Stock CRUD, photo migration, and real multi-device synchronization are not implemented. Do not treat static checks as proof of live Supabase or browser behaviour.
+
+## History retry identity preparation
+
+- `migrations/20261026_history_import_idempotency.sql` adds nullable `legacy_record_id` columns and workspace-scoped partial unique indexes for movement and job-usage history.
+- This migration is additive and does not import or rewrite data. It must be reviewed and run manually in Supabase SQL Editor only when the existing schema is confirmed present.
+- Existing history without stable source IDs remains a blocker for repeat-safe import until a deterministic identity strategy is verified against real backup samples.
+- Do not claim cloud import, multi-device sync, or database-level tests are complete based on the Node synthetic suite.
