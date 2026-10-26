@@ -133,8 +133,10 @@ alter table public.stock_items enable row level security;
 alter table public.stock_movements enable row level security;
 alter table public.job_usage enable row level security;
 
-create policy "members can view their workspaces" on public.workspaces
-  for select to authenticated using (public.is_workspace_member(id));
+-- The creator must be able to read the newly inserted workspace before their
+-- owner membership row exists; PostgREST INSERT ... RETURNING uses SELECT RLS.
+create policy "members and creators can view their workspaces" on public.workspaces
+  for select to authenticated using (public.is_workspace_member(id) or created_by = auth.uid());
 create policy "authenticated users can create workspaces" on public.workspaces
   for insert to authenticated with check (created_by = auth.uid());
 create policy "workspace admins can update workspaces" on public.workspaces
