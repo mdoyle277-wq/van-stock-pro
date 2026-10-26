@@ -30,8 +30,8 @@ for (const table of ['supplier_details','order_history']) {
   assert.ok(schema.includes('create table if not exists public.' + table), table + ' table must exist');
   assert.ok(schema.includes(' on public.' + table), table + ' must have row-level security policies');
 }
-assert.match(schema, /unique \\(workspace_id, supplier_name\\)/, 'supplier details must be unique per workspace');
-assert.match(schema, /quantity numeric not null check \\(quantity > 0\\)/, 'order history quantities must be positive');
+assert.ok(schema.includes('unique (workspace_id, supplier_name)'), 'supplier details must be unique per workspace');
+assert.ok(schema.includes('quantity numeric not null check (quantity > 0)'), 'order history quantities must be positive');
 assert.match(auth, /function previewLocalMigration/);
 assert.match(auth, /LOCAL MIGRATION PREVIEW ONLY/);
 assert.doesNotMatch(auth, /localStorage\.setItem|localStorage\.removeItem/, 'preview must not alter local stock');
