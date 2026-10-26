@@ -119,3 +119,70 @@ supabase.auth.onAuthStateChange((_event, session) => {
 const { data: initial } = await supabase.auth.getSession();
 setSession(initial.session);
 if (initial.session) await checkSchema();
+
+const backupFile = $("cloudBackupFile");
+const previewButton = $("cloudPreviewImport");
+const clearPreviewButton = $("cloudClearImport");
+const importMessage = $("cloudImportMessage");
+const importSummary = $("cloudImportSummary");
+function clearImportPreview() {
+  backupFile.value = "";
+  importSummary.hidden = true;
+  importMessage.textContent = "No backup selected. Use the app's Download data backup feature to create a JSON file first.";
+}
+function countArray(data, key) {
+  try {
+    const raw = data[key];
+    if (raw == null) return [];
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return null;
+  }
+}
+function previewBackup(payload) {
+  if (!payload || payload.format !== "van-stock-pro-data-backup" || !payload.data || typeof payload.data !== "object" || Array.isArray(payload.data)) {
+    throw new Error("This is not a recognised Van Stock Pro JSON data backup. Choose the file created by Download data backup.");
+  }
+  const data = payload.data;
+  const items = countArray(data, "van-stock-pro-items-v1");
+  const movements = countArray(data, "van-stock-pro-movements-v2");
+  const usage = countArray(data, "van-stock-pro-usage-v1");
+  if (items === null || movements === null || usage === null) {
+    throw new Error("A stock, movement, or job-usage record list is invalid JSON. No data has been changed.");
+  }
+  const photoCount = items.filter(item => item && (item.photo || item.photoData || item.image || item.imageData)).length;
+  const known = new Set(["van-stock-pro-items-v1", "van-stock-pro-movements-v2", "van-stock-pro-usage-v1"]);
+  const settingCount = Object.keys(data).filter(key => !known.has(key)).length;
+  const warnings = [];
+  if (!items.length) warnings.push("No stock items were found under the expected stock key.");
+  if (items.some(item => !item || typeof item !== "object" || !String(item.name || "").trim())) warnings.push("Some stock entries are missing a valid item name.");
+  if (items.some(item => item && item.qty != null && (!Number.isFinite(Number(item.qty)) || Number(item.qty) < 0))) warnings.push("Some stock quantities are invalid or negative.");
+  $("cloudImportItems").textContent = items.length;
+  $("cloudImportMovements").textContent = movements.length;
+  $("cloudImportUsage").textContent = usage.length;
+  $("cloudImportPhotos").textContent = photoCount;
+  $("cloudImportSettings").textContent = "Additional settings/data entries: " + settingCount + ". Read-only preview only; no database writes have been made.";
+  $("cloudImportWarnings").textContent = warnings.length ? "Review notes: " + warnings.join(" ") : "Basic record checks passed. A full migration still needs duplicate, photo-upload, history-linking, and database permission tests.";
+  importSummary.hidden = false;
+  importMessage.textContent = "Backup parsed successfully (created " + (payload.createdAt || "date not provided") + "). Preview only — nothing was uploaded or changed.";
+}
+previewButton.addEventListener("click", async () => {
+  const file = backupFile.files && backupFile.files[0];
+  if (!file) {
+    importMessage.textContent = "Choose a JSON data backup first.";
+    return;
+  }
+  previewButton.disabled = true;
+  importSummary.hidden = true;
+  try {
+    if (file.size > 50 * 1024 * 1024) throw new Error("This backup is larger than 50 MB. Create a smaller backup or split the file before previewing.");
+    const payload = JSON.parse(await file.text());
+    previewBackup(payload);
+  } catch (error) {
+    importMessage.textContent = error?.message || "Could not preview this backup.";
+  } finally {
+    previewButton.disabled = false;
+  }
+});
+clearPreviewButton.addEventListener("click", clearImportPreview);
