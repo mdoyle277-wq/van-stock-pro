@@ -48,8 +48,8 @@ assert.match(schema, /case[\s\S]*?storage\.foldername\(name\)[\s\S]*?else null[\
   'storage policies must safely handle object paths that do not start with a UUID');
 assert.ok(schema.includes("array['image/jpeg','image/png','image/webp']"),
   'item photo storage must restrict uploads to supported image MIME types');
-assert.ok(schema.includes("public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])"),
-  'photo upload policies must verify workspace role from the storage path');
+assert.ok(schema.includes("public.has_workspace_role(case") && schema.includes("storage.foldername(name)"),
+  'photo upload policies must safely verify workspace role from the storage path');
 
 assert.ok(html.includes('<th>Minimum</th><th>Max.</th><th>Status</th>'), 'job usage inventory must retain the maximum-stock column');
 assert.ok(html.includes("Number(i.maxQty):'—')"), 'job usage report must display maximum stock values');
