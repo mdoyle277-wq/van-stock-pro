@@ -222,3 +222,39 @@ const missingHistoryIds = buildMigrationPlan({format:"van-stock-pro-data-backup"
 }});
 assert(missingHistoryIds.warnings.some(w => /Movement record 1 has no legacy item ID/.test(w)));
 assert(missingHistoryIds.warnings.some(w => /Job usage record 1 has no legacy item ID/.test(w)));
+
+// More malformed-input and idempotency-schema regression checks.
+assert.throws(() => buildMigrationPlan({format:"van-stock-pro-data-backup",data:{
+  "van-stock-pro-items-v1":"not-json"
+}}), SyntaxError);
+assert.throws(() => buildMigrationPlan({format:"van-stock-pro-data-backup",data:{
+  "van-stock-pro-items-v1":{not:"an array"}
+}}), /not an array/);
+assert.throws(() => buildMigrationPlan({format:"van-stock-pro-data-backup",data:{
+  "van-stock-pro-items-v1":[{id:"x",name:"Fuse",qty:"Infinity"}]
+}}), /invalid quantity/);
+assert.throws(() => buildMigrationPlan({format:"van-stock-pro-data-backup",data:{
+  "van-stock-pro-items-v1":[{id:"x",name:"Fuse",qty:1,minQty:"NaN"}]
+}}), /invalid minimum\/maximum/);
+assert.throws(() => buildMigrationPlan({format:"van-stock-pro-data-backup",data:{
+  "van-stock-pro-movements-v2":[{itemId:"x",change:"Infinity"}]
+}}), /invalid change/);
+assert.throws(() => buildMigrationPlan({format:"van-stock-pro-data-backup",data:{
+  "van-stock-pro-usage-v1":[{itemId:"x",quantity:"NaN"}]
+}}), /invalid quantity/);
+const orphanPlan = buildMigrationPlan({format:"van-stock-pro-data-backup",data:{
+  "van-stock-pro-items-v1":[{id:"x",name:"Fuse",qty:1}],
+  "van-stock-pro-movements-v2":[{id:"m1",itemId:"gone",change:-1,itemName:"Old fuse",sku:"OLD"}],
+  "van-stock-pro-usage-v1":[{id:"u1",itemId:"gone",quantity:1,itemName:"Old fuse",sku:"OLD"}]
+}});
+assert.equal(orphanPlan.stockMovements[0].item_name, "Old fuse");
+assert.equal(orphanPlan.stockMovements[0].sku, "OLD");
+assert.equal(orphanPlan.jobUsage[0].item_name, "Old fuse");
+assert(orphanPlan.warnings.some(w => /references missing item gone/.test(w)));
+const historySchema = require("fs").readFileSync(require("path").join(__dirname,"../supabase/migrations/20261026_history_import_idempotency.sql"),"utf8");
+assert.match(historySchema,/add column if not exists legacy_record_id text/);
+assert.match(historySchema,/stock_movements_workspace_legacy_record_uidx/);
+assert.match(historySchema,/job_usage_workspace_legacy_record_uidx/);
+assert.match(historySchema,/where legacy_record_id is not null/);
+assert.doesNotMatch(historySchema,/delete from|truncate|drop table|update public\.(stock_items|stock_movements|job_usage)/i,
+  "The additive idempotency migration must not delete or rewrite existing stock/history");
