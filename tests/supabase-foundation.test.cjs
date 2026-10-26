@@ -36,11 +36,11 @@ for (const table of ['stock_items','stock_movements','job_usage','supplier_detai
   assert.ok(schema.includes('create policy "members can view') && schema.includes(' on public.' + table), table + ' must have member-scoped read policies');
   assert.ok(schema.includes('create policy "editors can add') && schema.includes(' on public.' + table), table + ' must have editor-scoped insert policies');
 }
-assert.match(schema, /values \\('van-stock-item-photos', 'van-stock-item-photos', false, 5242880/,
+assert.ok(schema.includes("values ('van-stock-item-photos', 'van-stock-item-photos', false, 5242880"),
   'item photo storage must be private with a 5 MiB upload limit');
-assert.match(schema, /array\\['image\\/jpeg','image\\/png','image\\/webp'\\]/,
+assert.ok(schema.includes("array['image/jpeg','image/png','image/webp']"),
   'item photo storage must restrict uploads to supported image MIME types');
-assert.match(schema, /public\\.has_workspace_role\\(\\(\\(storage\\.foldername\\(name\\)\\)\\[1\\]\\)::uuid, array\\['owner','admin','member'\\]\\)/,
+assert.ok(schema.includes("public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])"),
   'photo upload policies must verify workspace role from the storage path');
 
 assert.match(auth, /function previewLocalMigration/);
