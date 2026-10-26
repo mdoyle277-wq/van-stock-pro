@@ -178,4 +178,5 @@ $('backupCodeBtn').addEventListener('click',()=>{try{downloadVanFile('van-stock-
 $('restoreCodeBtn').addEventListener('click',()=>$('restoreCodeFile').click());
 $('restoreCodeFile').addEventListener('change',async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{const html=await file.text();if(!/Van Stock Pro/i.test(html)||!/<html[\\s>]/i.test(html)||!/<script[\\s>]/i.test(html))throw new Error('Choose a valid Van Stock Pro HTML functionality backup.');if(!confirm('Prepare this app functionality backup as index.html? This downloads a replacement file but does not change the live website automatically. To publish it, replace index.html in your GitHub repository.'))return;downloadVanFile('index.html',html,'text/html;charset=utf-8');$('backupStatus').textContent='Replacement index.html prepared. To restore the live app, upload this file to the repository and commit the change.';toast('Replacement app file prepared')}catch(err){$('backupStatus').textContent='App restore failed: '+err.message;toast('App restore failed')}finally{e.target.value=''}});
 render();if(items.length){const savedWithPhoto=items.find(i=>i.photo);showSelectedItem(savedWithPhoto||items[0])}
-</script></body></html>
+</script><script type="module" src="./cloud-auth.js"></script>
+</body></html>
