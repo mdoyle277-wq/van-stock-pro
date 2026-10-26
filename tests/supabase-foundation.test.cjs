@@ -258,3 +258,16 @@ assert.match(historySchema,/job_usage_workspace_legacy_record_uidx/);
 assert.match(historySchema,/where legacy_record_id is not null/);
 assert.doesNotMatch(historySchema,/delete from|truncate|drop table|update public\.(stock_items|stock_movements|job_usage)/i,
   "The additive idempotency migration must not delete or rewrite existing stock/history");
+
+assert.throws(() => buildMigrationPlan({format:"van-stock-pro-data-backup",data:{
+  "van-stock-pro-movements-v2":[
+    {id:"same-movement",itemId:"x",change:-1},
+    {id:"same-movement",itemId:"x",change:1}
+  ]
+}}), /duplicate source record ID/);
+assert.throws(() => buildMigrationPlan({format:"van-stock-pro-data-backup",data:{
+  "van-stock-pro-usage-v1":[
+    {id:"same-usage",itemId:"x",quantity:1},
+    {id:"same-usage",itemId:"x",quantity:2}
+  ]
+}}), /duplicate source record ID/);
