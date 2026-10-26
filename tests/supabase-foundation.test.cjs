@@ -288,4 +288,12 @@ assert.doesNotMatch(schema,/grant all on all tables|using \\(true\\)|with check 
   "Schema must not grant unrestricted tenant access");
 assert.ok(schema.includes("unique (workspace_id, legacy_id)"),
   "Stock import must have a workspace-scoped legacy ID uniqueness guard");
+const createdPolicyNames = [...schema.matchAll(/^create policy "([^"]+)" on ([^\\n]+)$/gm)];
+const droppedPolicyNames = [...schema.matchAll(/^drop policy if exists "([^"]+)" on ([^;]+);$/gm)];
+assert.equal(droppedPolicyNames.length, createdPolicyNames.length,
+  "Every policy created by the schema should be dropped first so rerunning after partial setup does not fail");
+for (const policy of createdPolicyNames) {
+  assert.ok(droppedPolicyNames.some(drop => drop[1] === policy[1] && drop[2] === policy[2]),
+    "Policy must be safely replaceable on rerun: " + policy[1]);
+}
 console.log("Static RLS and storage policy checks passed; policies have not been exercised against a live database.");
