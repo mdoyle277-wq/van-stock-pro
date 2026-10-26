@@ -117,3 +117,23 @@ assert.match(mockElements.cloudImportWarnings.textContent, /movements refer to i
 assert.match(mockElements.cloudImportWarnings.textContent, /job-usage records refer to item IDs not present/);
 assert.match(mockElements.cloudImportWarnings.textContent, /job-usage quantities are missing, invalid, or not positive/);
 assert.match(mockElements.cloudImportWarnings.textContent, /Review notes/);
+
+ 
+// More synthetic preview edge cases; never reads real browser storage.
+const edgeBackup = {format:'van-stock-pro-data-backup',data:{
+  'van-stock-pro-items-v1':JSON.stringify([
+    {id:'dup',name:'A',qty:-1,minQty:9,maxQty:2,photo:'data:image/jpeg;base64,'+'x'.repeat(7340033)},
+    {id:'dup',name:'B',qty:1,maxQty:'bad'}
+  ]),
+  'van-stock-pro-movements-v2':JSON.stringify([null]),
+  'van-stock-pro-usage-v1':JSON.stringify([null])
+}};
+sandbox.previewBackup(edgeBackup);
+assert.match(mockElements.cloudImportWarnings.textContent,/Duplicate stock item IDs/);
+assert.match(mockElements.cloudImportWarnings.textContent,/stock quantities are missing, invalid, or negative/);
+assert.match(mockElements.cloudImportWarnings.textContent,/maximum stock quantities are invalid or negative/);
+assert.match(mockElements.cloudImportWarnings.textContent,/maximum stock quantities are below their minimum/);
+assert.match(mockElements.cloudImportWarnings.textContent,/movement entries are not valid records/);
+assert.match(mockElements.cloudImportWarnings.textContent,/job-usage entries are not valid records/);
+assert.match(mockElements.cloudImportWarnings.textContent,/embedded photos are very large/);
+assert.match(sandbox.importMessage.textContent,/nothing was uploaded or changed/);
