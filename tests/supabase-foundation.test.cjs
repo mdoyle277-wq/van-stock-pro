@@ -191,3 +191,21 @@ assert.throws(() => buildMigrationPlan({format:'van-stock-pro-data-backup',data:
 }}), /invalid quantity/);
 assert.match(auth, /Preview only — nothing was uploaded or changed/);
 assert.doesNotMatch(auth, /\.from\(["'](?:stock_items|stock_movements|job_usage)["']\)\s*\.\s*(?:insert|upsert|update|delete)/);
+
+// Migration planner rejects ambiguous history values before any import can be attempted.
+assert.throws(() => buildMigrationPlan({format:"van-stock-pro-data-backup",data:{
+  "van-stock-pro-movements-v2":[{itemId:"x",action:"used"}]
+}}), /no change quantity/);
+assert.throws(() => buildMigrationPlan({format:"van-stock-pro-data-backup",data:{
+  "van-stock-pro-movements-v2":[{itemId:"x",change:-1,balance:"not-a-number"}]
+}}), /invalid balance/);
+assert.throws(() => buildMigrationPlan({format:"van-stock-pro-data-backup",data:{
+  "van-stock-pro-movements-v2":[{itemId:"x",change:-1,balance:-2}]
+}}), /invalid balance/);
+const missingHistoryIds = buildMigrationPlan({format:"van-stock-pro-data-backup",data:{
+  "van-stock-pro-items-v1":[{id:"x",name:"Fuse",qty:2}],
+  "van-stock-pro-movements-v2":[{change:1}],
+  "van-stock-pro-usage-v1":[{quantity:1}]
+}});
+assert(missingHistoryIds.warnings.some(w => /Movement record 1 has no legacy item ID/.test(w)));
+assert(missingHistoryIds.warnings.some(w => /Job usage record 1 has no legacy item ID/.test(w)));
