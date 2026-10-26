@@ -21,6 +21,7 @@ assert.match(config, /sb_publishable_/);
 assert.doesNotMatch(config, /service_role|sb_secret_/);
 assert.equal((schema.match(/as \$\$/g) || []).length, 3);
 assert.equal((schema.match(/\$\$;/g) || []).length, 3);
+assert.equal((schema.match(/create policy "/g) || []).length, (schema.match(/drop policy if exists "/g) || []).length, 'schema policies must be safe to recreate on reruns');
 assert.doesNotMatch(schema, /as \$(?!\$)|\n\$;\n/);
 for (const table of ['workspaces','workspace_members','stock_items','stock_movements','job_usage','supplier_details','order_history']) {
   assert.match(schema, new RegExp('alter table public\\.' + table + ' enable row level security'));
