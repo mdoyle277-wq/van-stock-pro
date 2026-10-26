@@ -163,6 +163,10 @@ function previewBackup(payload) {
   if (new Set(itemIds).size !== itemIds.length) warnings.push("Duplicate stock item IDs were found; review before importing.");
   if (items.some(item => item && item.maxQty != null && item.maxQty !== "" && (!Number.isFinite(Number(item.maxQty)) || Number(item.maxQty) < 0))) warnings.push("Some maximum stock quantities are invalid or negative.");
   if (items.some(item => item && item.minQty != null && item.minQty !== "" && (!Number.isFinite(Number(item.minQty)) || Number(item.minQty) < 0))) warnings.push("Some minimum stock quantities are invalid or negative.");
+  if (items.some(item => item && item.maxQty != null && item.maxQty !== "" && item.minQty != null && item.minQty !== "" && Number.isFinite(Number(item.maxQty)) && Number.isFinite(Number(item.minQty)) && Number(item.maxQty) < Number(item.minQty))) warnings.push("Some maximum stock quantities are below their minimum.");
+  if (movements.some(record => !record || typeof record !== "object" || Array.isArray(record))) warnings.push("Some stock movement entries are not valid records.");
+  if (usage.some(record => !record || typeof record !== "object" || Array.isArray(record))) warnings.push("Some job-usage entries are not valid records.");
+  if (usage.some(record => record && (record.quantity == null || record.quantity === "" || !Number.isFinite(Number(record.quantity)) || Number(record.quantity) <= 0))) warnings.push("Some job-usage quantities are missing, invalid, or not positive.");
   $("cloudImportItems").textContent = items.length;
   $("cloudImportMovements").textContent = movements.length;
   $("cloudImportUsage").textContent = usage.length;
