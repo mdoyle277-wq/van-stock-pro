@@ -174,7 +174,20 @@ assert.equal(migrationPlan.stockItems[0].legacy_id, 'legacy-1');
 assert.equal(migrationPlan.stockItems[0].photo_path, null);
 assert.equal(migrationPlan.stockItems[0].photo_source_present, true);
 assert.equal(migrationPlan.stockMovements[0].legacy_item_id, 'legacy-1');
+assert.equal(migrationPlan.stockMovements[0].source_record_index, 0);
+assert.equal(migrationPlan.stockMovements[0].legacy_record_id, null);
+assert.equal(migrationPlan.stockMovements[0].note, '');
 assert.equal(migrationPlan.jobUsage[0].legacy_item_id, 'legacy-1');
+assert(migrationPlan.warnings.some(w => /Movement record 1 has no stable source record ID/.test(w)));
+assert(migrationPlan.warnings.some(w => /Job usage record 1 has no stable source record ID/.test(w)));
+const identifiedHistory = buildMigrationPlan({format:'van-stock-pro-data-backup',data:{
+  'van-stock-pro-movements-v2':[{id:'move-abc',itemId:'x',change:-1,note:'van restock'}],
+  'van-stock-pro-usage-v1':[{id:'usage-abc',itemId:'x',quantity:1,category:'electrical'}]
+}});
+assert.equal(identifiedHistory.stockMovements[0].legacy_record_id, 'move-abc');
+assert.equal(identifiedHistory.stockMovements[0].note, 'van restock');
+assert.equal(identifiedHistory.jobUsage[0].legacy_record_id, 'usage-abc');
+assert.equal(identifiedHistory.jobUsage[0].category, 'electrical');
 assert.equal(migrationPlan.settingsKeys.length, 1);
 assert.throws(() => buildMigrationPlan({format:'bad',data:{}}), /Unrecognised/);
 assert.throws(() => buildMigrationPlan({format:'van-stock-pro-data-backup',data:{
