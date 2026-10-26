@@ -133,8 +133,8 @@ alter table public.stock_items enable row level security;
 alter table public.stock_movements enable row level security;
 alter table public.job_usage enable row level security;
 
-create policy "members can view their workspaces" on public.workspaces
-  for select to authenticated using (public.is_workspace_member(id));
+create policy "members and creators can view their workspaces" on public.workspaces
+  for select to authenticated using (public.is_workspace_member(id) or public.is_workspace_creator(id));
 create policy "authenticated users can create workspaces" on public.workspaces
   for insert to authenticated with check (created_by = auth.uid());
 create policy "workspace admins can update workspaces" on public.workspaces
