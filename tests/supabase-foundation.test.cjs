@@ -28,5 +28,5 @@ for (const table of ['workspaces','workspace_members','stock_items','stock_movem
 assert.ok(schema.includes('members and creators can view their workspaces') && schema.includes('or created_by = auth.uid()'), 'workspace creator must be able to read INSERT RETURNING before membership is added');
 assert.match(auth, /function previewLocalMigration/);
 assert.match(auth, /LOCAL MIGRATION PREVIEW ONLY/);
-assert.doesNotMatch(auth, /localStorage\\.(?:setItem|removeItem)\\(/, 'preview must not alter local stock');
+assert.doesNotMatch(auth, /localStorage\.setItem|localStorage\.removeItem/, 'preview must not alter local stock');
 console.log('Supabase foundation static checks passed. No live auth, browser, or database tests were performed.');
