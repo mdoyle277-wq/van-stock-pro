@@ -79,6 +79,38 @@ create table if not exists public.job_usage (
 
 create index if not exists job_usage_workspace_date_idx on public.job_usage(workspace_id, created_at desc);
 
+create table if not exists public.supplier_details (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  supplier_name text not null,
+  contact text not null default '',
+  email text not null default '',
+  phone text not null default '',
+  url text not null default '',
+  notes text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (workspace_id, supplier_name)
+);
+
+create index if not exists supplier_details_workspace_name_idx on public.supplier_details(workspace_id, supplier_name);
+
+create table if not exists public.order_history (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  legacy_order_id text,
+  supplier_name text not null default '',
+  item_name text not null default '',
+  sku text not null default '',
+  category text not null default '',
+  quantity numeric not null check (quantity > 0),
+  ordered_at timestamptz not null default now(),
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists order_history_workspace_date_idx on public.order_history(workspace_id, ordered_at desc);
+
 create or replace function public.is_workspace_member(target_workspace uuid)
 returns boolean
 language sql
@@ -132,6 +164,8 @@ alter table public.workspace_members enable row level security;
 alter table public.stock_items enable row level security;
 alter table public.stock_movements enable row level security;
 alter table public.job_usage enable row level security;
+alter table public.supplier_details enable row level security;
+alter table public.order_history enable row level security;
 
 -- The creator must be able to read the newly inserted workspace before their
 -- owner membership row exists; PostgREST INSERT ... RETURNING uses SELECT RLS.
@@ -178,6 +212,23 @@ create policy "members can view job usage" on public.job_usage
 create policy "editors can add job usage" on public.job_usage
   for insert to authenticated with check (public.has_workspace_role(workspace_id, array['owner','admin','member']));
 create policy "admins can delete job usage" on public.job_usage
+  for delete to authenticated using (public.has_workspace_role(workspace_id, array['owner','admin']));
+
+create policy "members can view supplier details" on public.supplier_details
+  for select to authenticated using (public.is_workspace_member(workspace_id));
+create policy "editors can add supplier details" on public.supplier_details
+  for insert to authenticated with check (public.has_workspace_role(workspace_id, array['owner','admin','member']));
+create policy "editors can update supplier details" on public.supplier_details
+  for update to authenticated using (public.has_workspace_role(workspace_id, array['owner','admin','member']))
+  with check (public.has_workspace_role(workspace_id, array['owner','admin','member']));
+create policy "admins can delete supplier details" on public.supplier_details
+  for delete to authenticated using (public.has_workspace_role(workspace_id, array['owner','admin']));
+
+create policy "members can view order history" on public.order_history
+  for select to authenticated using (public.is_workspace_member(workspace_id));
+create policy "editors can add order history" on public.order_history
+  for insert to authenticated with check (public.has_workspace_role(workspace_id, array['owner','admin','member']));
+create policy "admins can delete order history" on public.order_history
   for delete to authenticated using (public.has_workspace_role(workspace_id, array['owner','admin']));
 
 -- Private bucket for item photos. Store files under <workspace-uuid>/<filename>.
