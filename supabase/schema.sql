@@ -98,14 +98,14 @@ language sql
 stable
 security definer
 set search_path = public
-as $
+as $$
   select exists (
     select 1 from public.workspace_members wm
     where wm.workspace_id = target_workspace
       and wm.user_id = auth.uid()
       and wm.role = any(allowed_roles)
   );
-$;
+$$;
 
 create or replace function public.is_workspace_creator(target_workspace uuid)
 returns boolean
@@ -113,12 +113,12 @@ language sql
 stable
 security definer
 set search_path = public
-as $
+as $$
   select exists (
     select 1 from public.workspaces w
     where w.id = target_workspace and w.created_by = auth.uid()
   );
-$;
+$$;
 
 revoke all on function public.is_workspace_member(uuid) from public;
 revoke all on function public.has_workspace_role(uuid, text[]) from public;
