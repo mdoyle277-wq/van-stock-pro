@@ -14,6 +14,8 @@ const signInButton = $("cloudSignIn");
 const signUpButton = $("cloudSignUp");
 const signOutButton = $("cloudSignOut");
 const setupButton = $("cloudWorkspace");
+const previewButton = $("cloudPreview");
+const previewResult = $("cloudPreviewResult");
 let currentSession = null;
 
 function message(text, kind = "info") {
@@ -29,6 +31,7 @@ function setSession(session) {
   signUpButton.hidden = !!user;
   signOutButton.hidden = !user;
   setupButton.hidden = !user;
+  previewButton.hidden = !user;
   email.disabled = !!user;
   password.disabled = !!user;
 }
@@ -75,6 +78,46 @@ async function runAuth(action) {
     signInButton.disabled = signUpButton.disabled = false;
   }
 }
+function readLocalArray(key) {
+  const raw = localStorage.getItem(key);
+  if (raw === null) return [];
+  const parsed = JSON.parse(raw);
+  if (!Array.isArray(parsed)) throw new Error("Saved data at " + key + " is not a list. No data was changed.");
+  return parsed;
+}
+function previewLocalMigration() {
+  previewResult.hidden = false;
+  previewResult.textContent = "Checking local stock and history…";
+  try {
+    const stock = readLocalArray("van-stock-pro-items-v1");
+    const movements = readLocalArray("van-stock-pro-movements-v2");
+    const usage = readLocalArray("van-stock-pro-usage-v1");
+    const orders = readLocalArray("van-stock-pro-orders-v1");
+    if (!stock.length) throw new Error("No local stock items were found. Nothing can be prepared for migration.");
+    const invalid = stock.filter(item => !item || item.id === undefined || typeof item.name !== "string" || !Number.isFinite(Number(item.qty)));
+    if (invalid.length) throw new Error(invalid.length + " stock item(s) are missing a valid ID, name, or quantity. No data was changed.");
+    const photos = stock.filter(item => typeof item.photo === "string" && item.photo.length > 0).length;
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("van-stock-pro-")) keys.push(key);
+    }
+    const sample = stock.slice(0, 5).map(item => String(item.name)).join(", ");
+    previewResult.textContent =
+      "LOCAL MIGRATION PREVIEW ONLY — nothing has been uploaded or changed. " +
+      stock.length + " stock items; " + photos + " item photo(s); " +
+      movements.length + " movement record(s); " + usage.length +
+      " job-usage record(s); " + orders.length + " supplier/order history record(s); " +
+      keys.length + " Van Stock Pro local-storage key(s). " +
+      "Sample items: " + sample + (stock.length > 5 ? ", …" : "") +
+      ". Legacy item IDs will be preserved. Download and keep a data backup before any future import.";
+    previewResult.dataset.kind = "success";
+  } catch (error) {
+    previewResult.textContent = (error && error.message) || "Could not preview local data. No data was changed.";
+    previewResult.dataset.kind = "error";
+  }
+}
+previewButton.addEventListener("click", previewLocalMigration);
 signInButton.addEventListener("click", () => runAuth("signin"));
 signUpButton.addEventListener("click", () => runAuth("signup"));
 signOutButton.addEventListener("click", async () => {
