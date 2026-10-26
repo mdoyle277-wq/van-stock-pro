@@ -52,7 +52,8 @@ assert.ok(html.includes("Number(i.maxQty):'—')"), 'job usage report must displ
 assert.equal((schema.match(/create policy \"/g) || []).length, (schema.match(/drop policy if exists \"/g) || []).length, 'schema policies must be safe to recreate on reruns');
 assert.match(auth, /function previewLocalMigration/);
 assert.match(auth, /LOCAL MIGRATION PREVIEW ONLY/);
-assert.match(auth, /Number\.isInteger\(Number\(item\.qty\)\)/, 'preview must reject invalid stock quantities');
+assert.match(auth, /!qtyText \|\| !Number\.isFinite\(qty\) \|\| !Number\.isInteger\(qty\) \|\| qty < 0/, 'preview must reject missing, non-finite, fractional, or negative stock quantities');
+assert.match(auth, /seenStockIds\.has\(id\)/, 'preview must flag duplicate legacy stock IDs');
 assert.match(auth, /van-stock-pro-supplier-details-v1/, 'preview must inspect saved supplier contact data');
 assert.match(auth, /invalidMovements\.length \+ invalidUsage\.length \+ invalidOrders\.length/, 'preview must flag questionable history records');
 assert.doesNotMatch(auth, /localStorage\.setItem|localStorage\.removeItem/, 'preview must not alter local stock');
