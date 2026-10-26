@@ -186,16 +186,20 @@ create policy "members can view workspace membership" on public.workspace_member
 drop policy if exists "workspace admins can add members" on public.workspace_members;
 create policy "workspace admins can add members" on public.workspace_members
   for insert to authenticated with check (
-    (user_id = auth.uid() and public.is_workspace_creator(workspace_id))
-    or public.has_workspace_role(workspace_id, array['owner','admin'])
+    (user_id = auth.uid() and role = 'owner' and public.is_workspace_creator(workspace_id))
+    or public.has_workspace_role(workspace_id, array['owner'])
+    or (role <> 'owner' and public.has_workspace_role(workspace_id, array['admin']))
   );
+-- Only owners can change or remove membership roles. This prevents an admin
+-- from promoting themselves (or another admin) to owner and avoids lockouts
+-- caused by lower-privilege members changing the role hierarchy.
 drop policy if exists "workspace admins can update members" on public.workspace_members;
 create policy "workspace admins can update members" on public.workspace_members
-  for update to authenticated using (public.has_workspace_role(workspace_id, array['owner','admin']))
-  with check (public.has_workspace_role(workspace_id, array['owner','admin']));
+  for update to authenticated using (public.has_workspace_role(workspace_id, array['owner']))
+  with check (public.has_workspace_role(workspace_id, array['owner']));
 drop policy if exists "workspace admins can remove members" on public.workspace_members;
 create policy "workspace admins can remove members" on public.workspace_members
-  for delete to authenticated using (public.has_workspace_role(workspace_id, array['owner','admin']));
+  for delete to authenticated using (public.has_workspace_role(workspace_id, array['owner']));
 
 drop policy if exists "members can view stock items" on public.stock_items;
 create policy "members can view stock items" on public.stock_items
