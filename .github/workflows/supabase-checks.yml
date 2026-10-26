@@ -9,7 +9,8 @@ on:
       - 'tests/**'
       - '.github/workflows/supabase-checks.yml'
   push:
-    branches: [supabase-multidevice-foundation]
+    branches: [supabase-foundation-clean, supabase-multidevice-foundation]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
