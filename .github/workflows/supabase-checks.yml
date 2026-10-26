@@ -1,0 +1,29 @@
+name: Supabase foundation checks
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'cloud-auth.js'
+      - 'supabase-config.js'
+      - 'supabase/**'
+      - 'tests/**'
+      - '.github/workflows/supabase-checks.yml'
+  push:
+    branches: [supabase-multidevice-foundation]
+permissions:
+  contents: read
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JS syntax
+        run: |
+          node --check tests/supabase-foundation.test.cjs
+          node --check --input-type=module < cloud-auth.js
+          node --check --input-type=module < supabase-config.js
+      - name: Check Supabase integration invariants
+        run: node tests/supabase-foundation.test.cjs
