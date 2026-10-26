@@ -31,6 +31,11 @@ assert.match(auth, /function previewBackup\(payload\)/);
 assert.match(auth, /van-stock-pro-data-backup/);
 assert.match(auth, /Preview only — nothing was uploaded or changed/);
 assert.match(auth, /file\.size > 50 \* 1024 \* 1024/);
+assert.match(auth, /return Array\.isArray\(parsed\) \? parsed : null/);
+assert.match(auth, /A stock, movement, or job-usage record list is invalid JSON/);
+assert.match(auth, /Choose the file created by Download data backup/);
+assert.match(html, /format:'van-stock-pro-data-backup',version:1/);
+assert.match(html, /saved\[k\]=localStorage\.getItem\(k\)/);
 assert.doesNotMatch(auth, /\.from\("(?:stock_items|stock_movements|job_usage)"\)\.(?:insert|upsert|update|delete)/);
 
 const migration = fs.readFileSync('supabase/migrations/20261026_fix_workspace_creator_select.sql', 'utf8');
