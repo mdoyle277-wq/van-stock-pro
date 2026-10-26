@@ -99,19 +99,21 @@ setupButton.addEventListener("click", async () => {
     const { data: owned, error: ownedError } = await supabase.from("workspaces").select("id").eq("created_by", uid).order("created_at", { ascending: true }).limit(1);
     if (ownedError) throw ownedError;
     let workspace = owned?.[0];
+    let createdNow = false;
     if (!workspace) {
       const { data, error } = await supabase.from("workspaces").insert({ name: "Van Stock Pro", created_by: uid }).select("id").single();
       if (error) throw error;
       workspace = data;
+      createdNow = true;
     }
     const { error: membershipError } = await supabase.from("workspace_members").insert({
       workspace_id: workspace.id, user_id: uid, role: "owner"
     });
     if (membershipError) {
       // Keep the created workspace for diagnosis; do not delete anything automatically.
-      throw new Error("Workspace was created but owner membership did not finish: " + membershipError.message);
+      throw new Error("Workspace " + (createdNow ? "was created" : "was recovered") + " but owner membership did not finish: " + membershipError.message);
     }
-    message("Van Stock Pro workspace created. No stock data was uploaded or changed. Next: build and test the backup import preview.", "success");
+    message((createdNow ? "Van Stock Pro workspace created." : "Existing Van Stock Pro workspace recovered.") + " No stock data was uploaded or changed.", "success");
   } catch (error) {
     message(error?.message || "Workspace setup failed.", "error");
   } finally {
