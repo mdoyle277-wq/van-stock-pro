@@ -96,9 +96,14 @@ setupButton.addEventListener("click", async () => {
       message("Workspace is ready. Your local stock has not been migrated. The next step is a reviewed import preview.", "success");
       return;
     }
-    const { data: workspace, error: workspaceError } = await supabase
-      .from("workspaces").insert({ name: "Van Stock Pro", created_by: uid }).select("id").single();
-    if (workspaceError) throw workspaceError;
+    const { data: owned, error: ownedError } = await supabase.from("workspaces").select("id").eq("created_by", uid).order("created_at", { ascending: true }).limit(1);
+    if (ownedError) throw ownedError;
+    let workspace = owned?.[0];
+    if (!workspace) {
+      const { data, error } = await supabase.from("workspaces").insert({ name: "Van Stock Pro", created_by: uid }).select("id").single();
+      if (error) throw error;
+      workspace = data;
+    }
     const { error: membershipError } = await supabase.from("workspace_members").insert({
       workspace_id: workspace.id, user_id: uid, role: "owner"
     });
