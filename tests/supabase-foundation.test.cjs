@@ -45,7 +45,7 @@ assert.ok(schema.includes("public.has_workspace_role(((storage.foldername(name))
   'photo upload policies must verify workspace role from the storage path');
 
 assert.ok(html.includes('<th>Minimum</th><th>Max.</th><th>Status</th>'), 'job usage inventory must retain the maximum-stock column');
-assert.ok(auth.includes("Number(i.maxQty):'—')"), 'job usage report must display maximum stock values');
+assert.ok(html.includes("Number(i.maxQty):'—')"), 'job usage report must display maximum stock values');
 assert.equal((schema.match(/create policy \"/g) || []).length, (schema.match(/drop policy if exists \"/g) || []).length, 'schema policies must be safe to recreate on reruns');
 assert.match(auth, /function previewLocalMigration/);
 assert.match(auth, /LOCAL MIGRATION PREVIEW ONLY/);
