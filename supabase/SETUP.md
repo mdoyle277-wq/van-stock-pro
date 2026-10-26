@@ -60,3 +60,11 @@ Before publishing any integration to `main`:
 ## Important safety note
 
 Do not migrate by simply replacing localStorage with cloud reads. The app currently has local save/restore logic and multiple stock operations; each needs to be moved to a shared, atomic database operation to avoid overwriting another device's changes.
+
+
+## 4. Verify the live schema safely
+
+After running `schema.sql`, open `verify-setup.sql` in the Supabase SQL Editor and run it. It is a **read-only diagnostic query**: it does not change data. All checks should return `PASS`, including all seven tables with row-level security enabled, the private item-photo bucket, and its four access policies.
+
+If any row says `FAIL`, do not merge or enable migration. Copy the check name and details so the missing setup can be diagnosed. This verification does not replace live sign-in, workspace membership, row-level permission, or two-device tests.
+
