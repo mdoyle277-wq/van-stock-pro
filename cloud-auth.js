@@ -94,12 +94,18 @@ function previewLocalMigration() {
     const usage = readLocalArray("van-stock-pro-usage-v1");
     const orders = readLocalArray("van-stock-pro-orders-v1");
     if (!stock.length) throw new Error("No local stock items were found. Nothing can be prepared for migration.");
-    const invalid = stock.filter(item =>
-      !item ||
-      item.id === undefined || item.id === null || String(item.id).trim() === "" ||
-      typeof item.name !== "string" || !item.name.trim() ||
-      !Number.isInteger(Number(item.qty)) || Number(item.qty) < 0
-    );
+    const seenStockIds = new Set();
+    const invalid = stock.filter(item => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return true;
+      const id = item.id === undefined || item.id === null ? "" : String(item.id).trim();
+      const qtyText = item.qty === undefined || item.qty === null ? "" : String(item.qty).trim();
+      const qty = Number(qtyText);
+      if (!id || typeof item.name !== "string" || !item.name.trim() ||
+          !qtyText || !Number.isFinite(qty) || !Number.isInteger(qty) || qty < 0 ||
+          seenStockIds.has(id)) return true;
+      seenStockIds.add(id);
+      return false;
+    });
     if (invalid.length) throw new Error(invalid.length + " stock item(s) have a missing ID/name or an invalid quantity. No data was changed.");
     const photos = stock.filter(item => typeof item.photo === "string" && item.photo.length > 0).length;
     const invalidMovements = movements.filter(item => !item || typeof item !== "object" || !item.itemId || !Number.isFinite(Number(item.change)));
