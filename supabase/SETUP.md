@@ -35,7 +35,9 @@ The development branch has `supabase-config.js` with this project's URL and its 
 
 The app must be opened from the development branch's preview environment to test this panel; it is not live on the production GitHub Pages site. Account creation may require email confirmation depending on Supabase Auth settings.
 
-## 4. Next implementation steps
+## 4. Fix for an already-installed schema
+
+If you already ran the original schema in Supabase SQL Editor, run only `supabase/migrations/20261026_fix_workspace_creator_select.sql` in SQL Editor. This updates the workspace SELECT policy so the creator can read the workspace row during first-time setup. It does not modify stock data. Do not rerun the entire schema script just for this fix.
 
 ## 5. Implementation and migration sequence
 
