@@ -271,3 +271,22 @@ assert.throws(() => buildMigrationPlan({format:"van-stock-pro-data-backup",data:
     {id:"same-usage",itemId:"x",quantity:2}
   ]
 }}), /duplicate source record ID/);
+
+ // Static database-security guardrails: all tenant data tables must have RLS and role-limited writes.
+for (const table of ["workspaces","workspace_members","stock_items","stock_movements","job_usage"]) {
+  assert.match(schema,new RegExp("alter table public\\."+table+" enable row level security"));
+}
+assert.match(schema,/members can view stock items[\\s\\S]*?public\\.is_workspace_member\\(workspace_id\\)/);
+assert.match(schema,/editors can add stock items[\\s\\S]*?array\\['owner','admin','member'\\]/);
+assert.match(schema,/admins can delete stock items[\\s\\S]*?array\\['owner','admin'\\]/);
+assert.match(schema,/members can view movements[\\s\\S]*?public\\.is_workspace_member\\(workspace_id\\)/);
+assert.match(schema,/editors can add movements[\\s\\S]*?array\\['owner','admin','member'\\]/);
+assert.match(schema,/members can view job usage[\\s\\S]*?public\\.is_workspace_member\\(workspace_id\\)/);
+assert.match(schema,/editors can add job usage[\\s\\S]*?array\\['owner','admin','member'\\]/);
+assert.match(schema,/workspace admins can remove members[\\s\\S]*?array\\['owner','admin'\\]/);
+assert.match(schema,/values \\('van-stock-item-photos', 'van-stock-item-photos', false, 5242880, array\\['image/jpeg','image/png','image/webp'\\]\\)/);
+assert.doesNotMatch(schema,/grant all on all tables|using \\(true\\)|with check \\(true\\)/i,
+  "Schema must not grant unrestricted tenant access");
+assert.match(schema,/unique \\(workspace_id, legacy_id\\)/,
+  "Stock import must have a workspace-scoped legacy ID uniqueness guard");
+console.log("Static RLS and storage policy checks passed; policies have not been exercised against a live database.");
