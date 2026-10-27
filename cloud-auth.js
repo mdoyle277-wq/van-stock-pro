@@ -148,7 +148,6 @@ function previewLocalMigration() {
 previewButton.addEventListener("click", previewLocalMigration);
 signInButton.addEventListener("click", () => runAuth("signin"));
 signUpButton.addEventListener("click", () => runAuth("signup"));
-$("cloudSignOutMini")?.addEventListener("click", () => signOutButton.click());
 $("cloudSignInMini")?.addEventListener("click", () => {
   $("cloudEmail")?.focus();
   $("cloudStatus")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
