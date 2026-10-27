@@ -25,6 +25,7 @@ function message(text, kind = "info") {
 }
 function setSession(session) {
   currentSession = session;
+  document.body.classList.toggle("cloud-authenticated", !!session?.user);
   const user = session?.user;
   sessionLabel.textContent = user ? "Signed in as " + user.email : "Not signed in";
   signInButton.hidden = !!user;
