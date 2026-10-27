@@ -68,4 +68,25 @@ assert.match(auth, /seenStockIds\.has\(id\)/, 'preview must flag duplicate legac
 assert.match(auth, /van-stock-pro-supplier-details-v1/, 'preview must inspect saved supplier contact data');
 assert.match(auth, /invalidMovements\.length \+ invalidUsage\.length \+ invalidOrders\.length/, 'preview must flag questionable history records');
 assert.doesNotMatch(auth, /localStorage\.setItem|localStorage\.removeItem/, 'preview must not alter local stock');
+
+for (const signature of [
+  'public.is_workspace_member(uuid)',
+  'public.has_workspace_role(uuid, text[])',
+  'public.is_workspace_creator(uuid)'
+]) {
+  const functionName = signature.slice('public.'.length, signature.indexOf('('));
+  assert.ok(schema.includes('revoke all on function public.' + functionName),
+    functionName + ' must revoke default PUBLIC privileges');
+  assert.ok(schema.includes('grant execute on function public.' + functionName + ' to authenticated'),
+    functionName + ' must explicitly grant authenticated execution');
+}
+assert.match(schema, /create policy "authenticated users can create workspaces" on public\.workspaces[\s\S]*?with check \(created_by = auth\.uid\(\)\)/,
+  'workspace creation must bind creator identity to the signed-in user');
+assert.match(schema, /create policy "workspace admins can add members" on public\.workspace_members[\s\S]*?user_id = auth\.uid\(\) and role = 'owner' and public\.is_workspace_creator\(workspace_id\)/,
+  'initial owner membership must only be self-created by the workspace creator');
+assert.match(schema, /create policy "workspace admins can update members" on public\.workspace_members[\s\S]*?for update to authenticated using \(public\.has_workspace_role\(workspace_id, array\['owner'\]\)\)/,
+  'only workspace owners may change member roles');
+assert.match(schema, /create policy "workspace admins can remove members" on public\.workspace_members[\s\S]*?for delete to authenticated using \(public\.has_workspace_role\(workspace_id, array\['owner'\]\)\)/,
+  'only workspace owners may remove members');
+
 console.log('Supabase foundation static checks passed. No live auth, browser, or database tests were performed.');
