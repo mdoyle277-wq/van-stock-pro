@@ -18,6 +18,23 @@
 </head>
 <body><main class="wrap">
 <header class="top"><div class="brand"><div class="logo">V</div><div><div class="eyebrow">Field inventory system</div><h1>Van Stock Pro</h1><div class="sub">Your stock. Your van. Under control.</div></div></div><div class="actions"><button class="secondary" id="exportBtn">Export CSV</button><button class="secondary" id="reorderPlannerBtn" type="button">🛒 Reorder planner</button><button class="secondary" id="supplierDirectoryBtn" type="button">🏷️ Suppliers</button><button class="secondary" id="supplierDetailsBtn" type="button">✏️ Supplier contacts</button><button class="secondary" id="supplierImportBtn" type="button">📥 Import contacts</button><button class="secondary" id="receiveStockBtn" type="button">📦 Receive delivery</button><button class="secondary" id="stockAlertsBtn" type="button">🔔 Stock alerts</button><button class="secondary" id="minMaxBtn" type="button">🎯 Min / max levels</button><button class="secondary" id="stocktakeBtn" type="button">📋 Stocktake</button><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="jobReportBtn" type="button">📊 Job usage report</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open'));">Stock history</button><button class="secondary" id="emailRestockTop">Email restock</button><button class="secondary" id="addSelectedTop">＋ Add selected</button><button id="addFocusBtn">＋ Add item</button></div></header>
+<section class="panel" id="cloudStatus" style="margin:0 0 16px">
+  <div class="panelhead"><div><h2>☁️ Multi-device cloud setup</h2><div class="sub">Sign in here to prepare multi-device access. Your existing local stock remains unchanged; no stock is uploaded until you review and confirm an import.</div></div><span class="pill" style="white-space:nowrap">Development setup</span></div>
+  <div class="formgrid">
+    <div><label class="fieldlabel" for="cloudEmail">Email address</label><input class="field" id="cloudEmail" type="email" autocomplete="username" placeholder="you@example.com"></div>
+    <div><label class="fieldlabel" for="cloudPassword">Password</label><input class="field" id="cloudPassword" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters"></div>
+  </div>
+  <div class="entryactions" style="margin-top:10px">
+    <button type="button" id="cloudSignIn">Sign in</button>
+    <button type="button" class="secondary" id="cloudSignUp">Create account</button>
+    <button type="button" class="secondary" id="cloudWorkspace" hidden>Set up workspace</button>
+    <button type="button" class="secondary" id="cloudPreview" hidden>Preview local stock migration</button>
+    <button type="button" class="secondary" id="cloudSignOut" hidden>Sign out</button>
+  </div>
+  <div class="notice" id="cloudSession" role="status">Not signed in</div>
+  <div class="notice" id="cloudMessage" role="status" aria-live="polite">Sign in with the account you created in Supabase. If email confirmation is required, confirm it first. Stock has not been uploaded.</div>
+  <div class="notice" id="cloudPreviewResult" role="status" aria-live="polite" hidden></div>
+</section>
 <section class="stats">
 <div class="stat mint selected-photo-card"><div class="label">SELECTED ITEM</div><div class="selected-photo-tile" id="selectedPhotoTile"><div class="selected-photo-placeholder">📦</div></div><div class="selected-photo-name" id="selectedPhotoName">Select an item below</div><div class="hint" id="selectedPhotoDetails">Item photo and details will appear here</div></div>
 <div class="stat"><div class="label">SKU COUNT</div><div class="num" id="skuCount">0</div><div class="hint">Unique stock lines</div></div>
@@ -163,4 +180,4 @@ $('backupCodeBtn').addEventListener('click',()=>{try{downloadVanFile('van-stock-
 $('restoreCodeBtn').addEventListener('click',()=>$('restoreCodeFile').click());
 $('restoreCodeFile').addEventListener('change',async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{const html=await file.text();if(!/Van Stock Pro/i.test(html)||!/<html[\\s>]/i.test(html)||!/<script[\\s>]/i.test(html))throw new Error('Choose a valid Van Stock Pro HTML functionality backup.');if(!confirm('Prepare this app functionality backup as index.html? This downloads a replacement file but does not change the live website automatically. To publish it, replace index.html in your GitHub repository.'))return;downloadVanFile('index.html',html,'text/html;charset=utf-8');$('backupStatus').textContent='Replacement index.html prepared. To restore the live app, upload this file to the repository and commit the change.';toast('Replacement app file prepared')}catch(err){$('backupStatus').textContent='App restore failed: '+err.message;toast('App restore failed')}finally{e.target.value=''}});
 render();if(items.length){const savedWithPhoto=items.find(i=>i.photo);showSelectedItem(savedWithPhoto||items[0])}
-</script></body></html>
+</script><script type="module" src="./cloud-auth.js"></script></body></html>
