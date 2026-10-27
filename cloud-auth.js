@@ -23,7 +23,7 @@ function message(text, kind = "info") {
   status.textContent = text;
   status.dataset.kind = kind;
 }
-const INACTIVITY_LIMIT_MS = 10 * 60 * 1000;
+const INACTIVITY_LIMIT_MS = 2 * 60 * 1000;
 let inactivityTimer = null;
 function clearInactivityTimer() {
   if (inactivityTimer !== null) window.clearTimeout(inactivityTimer);
@@ -32,7 +32,7 @@ function clearInactivityTimer() {
 async function signOutForInactivity() {
   clearInactivityTimer();
   if (!currentSession?.user) return;
-  message("Signed out after 10 minutes without activity. Sign in again to continue.", "warning");
+  message("Signed out after 2 minutes without keyboard activity. Sign in again to continue.", "warning");
   const { error } = await supabase.auth.signOut();
   if (error) message("Automatic sign-out failed: " + error.message, "error");
 }
@@ -41,7 +41,7 @@ function resetInactivityTimer() {
   clearInactivityTimer();
   inactivityTimer = window.setTimeout(signOutForInactivity, INACTIVITY_LIMIT_MS);
 }
-["pointerdown", "keydown", "touchstart", "scroll", "click"].forEach((eventName) => {
+["keydown"].forEach((eventName) => {
   window.addEventListener(eventName, resetInactivityTimer, { passive: true });
 });
 function setSession(session) {
