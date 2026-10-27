@@ -75,9 +75,9 @@ for (const signature of [
   'public.is_workspace_creator(uuid)'
 ]) {
   const functionName = signature.slice('public.'.length, signature.indexOf('('));
-  assert.ok(schema.includes('revoke all on function public.' + functionName),
+  assert.ok(schema.includes('revoke all on function ' + signature),
     functionName + ' must revoke default PUBLIC privileges');
-  assert.ok(schema.includes('grant execute on function public.' + functionName + ' to authenticated'),
+  assert.ok(schema.includes('grant execute on function ' + signature + ' to authenticated'),
     functionName + ' must explicitly grant authenticated execution');
 }
 assert.match(schema, /create policy "authenticated users can create workspaces" on public\.workspaces[\s\S]*?with check \(created_by = auth\.uid\(\)\)/,
