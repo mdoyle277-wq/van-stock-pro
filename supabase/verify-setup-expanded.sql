@@ -110,6 +110,21 @@ checks as (
     ('public.is_workspace_creator(uuid)')
   ) e(signature)
   left join pg_proc fn on fn.oid = to_regprocedure(e.signature)
+
+  union all
+  select 'Function not executable by anon: ' || e.signature,
+         case when fn.oid is not null and not has_function_privilege('anon', fn.oid, 'EXECUTE')
+              then 'PASS' else 'FAIL' end,
+         case when fn.oid is null then 'Expected helper function is missing'
+              when not has_function_privilege('anon', fn.oid, 'EXECUTE')
+              then 'anon role cannot execute helper'
+              else 'anon role still has execute privilege' end
+  from (values
+    ('public.is_workspace_member(uuid)'),
+    ('public.has_workspace_role(uuid,text[])'),
+    ('public.is_workspace_creator(uuid)')
+  ) e(signature)
+  left join pg_proc fn on fn.oid = to_regprocedure(e.signature)
 )
 select check_name, result, details
 from checks
