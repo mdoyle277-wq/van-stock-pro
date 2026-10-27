@@ -48,7 +48,7 @@ function setSession(session) {
   currentSession = session;
   document.body.classList.toggle("cloud-authenticated", !!session?.user);
   const miniSignOut = $("cloudSignOutMini");
-  if (miniSignOut) miniSignOut.hidden = !session?.user;
+  if (miniSignOut) { miniSignOut.hidden = false; miniSignOut.disabled = !session?.user; miniSignOut.title = session?.user ? "Sign out" : "Sign in first to enable sign out"; }
   if (session?.user) resetInactivityTimer();
   else clearInactivityTimer();
   const user = session?.user;
