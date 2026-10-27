@@ -1,0 +1,35 @@
+name: Supabase foundation checks
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'cloud-auth.js'
+      - 'supabase-config.js'
+      - 'supabase/**'
+      - 'tests/**'
+      - '.github/workflows/supabase-checks.yml'
+  push:
+    branches: [supabase-foundation-clean, supabase-multidevice-foundation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JS syntax
+        run: |
+          node --check tests/supabase-foundation.test.cjs
+          node --check tests/cloud-auth.behavior.test.cjs
+          node --check --input-type=module < cloud-auth.js
+          node --check --input-type=module < supabase-config.js
+          node -e "const fs=require('node:fs');const h=fs.readFileSync('index.html','utf8');const s=[...h.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script>/gi)].filter(m=>! /\\bsrc\\s*=/.test(m[1]) && m[2].trim());if(s.length!==1)throw new Error('Expected one inline application script, found '+s.length);fs.writeFileSync('/tmp/van-stock-pro-inline.js',s[0][2]);"
+          node --check /tmp/van-stock-pro-inline.js
+      - name: Check Supabase integration invariants
+        run: node tests/supabase-foundation.test.cjs
+      - name: Check cloud auth behavior with mocked browser and Supabase
+        run: node tests/cloud-auth.behavior.test.cjs
