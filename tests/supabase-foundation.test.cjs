@@ -75,8 +75,8 @@ for (const signature of [
   'public.is_workspace_creator(uuid)'
 ]) {
   const functionName = signature.slice('public.'.length, signature.indexOf('('));
-  assert.ok(schema.includes('revoke all on function ' + signature),
-    functionName + ' must revoke default PUBLIC privileges');
+  assert.ok(schema.includes('revoke all on function ' + signature + ' from public, anon'),
+    functionName + ' must revoke default PUBLIC and anon privileges');
   assert.ok(schema.includes('grant execute on function ' + signature + ' to authenticated'),
     functionName + ' must explicitly grant authenticated execution');
 }
