@@ -49,8 +49,8 @@ function setSession(session) {
   document.body.classList.toggle("cloud-authenticated", !!session?.user);
   const miniSignOut = $("cloudSignOutMini");
   const miniSignIn = $("cloudSignInMini");
-  if (miniSignOut) { miniSignOut.hidden = !session?.user; miniSignOut.disabled = !session?.user; miniSignOut.title = "Sign out"; }
-  if (miniSignIn) { miniSignIn.hidden = !!session?.user; miniSignIn.disabled = !!session?.user; miniSignIn.title = "Open sign-in fields below the title"; }
+  if (miniSignOut) { const show = !!session?.user; miniSignOut.hidden = !show; miniSignOut.classList.toggle("is-hidden", !show); miniSignOut.style.setProperty("display", show ? "inline-flex" : "none", "important"); miniSignOut.disabled = !show; miniSignOut.title = "Sign out"; }
+  if (miniSignIn) { const show = !session?.user; miniSignIn.hidden = !show; miniSignIn.classList.toggle("is-hidden", !show); miniSignIn.style.setProperty("display", show ? "inline-flex" : "none", "important"); miniSignIn.disabled = !show; miniSignIn.title = "Open sign-in fields below the title"; }
   if (session?.user) resetInactivityTimer();
   else clearInactivityTimer();
   const user = session?.user;
