@@ -89,4 +89,11 @@ assert.match(schema, /create policy "workspace admins can update members" on pub
 assert.match(schema, /create policy "workspace admins can remove members" on public\.workspace_members[\s\S]*?for delete to authenticated using \(public\.has_workspace_role\(workspace_id, array\['owner'\]\)\)/,
   'only workspace owners may remove members');
 
+
+const expandedVerify = fs.readFileSync('supabase/verify-setup-expanded.sql', 'utf8');
+assert.match(expandedVerify, /Function not executable by anon/,
+  'live diagnostic must verify anonymous execution is revoked from workspace helper functions');
+assert.match(expandedVerify, /Photo bucket size limit and MIME types/,
+  'live diagnostic must verify private photo upload size and MIME restrictions');
+
 console.log('Supabase foundation static checks passed. No live auth, browser, or database tests were performed.');
