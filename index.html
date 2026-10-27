@@ -42,7 +42,7 @@ body.cloud-authenticated #cloudStatus{display:none!important}
 body.cloud-authenticated main.wrap>:not(#cloudStatus){filter:none!important;opacity:1!important;pointer-events:auto!important;user-select:auto!important}
 body.cloud-authenticated::before{display:none!important;content:none!important}
 #cloudSignInMini,#cloudSignOutMini{display:inline-flex;align-items:center;justify-content:center}
-#cloudSignInMini[hidden],#cloudSignOutMini[hidden]{display:none!important}
+#cloudSignInMini[hidden],#cloudSignOutMini[hidden],#cloudSignInMini.is-hidden,#cloudSignOutMini.is-hidden{display:none!important}
 
 /* Hide sign-in modal after authentication; retain a visible sign-out control. */
 body.cloud-authenticated #cloudStatus{display:none!important}
