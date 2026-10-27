@@ -90,9 +90,23 @@ checks as (
 
   union all
   select 'Function not executable by PUBLIC: ' || e.signature,
-         case when not has_function_privilege('public', e.signature, 'EXECUTE')
+         case when not exists (
+           select 1
+           from pg_proc fn
+           cross join lateral aclexplode(coalesce(fn.proacl, acldefault('f', fn.proowner))) acl
+           where fn.oid = to_regprocedure(e.signature)
+             and acl.grantee = 0
+             and acl.privilege_type = 'EXECUTE'
+         )
               then 'PASS' else 'FAIL' end,
-         case when not has_function_privilege('public', e.signature, 'EXECUTE')
+         case when not exists (
+           select 1
+           from pg_proc fn
+           cross join lateral aclexplode(coalesce(fn.proacl, acldefault('f', fn.proowner))) acl
+           where fn.oid = to_regprocedure(e.signature)
+             and acl.grantee = 0
+             and acl.privilege_type = 'EXECUTE'
+         )
               then 'PUBLIC execute privilege is revoked'
               else 'PUBLIC still has execute privilege' end
   from (values
