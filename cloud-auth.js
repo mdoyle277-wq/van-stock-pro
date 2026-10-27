@@ -164,7 +164,12 @@ $("cloudSignOutMini")?.addEventListener("click", () => {
 signOutButton.addEventListener("click", async () => {
   const { error } = await supabase.auth.signOut();
   if (error) message(error.message, "error");
-  else { setSession(null); message("Signed out. Your existing browser stock has not been changed."); }
+  else {
+    setSession(null);
+    email.value = "";
+    password.value = "";
+    message("Signed out. Email and password fields cleared. Your existing browser stock has not been changed.");
+  }
 });
 setupButton.addEventListener("click", async () => {
   if (!currentSession?.user) return message("Sign in first.", "warning");
