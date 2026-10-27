@@ -62,6 +62,19 @@ checks as (
   left join storage.buckets b on b.id='van-stock-item-photos'
 
   union all
+  select 'Photo bucket size limit and MIME types',
+         case when b.id is not null and b.file_size_limit = 5242880
+                   and b.allowed_mime_types = array['image/jpeg','image/png','image/webp']::text[]
+              then 'PASS' else 'FAIL' end,
+         case when b.id is null then 'Bucket missing'
+              when b.file_size_limit <> 5242880 then 'Expected 5 MiB maximum upload size'
+              when b.allowed_mime_types is distinct from array['image/jpeg','image/png','image/webp']::text[]
+                then 'Expected JPEG, PNG, and WebP MIME types only'
+              else '5 MiB limit and expected image MIME types are configured' end
+  from (select 1) seed
+  left join storage.buckets b on b.id='van-stock-item-photos'
+
+  union all
   select 'Photo policy: ' || e.policyname,
          case when p.policyname is not null then 'PASS' else 'FAIL' end,
          case when p.policyname is not null then 'Expected storage policy exists'
