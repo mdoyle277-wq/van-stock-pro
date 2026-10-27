@@ -48,7 +48,9 @@ function setSession(session) {
   currentSession = session;
   document.body.classList.toggle("cloud-authenticated", !!session?.user);
   const miniSignOut = $("cloudSignOutMini");
+  const miniSignIn = $("cloudSignInMini");
   if (miniSignOut) { miniSignOut.hidden = false; miniSignOut.disabled = !session?.user; miniSignOut.title = session?.user ? "Sign out" : "Sign in first to enable sign out"; }
+  if (miniSignIn) { miniSignIn.hidden = false; miniSignIn.disabled = !!session?.user; miniSignIn.title = session?.user ? "Already signed in" : "Open sign-in fields below the title"; }
   if (session?.user) resetInactivityTimer();
   else clearInactivityTimer();
   const user = session?.user;
@@ -147,6 +149,18 @@ previewButton.addEventListener("click", previewLocalMigration);
 signInButton.addEventListener("click", () => runAuth("signin"));
 signUpButton.addEventListener("click", () => runAuth("signup"));
 $("cloudSignOutMini")?.addEventListener("click", () => signOutButton.click());
+$("cloudSignInMini")?.addEventListener("click", () => {
+  $("cloudEmail")?.focus();
+  $("cloudStatus")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+});
+$("cloudSignOutMini")?.addEventListener("click", () => {
+  if (!currentSession?.user) {
+    $("cloudEmail")?.focus();
+    $("cloudStatus")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return;
+  }
+  signOutButton.click();
+});
 signOutButton.addEventListener("click", async () => {
   const { error } = await supabase.auth.signOut();
   if (error) message(error.message, "error");
