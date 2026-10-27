@@ -77,9 +77,10 @@ checks as (
 
   union all
   select 'Function executable by authenticated: ' || e.signature,
-         case when has_function_privilege('authenticated', e.signature, 'EXECUTE')
+         case when fn.oid is not null and has_function_privilege('authenticated', fn.oid, 'EXECUTE')
               then 'PASS' else 'FAIL' end,
-         case when has_function_privilege('authenticated', e.signature, 'EXECUTE')
+         case when fn.oid is null then 'Expected helper function is missing'
+              when has_function_privilege('authenticated', fn.oid, 'EXECUTE')
               then 'Authenticated role can execute helper'
               else 'Authenticated role cannot execute helper' end
   from (values
@@ -87,33 +88,28 @@ checks as (
     ('public.has_workspace_role(uuid,text[])'),
     ('public.is_workspace_creator(uuid)')
   ) e(signature)
+  left join pg_proc fn on fn.oid = to_regprocedure(e.signature)
 
   union all
   select 'Function not executable by PUBLIC: ' || e.signature,
-         case when not exists (
+         case when fn.oid is not null and not exists (
            select 1
-           from pg_proc fn
-           cross join lateral aclexplode(coalesce(fn.proacl, acldefault('f', fn.proowner))) acl
-           where fn.oid = to_regprocedure(e.signature)
-             and acl.grantee = 0
-             and acl.privilege_type = 'EXECUTE'
-         )
-              then 'PASS' else 'FAIL' end,
-         case when not exists (
-           select 1
-           from pg_proc fn
-           cross join lateral aclexplode(coalesce(fn.proacl, acldefault('f', fn.proowner))) acl
-           where fn.oid = to_regprocedure(e.signature)
-             and acl.grantee = 0
-             and acl.privilege_type = 'EXECUTE'
-         )
-              then 'PUBLIC execute privilege is revoked'
+           from aclexplode(coalesce(fn.proacl, acldefault('f', fn.proowner))) acl
+           where acl.grantee = 0 and acl.privilege_type = 'EXECUTE'
+         ) then 'PASS' else 'FAIL' end,
+         case when fn.oid is null then 'Expected helper function is missing'
+              when not exists (
+                select 1
+                from aclexplode(coalesce(fn.proacl, acldefault('f', fn.proowner))) acl
+                where acl.grantee = 0 and acl.privilege_type = 'EXECUTE'
+              ) then 'PUBLIC execute privilege is revoked'
               else 'PUBLIC still has execute privilege' end
   from (values
     ('public.is_workspace_member(uuid)'),
     ('public.has_workspace_role(uuid,text[])'),
     ('public.is_workspace_creator(uuid)')
   ) e(signature)
+  left join pg_proc fn on fn.oid = to_regprocedure(e.signature)
 )
 select check_name, result, details
 from checks
