@@ -243,6 +243,9 @@ alter table public.job_usage enable row level security;
 alter table public.supplier_details enable row level security;
 alter table public.order_history enable row level security;
 
+-- Keep anonymous clients from receiving direct table privileges.
+revoke all privileges on table public.workspace_members from public, anon;
+
 -- The creator must be able to read the newly inserted workspace before their
 -- owner membership row exists; PostgREST INSERT ... RETURNING uses SELECT RLS.
 drop policy if exists "members and creators can view their workspaces" on public.workspaces;
