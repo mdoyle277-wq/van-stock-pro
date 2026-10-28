@@ -15,6 +15,7 @@ const signUpButton = $("cloudSignUp");
 const signOutButton = $("cloudSignOut");
 const setupButton = $("cloudWorkspace");
 const previewButton = $("cloudPreview");
+const importButton = $("cloudImport");
 const previewResult = $("cloudPreviewResult");
 let currentSession = null;
 
@@ -32,6 +33,7 @@ function setSession(session) {
   signOutButton.hidden = !user;
   setupButton.hidden = !user;
   previewButton.hidden = !user;
+  if (importButton) importButton.hidden = !user;
   email.disabled = !!user;
   password.disabled = !!user;
 }
@@ -117,7 +119,71 @@ function previewLocalMigration() {
     previewResult.dataset.kind = "error";
   }
 }
+
+async function importLocalStockToCloud() {
+  if (!currentSession?.user) return message("Sign in first. No data was changed.", "warning");
+  const confirmed = window.confirm("Import local stock into your Supabase workspace? This uploads stock item fields only and updates matching legacy IDs. It does not delete cloud records. Keep a downloaded local backup first. Continue?");
+  if (!confirmed) return;
+  importButton.disabled = true;
+  try {
+    const ready = await checkSchema();
+    if (!ready) throw new Error("Supabase schema check failed. No stock was uploaded.");
+    const { data: workspaceData, error: workspaceError } = await supabase.rpc("ensure_default_workspace");
+    if (workspaceError) throw workspaceError;
+    const workspace = Array.isArray(workspaceData) ? workspaceData[0] : workspaceData;
+    if (!workspace?.result_workspace_id || workspace.result_role !== "owner") {
+      throw new Error("An owner workspace could not be confirmed. No stock was uploaded.");
+    }
+    const stock = readLocalArray("van-stock-pro-items-v1");
+    if (!stock.length) throw new Error("No local stock items found. Nothing uploaded.");
+    const invalid = stock.filter(i => !i || i.id === undefined || typeof i.name !== "string" || !Number.isFinite(Number(i.qty)) || !Number.isFinite(Number(i.minQty ?? 0)));
+    if (invalid.length) throw new Error(invalid.length + " invalid item(s) found. No stock was uploaded.");
+    const rows = stock.map(i => ({
+      workspace_id: workspace.result_workspace_id,
+      legacy_id: String(i.id),
+      name: i.name,
+      sku: String(i.sku || ""),
+      barcode: String(i.barcode || ""),
+      category: String(i.category || ""),
+      qty: Number(i.qty),
+      min_qty: Number(i.minQty ?? 0),
+      max_qty: i.maxQty === "" || i.maxQty === undefined || i.maxQty === null ? null : Number(i.maxQty),
+      location: String(i.location || ""),
+      supplier: String(i.supplier || ""),
+      supplier_url: String(i.supplierUrl || ""),
+      photo_path: null,
+      notes: String(i.notes || "")
+    }));
+    for (let start = 0; start < rows.length; start += 100) {
+      const batch = rows.slice(start, start + 100);
+      const { error } = await supabase.from("stock_items").upsert(batch, { onConflict: "workspace_id,legacy_id" });
+      if (error) throw new Error("Upload stopped at batch " + (Math.floor(start / 100) + 1) + ": " + error.message + ". Some earlier batches may have uploaded; rerun safely after checking cloud stock.");
+    }
+    const { data: cloudRows, error: verifyError } = await supabase.from("stock_items")
+      .select("legacy_id,name,qty,min_qty,max_qty")
+      .eq("workspace_id", workspace.result_workspace_id);
+    if (verifyError) throw new Error("Upload may have completed, but cloud verification failed: " + verifyError.message);
+    const byId = new Map((cloudRows || []).map(i => [String(i.legacy_id), i]));
+    const mismatches = rows.filter(i => {
+      const saved = byId.get(i.legacy_id);
+      return !saved || saved.name !== i.name || Number(saved.qty) !== i.qty || Number(saved.min_qty) !== i.min_qty ||
+        (i.max_qty === null ? saved.max_qty !== null : Number(saved.max_qty) !== i.max_qty);
+    });
+    if (mismatches.length) throw new Error("Verification failed for " + mismatches.length + " item(s). Do not switch the live app to cloud yet.");
+    message("SUCCESS — verified " + rows.length + " local stock items against Supabase. Local stock was not changed. Photos and movement/job/order history were not imported; cloud app-wide syncing is not yet complete.", "success");
+    if (previewResult) {
+      previewResult.hidden = false;
+      previewResult.textContent = "Cloud verification passed: " + rows.length + " stock items match local IDs, names, quantities and min/max values. Photos and history remain local.";
+    }
+  } catch (error) {
+    message(error?.message || "Stock import failed. Keep the local app and backup unchanged.", "error");
+  } finally {
+    importButton.disabled = false;
+  }
+}
+
 previewButton.addEventListener("click", previewLocalMigration);
+if (importButton) importButton.addEventListener("click", importLocalStockToCloud);
 signInButton.addEventListener("click", () => runAuth("signin"));
 signUpButton.addEventListener("click", () => runAuth("signup"));
 signOutButton.addEventListener("click", async () => {
