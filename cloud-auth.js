@@ -131,25 +131,23 @@ setupButton.addEventListener("click", async () => {
   try {
     const ready = await checkSchema();
     if (!ready) return;
-    const uid = currentSession.user.id;
-    const { data: memberships, error: memberError } = await supabase
-      .from("workspace_members").select("workspace_id, role").eq("user_id", uid).limit(1);
-    if (memberError) throw memberError;
-    if (memberships?.length) {
-      message("Workspace is ready. Your local stock has not been migrated. The next step is a reviewed import preview.", "success");
-      return;
+    const { data, error } = await supabase.rpc("ensure_default_workspace");
+    if (error) {
+      if (/ensure_default_workspace|schema cache|could not find the function/i.test(error.message || "")) {
+        throw new Error("The safe workspace setup SQL has not been installed yet. Run supabase/workspace-hardening.sql in Supabase SQL Editor, then retry. No stock data was uploaded.");
+      }
+      throw error;
     }
-    const { data: workspace, error: workspaceError } = await supabase
-      .from("workspaces").insert({ name: "Van Stock Pro", created_by: uid }).select("id").single();
-    if (workspaceError) throw workspaceError;
-    const { error: membershipError } = await supabase.from("workspace_members").insert({
-      workspace_id: workspace.id, user_id: uid, role: "owner"
-    });
-    if (membershipError) {
-      // Keep the created workspace for diagnosis; do not delete anything automatically.
-      throw new Error("Workspace was created but owner membership did not finish: " + membershipError.message);
+    const result = Array.isArray(data) ? data[0] : data;
+    if (!result?.result_workspace_id || result.result_role !== "owner") {
+      throw new Error("Supabase did not confirm an owner workspace membership. No stock data was uploaded; review the workspace membership before retrying.");
     }
-    message("Van Stock Pro workspace created. No stock data was uploaded or changed. Next: build and test the backup import preview.", "success");
+    message(
+      result.created_now
+        ? "Van Stock Pro workspace and owner membership created and confirmed. No stock data was uploaded or changed."
+        : "Van Stock Pro workspace and owner membership confirmed (existing workspace reused where possible). No stock data was uploaded or changed.",
+      "success"
+    );
   } catch (error) {
     message(error?.message || "Workspace setup failed.", "error");
   } finally {
