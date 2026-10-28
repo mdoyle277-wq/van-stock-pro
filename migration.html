@@ -95,8 +95,9 @@ $("preview").addEventListener("click",async()=>{
 });
 $("import").addEventListener("click",async()=>{
  if(!session||!validatedItems?.length){say("result","Sign in and validate a backup first.","bad");return;}
- if(!confirm("Import missing stock items into the selected Supabase workspace? Existing cloud items with matching legacy IDs will not be overwritten. Your local browser stock will not be changed."))return;
+ // Avoid native confirm() dialogs: some mobile in-app browsers suppress them.
  $("import").disabled=true;$("preview").disabled=true;
+ say("result","Starting import… checking your Supabase session and workspace. Your local browser stock will not be changed.");
  try{
   const name=await findWorkspace();
   const {count,error:countErr}=await sb.from("stock_items").select("id",{count:"exact",head:true}).eq("workspace_id",workspaceId);
