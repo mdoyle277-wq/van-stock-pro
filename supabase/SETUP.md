@@ -25,17 +25,28 @@ Never send or put the database password, `service_role` key, secret API keys, or
 
 The development branch has `supabase-config.js` with this project's URL and its publishable key. The publishable key is intended for browser use; it is not a database password. Keep service-role keys and secret API keys out of the repository.
 
-## 3. Current development functionality
+## 3. Secure workspace initialisation on the existing project
+
+The current Supabase project already has the base schema. Before using the workspace button, run `supabase/workspace-hardening.sql` in **Supabase → SQL Editor**. This migration:
+
+- Adds an atomic, idempotent `ensure_default_workspace()` function that creates or repairs the workspace and owner membership in one transaction.
+- Reuses a workspace left behind by an interrupted setup attempt rather than creating another one.
+- Prevents client-side role changes on `workspace_members` until an audited role-management action exists.
+- Restricts admins to adding/removing ordinary members and viewers; owners can manage other members but cannot remove themselves.
+- Revokes anonymous table privileges on `workspace_members` and limits the bootstrap RPC to authenticated users.
+- Does not read, insert, update, or delete stock records.
+
+Then sign in with the account you created and press the workspace setup button. Confirm the status says the workspace and owner membership were confirmed. For read-only database checks, run `supabase/workspace-verification.sql`. Expected security results: anonymous execution/select are false, authenticated bootstrap execution is true, and authenticated direct UPDATE on `workspace_members` is false.
+
+## 4. Current development functionality and preview limitation
 
 - Email/password sign-in and account creation via Supabase Auth.
 - Session persistence in the browser.
 - A schema readiness check.
-- A button to create a `Van Stock Pro` workspace and owner membership when the schema is installed and the signed-in user has no membership.
-- The workspace setup does **not** import, replace, or edit stock data.
+- Atomic workspace and owner-membership initialisation.
+- A read-only local migration preview; no stock upload or sync.
 
-The app must be opened from the development branch's preview environment to test this panel; it is not live on the production GitHub Pages site. Account creation may require email confirmation depending on Supabase Auth settings.
-
-## 4. Next implementation steps
+**The development branch is not published at the live GitHub Pages URL.** A separate staging/preview URL has not been configured, so authentication cannot yet be truthfully verified through the live site without risking changes to the production app. Do not enter credentials on the production URL expecting to see these development controls. Keep the live app and local stock untouched until a separate preview is available and the sign-in/workspace checks pass. Account creation may require email confirmation depending on Supabase Auth settings.
 
 ## 5. Implementation and migration sequence
 
