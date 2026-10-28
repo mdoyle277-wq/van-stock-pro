@@ -87,6 +87,7 @@ revoke all on function public.ensure_default_workspace() from public, anon;
 grant execute on function public.ensure_default_workspace() to authenticated;
 
 alter table public.workspace_members enable row level security;
+revoke all privileges on table public.workspace_members from public, anon;
 
 drop policy if exists "workspace admins can add members" on public.workspace_members;
 drop policy if exists "workspace creators can add their owner membership" on public.workspace_members;
