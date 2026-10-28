@@ -139,8 +139,12 @@ setupButton.addEventListener("click", async () => {
       throw error;
     }
     const result = Array.isArray(data) ? data[0] : data;
-    if (!result?.result_workspace_id || result.result_role !== "owner") {
-      throw new Error("Supabase did not confirm an owner workspace membership. No stock data was uploaded; review the workspace membership before retrying.");
+    if (!result?.result_workspace_id) {
+      throw new Error("Supabase did not return a workspace confirmation. No stock data was uploaded; review the workspace membership before retrying.");
+    }
+    if (result.result_role !== "owner") {
+      message("Existing workspace membership confirmed with role " + result.result_role + ". No owner privileges were granted and no stock data was uploaded.", "warning");
+      return;
     }
     message(
       result.created_now
