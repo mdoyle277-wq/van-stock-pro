@@ -13,15 +13,21 @@ assert.match(html, /<script[^>]+type=["']module["'][^>]+src=["']\.\/cloud-auth\.
 assert.match(auth, /supabase\.auth\.signUp/);
 assert.match(auth, /supabase\.auth\.signInWithPassword/);
 assert.match(auth, /supabase\.auth\.signOut/);
-assert.match(auth, /from\("workspaces"\)\.insert/);
-assert.match(auth, /from\("workspace_members"\)\.insert/);
+assert.match(auth, /supabase\.rpc\("ensure_default_workspace"\)/);
+assert.doesNotMatch(auth, /from\("workspaces"\)\.insert/);
+assert.doesNotMatch(auth, /from\("workspace_members"\)\.insert/);
 assert.doesNotMatch(auth, /\.from\("(?:stock_items|stock_movements|job_usage)"\)\.(?:insert|upsert|update|delete)/);
 assert.match(config, /https:\/\/cvigfyzpqsiqakguhrah\.supabase\.co/);
 assert.match(config, /sb_publishable_/);
 assert.doesNotMatch(config, /service_role|sb_secret_/);
-assert.equal((schema.match(/as \$\$/g) || []).length, 3);
-assert.equal((schema.match(/\$\$;/g) || []).length, 3);
-assert.equal((schema.match(/create policy "/g) || []).length, (schema.match(/drop policy if exists "/g) || []).length, 'schema policies must be safe to recreate on reruns');
+assert.equal((schema.match(/as \$\$/g) || []).length, 4);
+assert.equal((schema.match(/\$\$;/g) || []).length, 4);
+for (const match of schema.matchAll(/create policy "([^"]+)"/g)) {
+  assert.ok(schema.includes('drop policy if exists "' + match[1] + '"'), 'policy must be safe to recreate: ' + match[1]);
+}
+assert.match(schema, /create or replace function public\.ensure_default_workspace\(\)/);
+assert.match(schema, /revoke update on table public\.workspace_members from public, anon, authenticated/);
+assert.match(schema, /revoke all privileges on table public\.workspace_members from public, anon/);
 assert.doesNotMatch(schema, /as \$(?!\$)|\n\$;\n/);
 for (const table of ['workspaces','workspace_members','stock_items','stock_movements','job_usage','supplier_details','order_history']) {
   assert.match(schema, new RegExp('alter table public\\.' + table + ' enable row level security'));
