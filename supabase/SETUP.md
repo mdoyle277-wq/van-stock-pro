@@ -46,7 +46,7 @@ Then sign in with the account you created and press the workspace setup button. 
 - Atomic workspace and owner-membership initialisation.
 - A read-only local migration preview; no stock upload or sync.
 
-**The development branch is not published at the live GitHub Pages URL.** A separate staging/preview URL has not been configured, so authentication cannot yet be truthfully verified through the live site without risking changes to the production app. Do not enter credentials on the production URL expecting to see these development controls. Keep the live app and local stock untouched until a separate preview is available and the sign-in/workspace checks pass. Account creation may require email confirmation depending on Supabase Auth settings.
+**The development branch is not published at the live GitHub Pages URL.** A separate staging/preview URL has not been configured, so authentication cannot yet be truthfully verified against this branch. The latest comparison also shows this branch is **37 commits ahead and 40 behind** current `main`, and its `index.html` does not include the same signed-out content gate as current `main`. Do not merge or deploy this branch as-is; first reconcile it with the latest app while preserving the live stock features. Do not enter credentials on a stale or untrusted preview. Keep the live app and local stock untouched until a current-main-based preview is available and the sign-in/workspace checks pass. Account creation may require email confirmation depending on Supabase Auth settings.
 
 ## 5. Implementation and migration sequence
 
