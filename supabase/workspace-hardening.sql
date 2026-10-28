@@ -22,7 +22,7 @@ returns table (
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $$
+as $ensure_workspace$
 declare
   v_user_id uuid := auth.uid();
   v_workspace_id uuid;
@@ -81,8 +81,7 @@ begin
 
   return query select v_workspace_id, v_workspace_name, v_role, v_created;
 end;
-$$;
-
+$ensure_workspace$;
 revoke all on function public.ensure_default_workspace() from public, anon;
 grant execute on function public.ensure_default_workspace() to authenticated;
 
