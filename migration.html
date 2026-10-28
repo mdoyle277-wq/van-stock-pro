@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>Van Stock Pro — Safe Cloud Import</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#142137;--line:#30425c;--text:#eef4ff;--muted:#a4b5cc;--mint:#49e0b0;--amber:#ffbf69;--red:#ff7885}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,sans-serif}.wrap{max-width:780px;margin:auto;padding:22px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin:14px 0}h1{font-size:25px;margin:0 0 4px}h2{font-size:18px;margin:0 0 10px}.muted{color:var(--muted);font-size:13px}.field{width:100%;padding:12px;border-radius:9px;border:1px solid var(--line);background:#0b1524;color:var(--text);margin:5px 0 12px}button{padding:11px 14px;border:0;border-radius:9px;background:var(--mint);color:#08231c;font-weight:800;margin:3px;cursor:pointer}button.secondary{background:#26364d;color:var(--text);border:1px solid var(--line)}button:disabled{opacity:.5;cursor:wait}.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}.status{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;border-radius:9px;background:#0b1524;margin-top:12px}.warning{border:1px solid #7a5b2b;color:#ffdfa8}.good{border:1px solid #28725e;color:#a5ffdc}.bad{border:1px solid #823747;color:#ffc1c7}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{padding:12px;border:1px solid var(--line);border-radius:10px}.num{font-size:24px;font-weight:850;color:var(--mint)}label{font-weight:700;font-size:13px}code{overflow-wrap:anywhere}@media(max-width:520px){.wrap{padding:12px}.panel{padding:14px}.stats{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body><main class="wrap">
+<h1>Van Stock Pro</h1><div class="muted">Safe Supabase stock import — separate test page, not the live app.</div>
+<div class="panel"><h2>1. Sign in</h2>
+<label for="email">Account email</label><input class="field" id="email" type="email" autocomplete="username">
+<label for="password">Password</label><input class="field" id="password" type="password" autocomplete="current-password">
+<div class="row"><button id="signIn">Sign in</button><button class="secondary" id="signOut" hidden>Sign out</button></div>
+<div id="authStatus" class="status">Not signed in.</div>
+</div>
+<div class="panel"><h2>2. Select your JSON backup</h2>
+<p class="muted">Choose the JSON file created by Van Stock Pro’s Download data backup feature. The file is read in your browser and is not committed to GitHub. This importer transfers stock items only; it cannot restore movement/job history or photos unless they are included and separately supported.</p>
+<input class="field" id="backup" type="file" accept=".json,application/json">
+<div class="row"><button id="preview" class="secondary">Validate backup</button><button id="import" disabled>Import missing items</button></div>
+<div id="previewStatus" class="status">No backup selected. Nothing has been uploaded.</div>
+<div id="summary" class="stats" hidden>
+<div class="stat"><div class="muted">Items in backup</div><div class="num" id="itemCount">0</div></div>
+<div class="stat"><div class="muted">Units in backup</div><div class="num" id="unitCount">0</div></div>
+<div class="stat"><div class="muted">Categories</div><div class="num" id="categoryCount">0</div></div>
+</div>
+</div>
+<div class="panel"><h2>Safety checks</h2>
+<ul class="muted"><li>Only inserts records that do not already exist for the same workspace and legacy item ID; it does not overwrite existing cloud stock.</li><li>Does not delete cloud records or change browser/local stock.</li><li>Requires a signed-in user who belongs to the Van Stock Pro workspace and has editor permissions.</li><li>After import, checks that each legacy ID is present in the cloud.</li><li>Do not publish or paste a service-role key. This page uses the existing public/publishable key.</li></ul>
+<div id="result" class="status">Import has not run.</div>
+</div>
+</main>
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./supabase-config.js";
+const sb=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const $=id=>document.getElementById(id);
+let session=null, parsed=null, validatedItems=null, workspaceId=null;
+const say=(id,msg,kind="")=>{const el=$(id);el.textContent=msg;el.className="status"+(kind?" "+kind:"");};
+const number=(v, fallback=0)=>{if(v===null||v===undefined||v==="")return fallback;const n=Number(v);if(!Number.isFinite(n)||n<0)throw new Error("A stock quantity or stock limit is invalid or negative.");return n;};
+function parseArray(data,key){const raw=data[key];if(raw==null)return [];const v=typeof raw==="string"?JSON.parse(raw):raw;if(!Array.isArray(v))throw new Error("Backup field "+key+" is not a list.");return v;}
+function validate(payload){
+ if(!payload||payload.format!=="van-stock-pro-data-backup"||!payload.data||typeof payload.data!=="object"||Array.isArray(payload.data))throw new Error("This is not a recognised Van Stock Pro JSON data backup.");
+ const items=parseArray(payload.data,"van-stock-pro-items-v1");
+ if(!items.length)throw new Error("No stock items were found under van-stock-pro-items-v1.");
+ const ids=new Set(); const names=[];
+ const mapped=items.map((item,i)=>{
+  if(!item||typeof item!=="object"||Array.isArray(item)||!String(item.name||"").trim())throw new Error("Item "+(i+1)+" has no valid name.");
+  if(item.id===undefined||item.id===null||String(item.id).trim()==="")throw new Error("Item "+(i+1)+" has no legacy ID; refusing import to avoid duplicate records.");
+  const legacy_id=String(item.id).trim();if(ids.has(legacy_id))throw new Error("Duplicate legacy item ID found: "+legacy_id);ids.add(legacy_id);
+  const qty=number(item.qty);const min_qty=number(item.minQty,0);const max_qty=item.maxQty==null||item.maxQty===""?null:number(item.maxQty);
+  if(max_qty!==null&&max_qty<min_qty)throw new Error("Item "+item.name+" has a maximum below its minimum.");
+  names.push(String(item.name).trim());
+  return {legacy_id,name:String(item.name).trim(),sku:String(item.sku||item.partNumber||""),barcode:String(item.barcode||""),category:String(item.category||"Other"),qty,min_qty,max_qty,location:String(item.location||""),supplier:String(item.supplier||""),supplier_url:String(item.supplierUrl||item.supplier_url||""),photo_path:null,notes:String(item.notes||item.description||"")};
+ });
+ const keys=Object.keys(payload.data);
+ return {items:mapped,units:mapped.reduce((n,x)=>n+x.qty,0),categories:new Set(mapped.map(x=>x.category)).size,otherKeys:keys.filter(k=>!["van-stock-pro-items-v1","van-stock-pro-movements-v2","van-stock-pro-usage-v1"].includes(k)),createdAt:payload.createdAt||"not provided"};
+}
+async function findWorkspace(){
+ const {data:members,error}=await sb.from("workspace_members").select("workspace_id,role").eq("user_id",session.user.id).limit(10);
+ if(error)throw error;
+ if(!members?.length)throw new Error("No workspace membership was found. Use the main app’s workspace setup first; no import was made.");
+ const owners=members.filter(m=>["owner","admin","member"].includes(m.role));
+ if(!owners.length)throw new Error("Your workspace role is read-only. Ask the workspace owner to grant editor access.");
+ workspaceId=owners[0].workspace_id;
+ const {data:ws,error:wsErr}=await sb.from("workspaces").select("id,name").eq("id",workspaceId).maybeSingle();
+ if(wsErr)throw wsErr;
+ return ws?.name||workspaceId;
+}
+async function refreshAuth(){
+ const {data}=await sb.auth.getSession();session=data.session;
+ $("signOut").hidden=!session;$("signIn").hidden=!!session;
+ $("email").disabled=!!session;$("password").disabled=!!session;
+ say("authStatus",session?"Signed in as "+session.user.email+"\nWorkspace access will be checked before import.":"Not signed in.",session?"good":"");
+}
+$("signIn").addEventListener("click",async()=>{
+ $("signIn").disabled=true;
+ try{const {data,error}=await sb.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});if(error)throw error;session=data.session;await refreshAuth();const name=await findWorkspace();say("authStatus","Signed in as "+session.user.email+"\nWorkspace: "+name,"good");}
+ catch(e){say("authStatus",e.message||String(e),"bad");}finally{$("signIn").disabled=false;}
+});
+$("signOut").addEventListener("click",async()=>{const {error}=await sb.auth.signOut();if(error)say("authStatus",error.message,"bad");else{session=null;workspaceId=null;await refreshAuth();}});
+$("preview").addEventListener("click",async()=>{
+ $("import").disabled=true;parsed=null;validatedItems=null;$("summary").hidden=true;
+ const file=$("backup").files?.[0];if(!file){say("previewStatus","Choose a JSON backup first.");return;}
+ try{if(file.size>50*1024*1024)throw new Error("Backup exceeds 50 MB.");parsed=JSON.parse(await file.text());const v=validate(parsed);validatedItems=v.items;
+ $("itemCount").textContent=v.items.length;$("unitCount").textContent=v.units;$("categoryCount").textContent=v.categories;$("summary").hidden=false;
+ const history=parseArray(parsed.data,"van-stock-pro-movements-v2").length,usage=parseArray(parsed.data,"van-stock-pro-usage-v1").length;
+ say("previewStatus","Validated backup created "+v.createdAt+".\n"+v.items.length+" stock items; "+v.units+" total units; "+v.categories+" categories.\nMovement records: "+history+"; job usage records: "+usage+".\nOther data keys: "+(v.otherKeys.join(", ")||"none")+".\nPreview only — no data has been uploaded.","good");
+ $("import").disabled=!(session&&v.items.length);
+ }catch(e){say("previewStatus",e.message||String(e),"bad");}
+});
+$("import").addEventListener("click",async()=>{
+ if(!session||!validatedItems?.length){say("result","Sign in and validate a backup first.","bad");return;}
+ if(!confirm("Import missing stock items into the selected Supabase workspace? Existing cloud items with matching legacy IDs will not be overwritten. Your local browser stock will not be changed."))return;
+ $("import").disabled=true;$("preview").disabled=true;
+ try{
+  const name=await findWorkspace();
+  const {count,error:countErr}=await sb.from("stock_items").select("id",{count:"exact",head:true}).eq("workspace_id",workspaceId);
+  if(countErr)throw countErr;
+  say("result","Workspace: "+name+"\nExisting cloud stock records: "+count+".\nImporting in batches; existing matching IDs will be preserved.");
+  let submitted=0;
+  for(let i=0;i<validatedItems.length;i+=25){
+   const batch=validatedItems.slice(i,i+25).map(item=>({...item,workspace_id:workspaceId}));
+   const {error}=await sb.from("stock_items").upsert(batch,{onConflict:"workspace_id,legacy_id",ignoreDuplicates:true});
+   if(error)throw new Error("Batch "+(Math.floor(i/25)+1)+" failed: "+error.message);
+   submitted+=batch.length;say("result","Workspace: "+name+"\nProcessed "+submitted+" of "+validatedItems.length+" item records.\nNo local stock was changed.");
+  }
+  let verified=0,missing=[];
+  for(let i=0;i<validatedItems.length;i+=100){
+   const ids=validatedItems.slice(i,i+100).map(x=>x.legacy_id);
+   const {data,error}=await sb.from("stock_items").select("legacy_id").eq("workspace_id",workspaceId).in("legacy_id",ids);
+   if(error)throw new Error("Import ran but verification query failed: "+error.message);
+   const found=new Set((data||[]).map(x=>x.legacy_id));verified+=found.size;
+   for(const id of ids)if(!found.has(id))missing.push(id);
+  }
+  if(missing.length)throw new Error("Verification incomplete: "+missing.length+" backup IDs were not found in cloud. Example IDs: "+missing.slice(0,5).join(", ")+". Do not rerun blindly; review database permissions and constraints.");
+  const {count:finalCount,error:finalErr}=await sb.from("stock_items").select("id",{count:"exact",head:true}).eq("workspace_id",workspaceId);
+  if(finalErr)throw new Error("Items verified, but final count check failed: "+finalErr.message);
+  say("result","IMPORT VERIFIED\nBackup IDs checked: "+validatedItems.length+"\nIDs found in cloud: "+verified+"\nCloud stock records after import: "+finalCount+"\nExisting matching records were not overwritten. Local browser stock was not changed.\n\nNote: this backup contains stock items only; movements/job usage/photos were not imported.","good");
+ }catch(e){say("result","IMPORT NEEDS REVIEW\n"+(e.message||String(e))+"\n\nNo local browser stock was changed. Some batches may have completed before an error; the importer is designed to be safe to rerun because matching legacy IDs are ignored.","bad");}
+ finally{$("import").disabled=false;$("preview").disabled=false;}
+});
+sb.auth.onAuthStateChange(()=>{refreshAuth();});
+await refreshAuth();
+</script>
+</body></html>
