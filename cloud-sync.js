@@ -51,6 +51,7 @@ function fromCloud(row, old) {
     location: row.location || "",
     supplier: row.supplier || "",
     supplierUrl: row.supplier_url || "",
+    notes: row.notes || "",
     // Photos remain local until Storage upload/download is implemented.
     photo: old?.photo || ""
   };
@@ -71,7 +72,9 @@ async function syncLocalStock(mode = "reconcile") {
   syncing = true;
   try {
     let items = readLocal();
-    if (!items.length) return;
+    // An empty local list must still reconcile on a new device, so cloud-only stock can download.
+    // Push mode with no local items is a no-op and never deletes cloud records.
+    if (!items.length && mode === "push") return;
     let merged = items;
     if (mode === "reconcile") {
       const { data: remoteRows, error: readError } = await supabase
