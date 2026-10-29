@@ -47,7 +47,8 @@ jobs:
             ['remote deletes do not automatically remove local stock', sync.includes('Do not apply deletions automatically')],
             ['cloud updates preserve local photos', sync.includes('const updated = fromCloud(row, old)')],
             ['Realtime SQL enables stock_items publication idempotently', realtimeSql.includes('alter publication supabase_realtime add table public.stock_items') && realtimeSql.includes('pg_publication_tables')],
-            ['Realtime SQL includes a verification query', realtimeSql.includes('select pubname, schemaname, tablename')]
+            ['Realtime SQL includes a verification query', realtimeSql.includes('select pubname, schemaname, tablename')],
+            ['Realtime SQL DO block has correct dollar delimiters', realtimeSql.includes('do $') && realtimeSql.includes('end;\\n$;')]
           ];
           for (const [name, pass] of checks) console.log((pass ? 'PASS' : 'FAIL') + ' — ' + name);
           if (checks.some(([, pass]) => !pass)) process.exit(1);
