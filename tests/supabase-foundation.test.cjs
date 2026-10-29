@@ -16,7 +16,10 @@ assert.match(auth, /supabase\.auth\.signOut/);
 assert.match(auth, /supabase\.rpc\("ensure_default_workspace"\)/);
 assert.doesNotMatch(auth, /from\("workspaces"\)\.insert/);
 assert.doesNotMatch(auth, /from\("workspace_members"\)\.insert/);
-assert.doesNotMatch(auth, /\.from\("(?:stock_items|stock_movements|job_usage)"\)\.(?:insert|upsert|update|delete)/);
+// The explicit, user-confirmed migration action is allowed to upsert stock_items.
+// Authentication must not directly write movement or job history.
+assert.doesNotMatch(auth, /\.from\("(?:stock_movements|job_usage)"\)\.(?:insert|upsert|update|delete)/);
+assert.match(auth, /window\.confirm\("Import local stock into your Supabase workspace/);
 assert.match(config, /https:\/\/cvigfyzpqsiqakguhrah\.supabase\.co/);
 assert.match(config, /sb_publishable_/);
 assert.doesNotMatch(config, /service_role|sb_secret_/);
