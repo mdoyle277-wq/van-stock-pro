@@ -5,6 +5,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 const STOCK_KEY = "van-stock-pro-items-v1";
+// Clear the one-time reload guard on the refreshed page so later sign-in reconciliations
+// can refresh the stock UI again if cloud data changed while this device was away.
+if (sessionStorage.getItem("van-stock-pro-cloud-reloaded")) {
+  sessionStorage.removeItem("van-stock-pro-cloud-reloaded");
+}
 let activeWorkspace = null;
 let syncing = false;
 let queuedItems = null;
