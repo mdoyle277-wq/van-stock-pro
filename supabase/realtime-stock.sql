@@ -12,8 +12,8 @@ begin
   ) then
     alter publication supabase_realtime add table public.stock_items;
   end if;
-end
-$$;
+end;
+$;
 
 -- Verify the table is published. Expected: one row for public.stock_items.
 select pubname, schemaname, tablename
