@@ -66,7 +66,7 @@ async function getWorkspace() {
   return activeWorkspace;
 }
 async function syncLocalStock(mode = "reconcile") {
-  if (syncing) { queuedItems = readLocal(); return; }
+  if (syncing) { queuedItems = readLocal(); queuedMode = mode; return; }
   if (!activeWorkspace) return;
   syncing = true;
   try {
