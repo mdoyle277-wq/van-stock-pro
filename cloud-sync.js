@@ -8,6 +8,7 @@ const STOCK_KEY = "van-stock-pro-items-v1";
 let activeWorkspace = null;
 let syncing = false;
 let queuedItems = null;
+let queuedMode = null;
 let lastSessionUser = null;
 
 function say(text, kind = "info") {
@@ -64,27 +65,29 @@ async function getWorkspace() {
   activeWorkspace = row.result_workspace_id;
   return activeWorkspace;
 }
-async function syncLocalStock() {
+async function syncLocalStock(mode = "reconcile") {
   if (syncing) { queuedItems = readLocal(); return; }
   if (!activeWorkspace) return;
   syncing = true;
   try {
     let items = readLocal();
     if (!items.length) return;
-    const { data: remoteRows, error: readError } = await supabase
-      .from("stock_items")
-      .select("legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes")
-      .eq("workspace_id", activeWorkspace);
-    if (readError) throw readError;
-    const remoteById = new Map((remoteRows || []).map(row => [String(row.legacy_id), row]));
-    // First sign-in: preserve all local-only items, while using cloud values for IDs
-    // already present in the cloud. Local photos are retained on this device.
-    const merged = items.map(item => {
-      const remote = remoteById.get(String(item.id));
-      return remote ? fromCloud(remote, item) : item;
-    });
-    for (const row of remoteRows || []) {
-      if (!merged.some(item => String(item.id) === String(row.legacy_id))) merged.push(fromCloud(row, null));
+    let merged = items;
+    if (mode === "reconcile") {
+      const { data: remoteRows, error: readError } = await supabase
+        .from("stock_items")
+        .select("legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes")
+        .eq("workspace_id", activeWorkspace);
+      if (readError) throw readError;
+      const remoteById = new Map((remoteRows || []).map(row => [String(row.legacy_id), row]));
+      // On initial sign-in, cloud values win for matching IDs; local-only items remain.
+      merged = items.map(item => {
+        const remote = remoteById.get(String(item.id));
+        return remote ? fromCloud(remote, item) : item;
+      });
+      for (const row of remoteRows || []) {
+        if (!merged.some(item => String(item.id) === String(row.legacy_id))) merged.push(fromCloud(row, null));
+      }
     }
     const cloudPayload = merged.map(item => toCloud(item, activeWorkspace));
     for (let i = 0; i < cloudPayload.length; i += 100) {
@@ -119,14 +122,16 @@ async function syncLocalStock() {
     syncing = false;
     if (queuedItems) {
       queuedItems = null;
-      queueMicrotask(() => syncLocalStock());
+      const nextMode = queuedMode || "push";
+      queuedMode = null;
+      queueMicrotask(() => syncLocalStock(nextMode));
     }
   }
 }
 window.addEventListener("van-stock-pro:stock-saved", event => {
   if (!activeWorkspace) return;
   // Stock saves remain local-first. Upload errors are reported without discarding local data.
-  syncLocalStock();
+  syncLocalStock("push");
 });
 supabase.auth.onAuthStateChange((event, session) => {
   const userId = session?.user?.id || null;
