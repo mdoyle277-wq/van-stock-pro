@@ -69,8 +69,50 @@ async function getWorkspace() {
     throw new Error("No usable workspace membership was returned.");
   }
   activeWorkspace = row.result_workspace_id;
+  startRealtimeStockUpdates();
   return activeWorkspace;
 }
+let realtimeChannel = null;
+function startRealtimeStockUpdates() {
+  if (!activeWorkspace) return;
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+  realtimeChannel = supabase
+    .channel("van-stock-pro-stock-" + activeWorkspace)
+    .on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: "stock_items",
+      filter: "workspace_id=eq." + activeWorkspace
+    }, payload => {
+      // Do not apply deletions automatically: local stock must not disappear
+      // from a remote delete event until an explicit deletion workflow exists.
+      const row = payload.new;
+      if (!row || !row.legacy_id) return;
+      const current = readLocal();
+      const index = current.findIndex(item => String(item.id) === String(row.legacy_id));
+      const old = index >= 0 ? current[index] : null;
+      const updated = fromCloud(row, old);
+      if (old && JSON.stringify(old) === JSON.stringify(updated)) return;
+      if (index >= 0) current[index] = updated;
+      else current.push(updated);
+      try {
+        localStorage.setItem(STOCK_KEY, JSON.stringify(current));
+        say("A stock update arrived from cloud. Refreshing the stock list…", "info");
+        location.reload();
+      } catch (error) {
+        say("A cloud stock update arrived, but this device could not save it locally. Keep this page open and check browser storage. " + (error?.message || ""), "warning");
+      }
+    })
+    .subscribe(status => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        say("Cloud stock sync is connected for sign-in, but live updates are unavailable right now. Local stock remains available.", "warning");
+      }
+    });
+}
+
 async function syncLocalStock(mode = "reconcile") {
   if (syncing) { queuedItems = readLocal(); queuedMode = mode; return; }
   if (!activeWorkspace) return;
