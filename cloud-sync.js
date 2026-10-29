@@ -141,8 +141,12 @@ supabase.auth.onAuthStateChange((event, session) => {
   if (!userId) { activeWorkspace = null; lastSessionUser = null; return; }
   if (userId !== lastSessionUser || event === "SIGNED_IN" || event === "INITIAL_SESSION") {
     lastSessionUser = userId;
-    getWorkspace().then(syncLocalStock).catch(error =>
-      say("Signed in, but cloud stock sync could not start: " + (error?.message || String(error)) + ". Local stock remains available.", "warning")
-    );
+    // Defer network calls until the auth-state callback has returned; this avoids
+    // holding Supabase's auth lock while making an RPC request.
+    queueMicrotask(() => {
+      getWorkspace().then(syncLocalStock).catch(error =>
+        say("Signed in, but cloud stock sync could not start: " + (error?.message || String(error)) + ". Local stock remains available.", "warning")
+      );
+    });
   }
 });
