@@ -1,0 +1,55 @@
+name: Van Stock Pro cloud-sync checks
+
+on:
+  pull_request:
+    branches:
+      - supabase-multidevice-foundation
+  push:
+    branches:
+      - cloud-sync-test-work
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-wiring:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Check cloud modules parse as JavaScript modules
+        run: |
+          cp cloud-sync.js /tmp/cloud-sync.mjs
+          cp cloud-auth.js /tmp/cloud-auth.mjs
+          node --check /tmp/cloud-sync.mjs
+          node --check /tmp/cloud-auth.mjs
+      - name: Check local-save sync wiring and database field mapping
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const html = readFileSync('index.html', 'utf8');
+          const sync = readFileSync('cloud-sync.js', 'utf8');
+          const schema = readFileSync('supabase/schema.sql', 'utf8');
+          const realtimeSql = readFileSync('supabase/realtime-stock.sql', 'utf8');
+          const checks = [
+            ['main app dispatches stock-saved event', html.includes("van-stock-pro:stock-saved")],
+            ['cloud sync listens for stock-saved event', sync.includes("addEventListener(\"van-stock-pro:stock-saved\"")],
+            ['cloud sync loaded before cloud auth', html.indexOf('cloud-sync.js') >= 0 && html.indexOf('cloud-sync.js') < html.indexOf('cloud-auth.js')],
+            ['local stock key is consistent', html.includes('van-stock-pro-items-v1') && sync.includes('van-stock-pro-items-v1')],
+            ['schema has workspace/legacy ID uniqueness', /unique\s*\(workspace_id,\s*legacy_id\)/i.test(schema)],
+            ['sync preserves item notes', sync.includes('notes: row.notes || ""') && sync.includes('notes: String(item.notes || "")')],
+            ['empty local stock can reconcile from cloud', sync.includes('if (!items.length && mode === "push") return;')],
+            ['live stock updates subscribe to workspace-scoped Realtime events', sync.includes('postgres_changes') && sync.includes('filter: "workspace_id=eq." + activeWorkspace')],
+            ['remote deletes do not automatically remove local stock', sync.includes('Do not apply deletions automatically')],
+            ['cloud updates preserve local photos', sync.includes('const updated = fromCloud(row, old)')],
+            ['Realtime SQL enables stock_items publication idempotently', realtimeSql.includes('alter publication supabase_realtime add table public.stock_items') && realtimeSql.includes('pg_publication_tables')],
+            ['Realtime SQL includes a verification query', realtimeSql.includes('select pubname, schemaname, tablename')],
+            ['Realtime SQL DO block has correct dollar delimiters', realtimeSql.includes('do $') && realtimeSql.includes('$;')]
+          ];
+          for (const [name, pass] of checks) console.log((pass ? 'PASS' : 'FAIL') + ' — ' + name);
+          if (checks.some(([, pass]) => !pass)) process.exit(1);
+          NODE
