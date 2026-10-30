@@ -122,8 +122,6 @@ function previewLocalMigration() {
 
 async function importLocalStockToCloud() {
   if (!currentSession?.user) return message("Sign in first. No data was changed.", "warning");
-  const confirmed = window.confirm("Import local stock into your Supabase workspace? This uploads stock item fields only and updates matching legacy IDs. It does not delete cloud records. Keep a downloaded local backup first. Continue?");
-  if (!confirmed) return;
   importButton.disabled = true;
   try {
     const ready = await checkSchema();
@@ -183,7 +181,24 @@ async function importLocalStockToCloud() {
 }
 
 previewButton.addEventListener("click", previewLocalMigration);
-if (importButton) importButton.addEventListener("click", importLocalStockToCloud);
+if (importButton) importButton.addEventListener("click", () => {
+  const confirmPanel = $("cloudImportConfirm");
+  if (confirmPanel) {
+    confirmPanel.hidden = false;
+    confirmPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    message("Review the confirmation below. No stock has been uploaded yet.", "warning");
+  } else {
+    message("Import confirmation panel is missing. No stock was uploaded.", "error");
+  }
+});
+$("cloudImportConfirmYes")?.addEventListener("click", async () => {
+  $("cloudImportConfirm").hidden = true;
+  await importLocalStockToCloud();
+});
+$("cloudImportConfirmNo")?.addEventListener("click", () => {
+  $("cloudImportConfirm").hidden = true;
+  message("Import cancelled. No stock was uploaded or changed.", "info");
+});
 signInButton.addEventListener("click", () => runAuth("signin"));
 signUpButton.addEventListener("click", () => runAuth("signup"));
 signOutButton.addEventListener("click", async () => {
