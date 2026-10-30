@@ -35,6 +35,7 @@
   <div class="notice" id="cloudSession" role="status">Not signed in</div>
   <div class="notice" id="cloudMessage" role="status" aria-live="polite">Sign in with the account you created in Supabase. If email confirmation is required, confirm it first. Stock has not been uploaded.</div>
   <div class="notice" id="cloudPreviewResult" role="status" aria-live="polite" hidden></div>
+  <div class="notice" id="cloudImportConfirm" role="group" aria-label="Confirm stock import" hidden><strong>Confirm stock upload</strong><p>This will upload the 62 local stock item records to your Supabase workspace. It will not delete local stock. Photos and history are not included.</p><div class="entryactions"><button type="button" id="cloudImportConfirmYes">Yes — import and verify stock</button><button type="button" class="secondary" id="cloudImportConfirmNo">Cancel</button></div></div>
 </section>
 <section class="stats">
 <div class="stat mint selected-photo-card"><div class="label">SELECTED ITEM</div><div class="selected-photo-tile" id="selectedPhotoTile"><div class="selected-photo-placeholder">📦</div></div><div class="selected-photo-name" id="selectedPhotoName">Select an item below</div><div class="hint" id="selectedPhotoDetails">Item photo and details will appear here</div></div>
