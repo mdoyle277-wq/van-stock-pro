@@ -197,3 +197,22 @@ supabase.auth.onAuthStateChange((event, session) => {
     });
   }
 });
+
+
+// Realtime is best-effort and may not be enabled in every Supabase project.
+// Poll the shared stock table while this app is open so a second device still
+// receives quantity changes when Realtime delivery is unavailable.
+let pollTimer = null;
+function startStockPolling() {
+  if (pollTimer !== null) return;
+  pollTimer = window.setInterval(() => {
+    if (!activeWorkspace || document.visibilityState !== "visible" || syncing) return;
+    syncLocalStock("reconcile");
+  }, 12000);
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && activeWorkspace && !syncing) {
+    syncLocalStock("reconcile");
+  }
+});
+startStockPolling();
