@@ -19,7 +19,9 @@ assert.doesNotMatch(auth, /from\("workspace_members"\)\.insert/);
 // The explicit, user-confirmed migration action is allowed to upsert stock_items.
 // Authentication must not directly write movement or job history.
 assert.doesNotMatch(auth, /\.from\("(?:stock_movements|job_usage)"\)\.(?:insert|upsert|update|delete)/);
-assert.match(auth, /window\.confirm\("Import local stock into your Supabase workspace/);
+assert.match(html, /id="cloudImportConfirm"/, 'stock import must show an explicit confirmation panel');
+assert.match(auth, /cloudImportConfirmYes/, 'stock import must require an affirmative confirmation click');
+assert.match(auth, /cloudImportConfirmNo/, 'stock import must provide a cancel action');
 assert.match(config, /https:\/\/cvigfyzpqsiqakguhrah\.supabase\.co/);
 assert.match(config, /sb_publishable_/);
 assert.doesNotMatch(config, /service_role|sb_secret_/);
