@@ -73,19 +73,7 @@ async function getWorkspace() {
   return activeWorkspace;
 }
 let realtimeChannel = null;
-let deletionPollTimer = null;
-async function checkCloudDeletions() {
-  if (!activeWorkspace || document.visibilityState === "hidden" || syncing) return;
-  // Run the same full reconciliation used at sign-in, rather than relying only
-  // on a Realtime event or a separate tombstone query. This removes deleted
-  // rows from stale local stock and verifies the resulting cloud inventory.
-  await syncLocalStock("reconcile");
-}
 function startRealtimeStockUpdates() {
-  if (deletionPollTimer) clearInterval(deletionPollTimer);
-  deletionPollTimer = setInterval(checkCloudDeletions, 12000);
-  document.addEventListener("visibilitychange", checkCloudDeletions);
-  queueMicrotask(checkCloudDeletions);
   if (!activeWorkspace) return;
   if (realtimeChannel) {
     supabase.removeChannel(realtimeChannel);
@@ -99,22 +87,12 @@ function startRealtimeStockUpdates() {
       table: "stock_items",
       filter: "workspace_id=eq." + activeWorkspace
     }, payload => {
+      // Do not apply deletions automatically: local stock must not disappear
+      // from a remote delete event until an explicit deletion workflow exists.
       const row = payload.new;
       if (!row || !row.legacy_id) return;
       const current = readLocal();
       const index = current.findIndex(item => String(item.id) === String(row.legacy_id));
-      if (row.deleted_at) {
-        if (index < 0) return;
-        current.splice(index, 1);
-        try {
-          localStorage.setItem(STOCK_KEY, JSON.stringify(current));
-          say("An item was deleted on another device. Refreshing the stock list…", "info");
-          location.reload();
-        } catch (error) {
-          say("A cloud deletion arrived, but this device could not save it locally. " + (error?.message || ""), "warning");
-        }
-        return;
-      }
       const old = index >= 0 ? current[index] : null;
       const updated = fromCloud(row, old);
       if (old && JSON.stringify(old) === JSON.stringify(updated)) return;
@@ -145,34 +123,19 @@ async function syncLocalStock(mode = "reconcile") {
     // Push mode with no local items is a no-op and never deletes cloud records.
     if (!items.length && mode === "push") return;
     let merged = items;
-    let remoteRows = null;
-    let deletedIds = new Set();
     if (mode === "reconcile") {
-      const result = await supabase.from("stock_items")
-        .select("legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes,deleted_at")
+      const { data: remoteRows, error: readError } = await supabase
+        .from("stock_items")
+        .select("legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes")
         .eq("workspace_id", activeWorkspace);
-      if (result.error) throw result.error;
-      remoteRows = result.data || [];
-      deletedIds = new Set(remoteRows.filter(row => row.deleted_at).map(row => String(row.legacy_id)));
-    } else {
-      const result = await supabase.from("stock_items")
-        .select("legacy_id")
-        .eq("workspace_id", activeWorkspace)
-        .not("deleted_at", "is", null);
-      if (result.error) throw result.error;
-      deletedIds = new Set((result.data || []).map(row => String(row.legacy_id)));
-    }
-    // Always honour cloud tombstones, including on ordinary saves while another device was offline.
-    items = items.filter(item => !deletedIds.has(String(item.id)));
-    merged = items;
-    if (mode === "reconcile") {
-      const activeRows = (remoteRows || []).filter(row => !row.deleted_at);
-      const remoteById = new Map(activeRows.map(row => [String(row.legacy_id), row]));
+      if (readError) throw readError;
+      const remoteById = new Map((remoteRows || []).map(row => [String(row.legacy_id), row]));
+      // On initial sign-in, cloud values win for matching IDs; local-only items remain.
       merged = items.map(item => {
         const remote = remoteById.get(String(item.id));
         return remote ? fromCloud(remote, item) : item;
       });
-      for (const row of activeRows) {
+      for (const row of remoteRows || []) {
         if (!merged.some(item => String(item.id) === String(row.legacy_id))) merged.push(fromCloud(row, null));
       }
     }
@@ -181,7 +144,7 @@ async function syncLocalStock(mode = "reconcile") {
       const { error } = await supabase.from("stock_items").upsert(cloudPayload.slice(i, i + 100), { onConflict: "workspace_id,legacy_id" });
       if (error) throw error;
     }
-    const verify = await supabase.from("stock_items").select("legacy_id,name,qty,min_qty,max_qty").eq("workspace_id", activeWorkspace).is("deleted_at", null);
+    const verify = await supabase.from("stock_items").select("legacy_id,name,qty,min_qty,max_qty").eq("workspace_id", activeWorkspace);
     if (verify.error) throw verify.error;
     const verifiedById = new Map((verify.data || []).map(row => [String(row.legacy_id), row]));
     const mismatch = merged.some(item => {
@@ -202,7 +165,7 @@ async function syncLocalStock(mode = "reconcile") {
         return;
       }
     }
-    say("Cloud stock sync verified: " + merged.length + " active items. Changes saved on this device are uploaded; deleted items stay deleted across devices. Photos and movement/job/order history still require cloud integration.", "success");
+    say("Cloud stock sync verified: " + merged.length + " items. Changes saved on this device are uploaded; cloud stock is reconciled at sign-in. Photos and movement/job/order history still require cloud integration.", "success");
   } catch (error) {
     say("Cloud stock sync needs attention: " + (error?.message || String(error)) + ". Local stock was kept.", "warning");
   } finally {
@@ -215,22 +178,6 @@ async function syncLocalStock(mode = "reconcile") {
     }
   }
 }
-window.vanStockProDeleteItem = async function(legacyId) {
-  if (!activeWorkspace) throw new Error("Sign in before deleting cloud stock.");
-  const id = String(legacyId);
-  const { data, error } = await supabase.from("stock_items")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("workspace_id", activeWorkspace)
-    .eq("legacy_id", id)
-    .is("deleted_at", null)
-    .select("legacy_id");
-  if (error) throw error;
-  if (!data || data.length !== 1) throw new Error("The cloud item was not found or was already deleted. Refresh the stock list and try again.");
-  const current = readLocal().filter(item => String(item.id) !== id);
-  localStorage.setItem(STOCK_KEY, JSON.stringify(current));
-  say("Item deleted in the cloud and removed from this device. Other devices will receive the deletion.", "success");
-  return true;
-};
 window.addEventListener("van-stock-pro:stock-saved", event => {
   if (!activeWorkspace) return;
   // Stock saves remain local-first. Upload errors are reported without discarding local data.
@@ -250,3 +197,22 @@ supabase.auth.onAuthStateChange((event, session) => {
     });
   }
 });
+
+
+// Realtime is best-effort and may not be enabled in every Supabase project.
+// Poll the shared stock table while this app is open so a second device still
+// receives quantity changes when Realtime delivery is unavailable.
+let pollTimer = null;
+function startStockPolling() {
+  if (pollTimer !== null) return;
+  pollTimer = window.setInterval(() => {
+    if (!activeWorkspace || document.visibilityState !== "visible" || syncing) return;
+    syncLocalStock("reconcile");
+  }, 12000);
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && activeWorkspace && !syncing) {
+    syncLocalStock("reconcile");
+  }
+});
+startStockPolling();
