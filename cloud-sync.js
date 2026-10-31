@@ -87,12 +87,22 @@ function startRealtimeStockUpdates() {
       table: "stock_items",
       filter: "workspace_id=eq." + activeWorkspace
     }, payload => {
-      // Do not apply deletions automatically: local stock must not disappear
-      // from a remote delete event until an explicit deletion workflow exists.
       const row = payload.new;
       if (!row || !row.legacy_id) return;
       const current = readLocal();
       const index = current.findIndex(item => String(item.id) === String(row.legacy_id));
+      if (row.deleted_at) {
+        if (index < 0) return;
+        current.splice(index, 1);
+        try {
+          localStorage.setItem(STOCK_KEY, JSON.stringify(current));
+          say("An item was deleted on another device. Refreshing the stock list…", "info");
+          location.reload();
+        } catch (error) {
+          say("A cloud deletion arrived, but this device could not save it locally. " + (error?.message || ""), "warning");
+        }
+        return;
+      }
       const old = index >= 0 ? current[index] : null;
       const updated = fromCloud(row, old);
       if (old && JSON.stringify(old) === JSON.stringify(updated)) return;
@@ -126,16 +136,18 @@ async function syncLocalStock(mode = "reconcile") {
     if (mode === "reconcile") {
       const { data: remoteRows, error: readError } = await supabase
         .from("stock_items")
-        .select("legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes")
+        .select("legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes,deleted_at")
         .eq("workspace_id", activeWorkspace);
       if (readError) throw readError;
-      const remoteById = new Map((remoteRows || []).map(row => [String(row.legacy_id), row]));
-      // On initial sign-in, cloud values win for matching IDs; local-only items remain.
-      merged = items.map(item => {
+      const deletedIds = new Set((remoteRows || []).filter(row => row.deleted_at).map(row => String(row.legacy_id)));
+      const activeRows = (remoteRows || []).filter(row => !row.deleted_at);
+      const remoteById = new Map(activeRows.map(row => [String(row.legacy_id), row]));
+      // Cloud tombstones win over stale offline copies so deleted items cannot be resurrected.
+      merged = items.filter(item => !deletedIds.has(String(item.id))).map(item => {
         const remote = remoteById.get(String(item.id));
         return remote ? fromCloud(remote, item) : item;
       });
-      for (const row of remoteRows || []) {
+      for (const row of activeRows) {
         if (!merged.some(item => String(item.id) === String(row.legacy_id))) merged.push(fromCloud(row, null));
       }
     }
@@ -144,7 +156,7 @@ async function syncLocalStock(mode = "reconcile") {
       const { error } = await supabase.from("stock_items").upsert(cloudPayload.slice(i, i + 100), { onConflict: "workspace_id,legacy_id" });
       if (error) throw error;
     }
-    const verify = await supabase.from("stock_items").select("legacy_id,name,qty,min_qty,max_qty").eq("workspace_id", activeWorkspace);
+    const verify = await supabase.from("stock_items").select("legacy_id,name,qty,min_qty,max_qty").eq("workspace_id", activeWorkspace).is("deleted_at", null);
     if (verify.error) throw verify.error;
     const verifiedById = new Map((verify.data || []).map(row => [String(row.legacy_id), row]));
     const mismatch = merged.some(item => {
@@ -165,7 +177,7 @@ async function syncLocalStock(mode = "reconcile") {
         return;
       }
     }
-    say("Cloud stock sync verified: " + merged.length + " items. Changes saved on this device are uploaded; cloud stock is reconciled at sign-in. Photos and movement/job/order history still require cloud integration.", "success");
+    say("Cloud stock sync verified: " + merged.length + " active items. Changes saved on this device are uploaded; deleted items stay deleted across devices. Photos and movement/job/order history still require cloud integration.", "success");
   } catch (error) {
     say("Cloud stock sync needs attention: " + (error?.message || String(error)) + ". Local stock was kept.", "warning");
   } finally {
@@ -178,6 +190,22 @@ async function syncLocalStock(mode = "reconcile") {
     }
   }
 }
+window.vanStockProDeleteItem = async function(legacyId) {
+  if (!activeWorkspace) throw new Error("Sign in before deleting cloud stock.");
+  const id = String(legacyId);
+  const { data, error } = await supabase.from("stock_items")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("workspace_id", activeWorkspace)
+    .eq("legacy_id", id)
+    .is("deleted_at", null)
+    .select("legacy_id");
+  if (error) throw error;
+  if (!data || data.length !== 1) throw new Error("The cloud item was not found or was already deleted. Refresh the stock list and try again.");
+  const current = readLocal().filter(item => String(item.id) !== id);
+  localStorage.setItem(STOCK_KEY, JSON.stringify(current));
+  say("Item deleted in the cloud and removed from this device. Other devices will receive the deletion.", "success");
+  return true;
+};
 window.addEventListener("van-stock-pro:stock-saved", event => {
   if (!activeWorkspace) return;
   // Stock saves remain local-first. Upload errors are reported without discarding local data.
