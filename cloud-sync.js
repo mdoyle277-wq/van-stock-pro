@@ -133,17 +133,30 @@ async function syncLocalStock(mode = "reconcile") {
     // Push mode with no local items is a no-op and never deletes cloud records.
     if (!items.length && mode === "push") return;
     let merged = items;
+    let remoteRows = null;
+    let deletedIds = new Set();
     if (mode === "reconcile") {
-      const { data: remoteRows, error: readError } = await supabase
-        .from("stock_items")
+      const result = await supabase.from("stock_items")
         .select("legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes,deleted_at")
         .eq("workspace_id", activeWorkspace);
-      if (readError) throw readError;
-      const deletedIds = new Set((remoteRows || []).filter(row => row.deleted_at).map(row => String(row.legacy_id)));
+      if (result.error) throw result.error;
+      remoteRows = result.data || [];
+      deletedIds = new Set(remoteRows.filter(row => row.deleted_at).map(row => String(row.legacy_id)));
+    } else {
+      const result = await supabase.from("stock_items")
+        .select("legacy_id")
+        .eq("workspace_id", activeWorkspace)
+        .not("deleted_at", "is", null);
+      if (result.error) throw result.error;
+      deletedIds = new Set((result.data || []).map(row => String(row.legacy_id)));
+    }
+    // Always honour cloud tombstones, including on ordinary saves while another device was offline.
+    items = items.filter(item => !deletedIds.has(String(item.id)));
+    merged = items;
+    if (mode === "reconcile") {
       const activeRows = (remoteRows || []).filter(row => !row.deleted_at);
       const remoteById = new Map(activeRows.map(row => [String(row.legacy_id), row]));
-      // Cloud tombstones win over stale offline copies so deleted items cannot be resurrected.
-      merged = items.filter(item => !deletedIds.has(String(item.id))).map(item => {
+      merged = items.map(item => {
         const remote = remoteById.get(String(item.id));
         return remote ? fromCloud(remote, item) : item;
       });
