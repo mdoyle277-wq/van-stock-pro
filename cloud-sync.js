@@ -73,7 +73,31 @@ async function getWorkspace() {
   return activeWorkspace;
 }
 let realtimeChannel = null;
+let deletionPollTimer = null;
+async function checkCloudDeletions() {
+  if (!activeWorkspace || document.visibilityState === "hidden") return;
+  try {
+    const { data, error } = await supabase.from("stock_items")
+      .select("legacy_id")
+      .eq("workspace_id", activeWorkspace)
+      .not("deleted_at", "is", null);
+    if (error) throw error;
+    const deletedIds = new Set((data || []).map(row => String(row.legacy_id)));
+    if (!deletedIds.size) return;
+    const current = readLocal();
+    const remaining = current.filter(item => !deletedIds.has(String(item.id)));
+    if (remaining.length === current.length) return;
+    localStorage.setItem(STOCK_KEY, JSON.stringify(remaining));
+    say("A deleted stock item was synchronised from the cloud. Refreshing this device…", "info");
+    location.reload();
+  } catch (error) {
+    say("Live deletion check is temporarily unavailable. Stock remains saved locally. " + (error?.message || ""), "warning");
+  }
+}
 function startRealtimeStockUpdates() {
+  if (deletionPollTimer) clearInterval(deletionPollTimer);
+  deletionPollTimer = setInterval(checkCloudDeletions, 12000);
+  document.addEventListener("visibilitychange", checkCloudDeletions);
   if (!activeWorkspace) return;
   if (realtimeChannel) {
     supabase.removeChannel(realtimeChannel);
