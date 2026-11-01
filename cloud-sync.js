@@ -250,25 +250,30 @@ window.vanStockProDeleteItem = async function deleteCloudStockItem(legacyId) {
 
   deletingIds.add(id);
   try {
-    // Wait for any earlier upload/reconciliation before writing the tombstone.
-    await syncQueue;
-    const result = await supabase
-      .from("stock_items")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("workspace_id", activeWorkspace)
-      .eq("legacy_id", id)
-      .is("deleted_at", null)
-      .select("legacy_id");
+    // Queue deletion with uploads/reconciliation so no background sync can race it.
+    const task = syncQueue.then(async () => {
+      const result = await supabase
+        .from("stock_items")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("workspace_id", activeWorkspace)
+        .eq("legacy_id", id)
+        .is("deleted_at", null)
+        .select("legacy_id");
 
-    if (result.error) throw result.error;
-    if (!result.data || result.data.length !== 1) {
-      throw new Error("The cloud item was not found or was already deleted. Refresh stock and try again.");
-    }
+      if (result.error) throw result.error;
+      if (!result.data || result.data.length !== 1) {
+        throw new Error("The cloud item was not found or was already deleted. Refresh stock and try again.");
+      }
 
-    const remaining = readLocalStock().filter(item => String(item.id) !== id);
-    writeLocalStock(remaining);
-    say("Item deleted from shared cloud stock. Other devices will remove it during their next update.", "success");
-    return true;
+      const remaining = readLocalStock().filter(item => String(item.id) !== id);
+      writeLocalStock(remaining);
+      say("Item deleted from shared cloud stock. Other devices will remove it during their next update.", "success");
+      return true;
+    });
+    syncQueue = task.catch(error => {
+      say("Cloud deletion failed: " + (error?.message || String(error)) + ". Local stock was kept.", "warning");
+    });
+    return await task;
   } finally {
     deletingIds.delete(id);
   }
