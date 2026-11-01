@@ -1,10 +1,10 @@
 name: Van Stock Pro cloud-sync checks
 
 on:
-  pull_request:
-    branches:
-      - supabase-multidevice-foundation
   push:
+    branches:
+      - cloud-sync-test-work
+  pull_request:
     branches:
       - cloud-sync-test-work
 
@@ -12,47 +12,33 @@ permissions:
   contents: read
 
 jobs:
-  syntax-and-wiring:
+  syntax-and-regression:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
-          node-version: '24'
-      - name: Check cloud modules parse as JavaScript modules
+          node-version: '22'
+      - name: Check cloud JavaScript modules
         run: |
           cp cloud-sync.js /tmp/cloud-sync.mjs
           cp cloud-auth.js /tmp/cloud-auth.mjs
           node --check /tmp/cloud-sync.mjs
           node --check /tmp/cloud-auth.mjs
-      - name: Check local-save sync wiring and database field mapping
+      - name: Check inline application JavaScript
         run: |
-          node --input-type=module <<'NODE'
-          import { readFileSync } from 'node:fs';
-          const html = readFileSync('index.html', 'utf8');
-          const sync = readFileSync('cloud-sync.js', 'utf8');
-          const schema = readFileSync('supabase/schema.sql', 'utf8');
-          const realtimeSql = readFileSync('supabase/realtime-stock.sql', 'utf8');
-          const checks = [
-            ['main app dispatches stock-saved event', html.includes("van-stock-pro:stock-saved")],
-            ['cloud sync listens for stock-saved event', sync.includes("addEventListener(\"van-stock-pro:stock-saved\"")],
-            ['cloud sync loaded before cloud auth', html.indexOf('cloud-sync.js') >= 0 && html.indexOf('cloud-sync.js') < html.indexOf('cloud-auth.js')],
-            ['local stock key is consistent', html.includes('van-stock-pro-items-v1') && sync.includes('van-stock-pro-items-v1')],
-            ['schema has workspace/legacy ID uniqueness', /unique\s*\(workspace_id,\s*legacy_id\)/i.test(schema)],
-            ['sync preserves item notes', sync.includes('notes: row.notes || ""') && sync.includes('notes: String(item.notes || "")')],
-            ['empty local stock can reconcile from cloud', sync.includes('if (!items.length && mode === "push") return;')],
-            ['live stock updates subscribe to workspace-scoped Realtime events', sync.includes('postgres_changes') && sync.includes('filter: "workspace_id=eq." + activeWorkspace')],
-            ['cloud soft-delete column is read and excluded from active stock', sync.includes('deleted_at') && sync.includes('!row.deleted_at')],
-            ['remote tombstones are removed during reconciliation', sync.includes('items.filter(item => !deletedIds.has(String(item.id)))')],
-            ['deleted items are polled and reconciled on each device', sync.includes('setInterval(checkCloudDeletions, 12000)') && sync.includes('await syncLocalStock("reconcile")')],
-            ['delete action writes a cloud tombstone', sync.includes('window.vanStockProDeleteItem') && sync.includes('.update({ deleted_at: new Date().toISOString() })')],
-            ['cloud updates preserve local photos', sync.includes('const updated = fromCloud(row, old)')],
-            ['Realtime SQL enables stock_items publication idempotently', realtimeSql.includes('alter publication supabase_realtime add table public.stock_items') && realtimeSql.includes('pg_publication_tables')],
-            ['Realtime SQL includes a verification query', realtimeSql.includes('select pubname, schemaname, tablename')],
-            ['Realtime SQL DO block has correct dollar delimiters', realtimeSql.includes('do $') && realtimeSql.includes('$;')]
-          ];
-          for (const [name, pass] of checks) console.log((pass ? 'PASS' : 'FAIL') + ' — ' + name);
-          if (checks.some(([, pass]) => !pass)) process.exit(1);
+          node <<'NODE'
+          const fs = require('node:fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
+            .filter(match => !/\bsrc\s*=/.test(match[1]))
+            .map(match => match[2])
+            .filter(source => source.trim());
+          if (!scripts.length) throw new Error('No inline application script was found.');
+          fs.writeFileSync('/tmp/van-stock-inline.js', scripts.join('\n;\n'));
           NODE
+          node --check /tmp/van-stock-inline.js
+      - name: Run integration and regression checks
+        run: node tests/supabase-foundation.test.cjs
