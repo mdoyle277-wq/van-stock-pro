@@ -14,6 +14,7 @@ let realtimeChannel = null;
 let pollTimer = null;
 let syncQueue = Promise.resolve();
 const deletingIds = new Set();
+let pendingLocalStockPushes = 0;
 
 if (sessionStorage.getItem("van-stock-pro-cloud-reloaded") === "1") {
   sessionStorage.removeItem("van-stock-pro-cloud-reloaded");
@@ -111,6 +112,10 @@ async function performStockSync(mode) {
     remoteRows = result.data || [];
   }
 
+  // A local stock edit has priority over a background reconcile. Do not
+  // let a reconcile that started earlier upload or restore its stale snapshot.
+  if (mode === "reconcile" && pendingLocalStockPushes > 0) return;
+
   const deletedIds = new Set(
     remoteRows.filter(row => row.deleted_at || mode === "push").map(row => String(row.legacy_id))
   );
@@ -133,6 +138,8 @@ async function performStockSync(mode) {
       }
     }
   }
+
+  if (mode === "reconcile" && pendingLocalStockPushes > 0) return;
 
   const payload = mergedItems.map(item => toCloudRow(item, activeWorkspace));
   for (let start = 0; start < payload.length; start += 100) {
@@ -165,6 +172,8 @@ async function performStockSync(mode) {
   if (mismatch) {
     throw new Error("Cloud verification found a mismatch. The previous local stock was retained.");
   }
+
+  if (mode === "reconcile" && pendingLocalStockPushes > 0) return;
 
   const previous = JSON.stringify(readLocalStock());
   const next = JSON.stringify(mergedItems);
@@ -283,7 +292,11 @@ window.vanStockProDeleteItem = async function deleteCloudStockItem(legacyId) {
 };
 
 window.addEventListener("van-stock-pro:stock-saved", () => {
-  if (activeWorkspace) syncStock("push").catch(() => {});
+  if (!activeWorkspace) return;
+  pendingLocalStockPushes++;
+  syncStock("push")
+    .catch(() => {})
+    .finally(() => { pendingLocalStockPushes = Math.max(0, pendingLocalStockPushes - 1); });
 });
 
 document.addEventListener("visibilitychange", () => {
