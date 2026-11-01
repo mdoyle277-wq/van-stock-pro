@@ -61,3 +61,20 @@ assert.match(auth, /function previewLocalMigration/);
 assert.match(auth, /LOCAL MIGRATION PREVIEW ONLY/);
 assert.doesNotMatch(auth, /localStorage\.setItem|localStorage\.removeItem/, 'preview must not alter local stock');
 console.log('Supabase foundation static checks passed. No live auth, browser, or database tests were performed.');
+
+
+const sync = fs.readFileSync('cloud-sync.js', 'utf8');
+assert.equal((sync.match(/function syncStock\\(/g) || []).length, 1, 'cloud sync must have one serialized sync entry point');
+assert.equal((sync.match(/setInterval\\(/g) || []).length, 1, 'cloud sync must have one polling timer');
+assert.equal((sync.match(/addEventListener\\(["']visibilitychange["']/g) || []).length, 1, 'cloud sync must have one visibility listener');
+assert.match(sync, /window\\.vanStockProDeleteItem/);
+assert.match(sync, /update\\(\\{ deleted_at: new Date\\(\\)\\.toISOString\\(\\) \\}\\)/);
+assert.match(sync, /deleted_at/);
+assert.match(sync, /syncQueue/);
+assert.match(html, /window\\.vanStockProDeleteItem/);
+assert.doesNotMatch(html, /if\\(items\\.length===0\\)\\{items=STARTER_STOCK/,
+  'an intentionally empty stock list must not be repopulated with starter stock');
+assert.match(html, /stockStorageMissing=stored===null/,
+  'starter stock should only be seeded when no stock key exists');
+assert.match(schema, /deleted_at timestamptz/);
+console.log('Cloud deletion, single-sync, and empty-stock regression checks passed.');
