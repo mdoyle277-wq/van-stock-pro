@@ -13,8 +13,11 @@ let activeUserId = null;
 let realtimeChannel = null;
 let pollTimer = null;
 let syncQueue = Promise.resolve();
-let reloadAfterReconcile = false;
 const deletingIds = new Set();
+
+if (sessionStorage.getItem("van-stock-pro-cloud-reloaded") === "1") {
+  sessionStorage.removeItem("van-stock-pro-cloud-reloaded");
+}
 
 function say(message, kind = "info") {
   const element = document.getElementById("cloudMessage");
