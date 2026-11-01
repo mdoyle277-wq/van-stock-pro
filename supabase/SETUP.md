@@ -36,6 +36,8 @@ The current Supabase project already has the base schema. Before using the works
 - Revokes anonymous table privileges on `workspace_members` and limits the bootstrap RPC to authenticated users.
 - Does not read, insert, update, or delete stock records.
 
+For the existing project used by the test branch, also run `supabase/soft-delete-stock.sql` to add the `deleted_at` tombstone column and index, then run `supabase/realtime-stock.sql` to enable and verify the `stock_items` Realtime publication. Both scripts are safe to re-run. The delete function will fail until the soft-delete migration has been applied.
+
 Then sign in with the account you created and press the workspace setup button. Confirm the status says the workspace and owner membership were confirmed. For read-only database checks, run `supabase/workspace-verification.sql`. Expected security results: anonymous execution/select are false, authenticated bootstrap execution is true, and authenticated direct UPDATE on `workspace_members` is false.
 
 ## 4. Current development functionality and preview limitation
