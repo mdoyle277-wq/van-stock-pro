@@ -245,36 +245,39 @@ async function getWorkspace() {
 
 window.vanStockProDeleteItem = async function deleteCloudStockItem(legacyId) {
   const id = String(legacyId);
-  if (!activeWorkspace) throw new Error("Sign in before deleting shared cloud stock.");
+  if (!activeWorkspace) throw new Error("Cloud workspace is not ready. Sign in again, then retry.");
   if (deletingIds.has(id)) throw new Error("This item is already being deleted.");
 
   deletingIds.add(id);
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 15000);
   try {
-    // Queue deletion with uploads/reconciliation so no background sync can race it.
-    const task = syncQueue.then(async () => {
-      const result = await supabase
-        .from("stock_items")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("workspace_id", activeWorkspace)
-        .eq("legacy_id", id)
-        .is("deleted_at", null)
-        .select("legacy_id");
+    // Do not wait behind background sync: a stuck poll must never leave Delete spinning.
+    const result = await supabase
+      .from("stock_items")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("workspace_id", activeWorkspace)
+      .eq("legacy_id", id)
+      .is("deleted_at", null)
+      .select("legacy_id")
+      .abortSignal(controller.signal);
 
-      if (result.error) throw result.error;
-      if (!result.data || result.data.length !== 1) {
-        throw new Error("The cloud item was not found or was already deleted. Refresh stock and try again.");
+    if (result.error) {
+      if (result.error.name === "AbortError" || /abort/i.test(result.error.message || "")) {
+        throw new Error("Supabase did not respond within 15 seconds. Check your connection and try again.");
       }
+      throw new Error(result.error.message || "Supabase rejected the delete request.");
+    }
+    if (!result.data || result.data.length !== 1) {
+      throw new Error("Supabase matched no active item. Check that this item exists in your signed-in workspace.");
+    }
 
-      const remaining = readLocalStock().filter(item => String(item.id) !== id);
-      writeLocalStock(remaining);
-      say("Item deleted from shared cloud stock. Other devices will remove it during their next update.", "success");
-      return true;
-    });
-    syncQueue = task.catch(error => {
-      say("Cloud deletion failed: " + (error?.message || String(error)) + ". Local stock was kept.", "warning");
-    });
-    return await task;
+    const remaining = readLocalStock().filter(item => String(item.id) !== id);
+    writeLocalStock(remaining);
+    say("Item deleted from shared cloud stock. Other devices will remove it during their next update.", "success");
+    return true;
   } finally {
+    window.clearTimeout(timeout);
     deletingIds.delete(id);
   }
 };
