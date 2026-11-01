@@ -4,29 +4,44 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./supabase-config.js";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
-const STOCK_KEY = "van-stock-pro-items-v1";
-// Clear the one-time reload guard on the refreshed page so later sign-in reconciliations
-// can refresh the stock UI again if cloud data changed while this device was away.
-if (sessionStorage.getItem("van-stock-pro-cloud-reloaded")) {
-  sessionStorage.removeItem("van-stock-pro-cloud-reloaded");
-}
-let activeWorkspace = null;
-let syncing = false;
-let queuedItems = null;
-let queuedMode = null;
-let lastSessionUser = null;
 
-function say(text, kind = "info") {
-  const el = document.getElementById("cloudMessage");
-  if (el) { el.textContent = text; el.dataset.kind = kind; }
+const STOCK_KEY = "van-stock-pro-items-v1";
+const POLL_INTERVAL_MS = 15000;
+
+let activeWorkspace = null;
+let activeUserId = null;
+let realtimeChannel = null;
+let pollTimer = null;
+let syncQueue = Promise.resolve();
+let reloadAfterReconcile = false;
+const deletingIds = new Set();
+
+function say(message, kind = "info") {
+  const element = document.getElementById("cloudMessage");
+  if (element) {
+    element.textContent = message;
+    element.dataset.kind = kind;
+  }
 }
-function readLocal() {
+
+function readLocalStock() {
   try {
-    const value = JSON.parse(localStorage.getItem(STOCK_KEY) || "[]");
-    return Array.isArray(value) ? value : [];
-  } catch { return []; }
+    const parsed = JSON.parse(localStorage.getItem(STOCK_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
-function toCloud(item, workspaceId) {
+
+function writeLocalStock(items) {
+  const serialized = JSON.stringify(items);
+  localStorage.setItem(STOCK_KEY, serialized);
+  if (localStorage.getItem(STOCK_KEY) !== serialized) {
+    throw new Error("Local stock could not be verified after saving.");
+  }
+}
+
+function toCloudRow(item, workspaceId) {
   return {
     workspace_id: workspaceId,
     legacy_id: String(item.id),
@@ -43,7 +58,8 @@ function toCloud(item, workspaceId) {
     notes: String(item.notes || "")
   };
 }
-function fromCloud(row, old) {
+
+function fromCloudRow(row, previousItem) {
   return {
     id: String(row.legacy_id),
     name: row.name,
@@ -57,272 +73,232 @@ function fromCloud(row, old) {
     supplier: row.supplier || "",
     supplierUrl: row.supplier_url || "",
     notes: row.notes || "",
-    // Photos remain local until Storage upload/download is implemented.
-    photo: old?.photo || ""
+    // Item photos remain on the device until cloud photo storage is implemented.
+    photo: previousItem?.photo || ""
   };
 }
-async function getWorkspace() {
-  const { data, error } = await supabase.rpc("ensure_default_workspace");
-  if (error) throw error;
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row?.result_workspace_id || !["owner", "admin", "member"].includes(row.result_role)) {
-    throw new Error("No usable workspace membership was returned.");
-  }
-  activeWorkspace = row.result_workspace_id;
-  startRealtimeStockUpdates();
-  return activeWorkspace;
+
+function requestReloadOnce() {
+  if (sessionStorage.getItem("van-stock-pro-cloud-reloaded") === "1") return;
+  sessionStorage.setItem("van-stock-pro-cloud-reloaded", "1");
+  location.reload();
 }
-let realtimeChannel = null;
-let deletionPollTimer = null;
-async function checkCloudDeletions() {
-  if (!activeWorkspace || document.visibilityState === "hidden" || syncing) return;
-  await syncLocalStock("reconcile");
-}
-function startRealtimeStockUpdates() {
-  if (deletionPollTimer) clearInterval(deletionPollTimer);
-  deletionPollTimer = setInterval(checkCloudDeletions, 12000);
-  document.addEventListener("visibilitychange", checkCloudDeletions);
-  queueMicrotask(checkCloudDeletions);
+
+async function performStockSync(mode) {
   if (!activeWorkspace) return;
+
+  let localItems = readLocalStock();
+  if (mode === "push" && localItems.length === 0) return;
+
+  let remoteRows = [];
+  if (mode === "reconcile") {
+    const result = await supabase
+      .from("stock_items")
+      .select("legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes,deleted_at")
+      .eq("workspace_id", activeWorkspace);
+    if (result.error) throw result.error;
+    remoteRows = result.data || [];
+  } else {
+    const result = await supabase
+      .from("stock_items")
+      .select("legacy_id")
+      .eq("workspace_id", activeWorkspace)
+      .not("deleted_at", "is", null);
+    if (result.error) throw result.error;
+    remoteRows = result.data || [];
+  }
+
+  const deletedIds = new Set(
+    remoteRows.filter(row => row.deleted_at || mode === "push").map(row => String(row.legacy_id))
+  );
+  localItems = localItems.filter(item => !deletedIds.has(String(item.id)));
+
+  let mergedItems = localItems;
+  if (mode === "reconcile") {
+    const activeRows = remoteRows.filter(row => !row.deleted_at);
+    const remoteById = new Map(activeRows.map(row => [String(row.legacy_id), row]));
+
+    mergedItems = localItems.map(item => {
+      const remote = remoteById.get(String(item.id));
+      return remote ? fromCloudRow(remote, item) : item;
+    });
+
+    const localIds = new Set(mergedItems.map(item => String(item.id)));
+    for (const row of activeRows) {
+      if (!localIds.has(String(row.legacy_id))) {
+        mergedItems.push(fromCloudRow(row, null));
+      }
+    }
+  }
+
+  const payload = mergedItems.map(item => toCloudRow(item, activeWorkspace));
+  for (let start = 0; start < payload.length; start += 100) {
+    const result = await supabase
+      .from("stock_items")
+      .upsert(payload.slice(start, start + 100), { onConflict: "workspace_id,legacy_id" });
+    if (result.error) throw result.error;
+  }
+
+  const verification = await supabase
+    .from("stock_items")
+    .select("legacy_id,name,qty,min_qty,max_qty")
+    .eq("workspace_id", activeWorkspace)
+    .is("deleted_at", null);
+  if (verification.error) throw verification.error;
+
+  const verifiedById = new Map(
+    (verification.data || []).map(row => [String(row.legacy_id), row])
+  );
+  const mismatch = mergedItems.some(item => {
+    const saved = verifiedById.get(String(item.id));
+    return !saved ||
+      saved.name !== String(item.name || "Unnamed item") ||
+      Number(saved.qty) !== Number(item.qty || 0) ||
+      Number(saved.min_qty) !== Number(item.minQty || 0) ||
+      (item.maxQty == null || item.maxQty === ""
+        ? saved.max_qty !== null
+        : Number(saved.max_qty) !== Number(item.maxQty));
+  });
+  if (mismatch) {
+    throw new Error("Cloud verification found a mismatch. The previous local stock was retained.");
+  }
+
+  const previous = JSON.stringify(readLocalStock());
+  const next = JSON.stringify(mergedItems);
+  if (previous !== next) {
+    writeLocalStock(mergedItems);
+    requestReloadOnce();
+    return;
+  }
+
+  say(
+    "Cloud stock sync verified: " + mergedItems.length +
+    " active item(s). Deleted items remain deleted across devices. Photos and movement/job/order history are still device-local.",
+    "success"
+  );
+}
+
+function syncStock(mode = "reconcile") {
+  // Serialize reads and writes so a background upload cannot race a deletion.
+  const task = syncQueue.then(() => performStockSync(mode));
+  syncQueue = task.catch(error => {
+    say("Cloud stock sync needs attention: " + (error?.message || String(error)) + ". Local stock was kept.", "warning");
+  });
+  return task;
+}
+
+function stopCloudListeners() {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
   if (realtimeChannel) {
     supabase.removeChannel(realtimeChannel);
     realtimeChannel = null;
   }
+}
+
+function startCloudListeners(workspaceId) {
+  stopCloudListeners();
+
   realtimeChannel = supabase
-    .channel("van-stock-pro-stock-" + activeWorkspace)
+    .channel("van-stock-pro-stock-" + workspaceId)
     .on("postgres_changes", {
       event: "*",
       schema: "public",
       table: "stock_items",
-      filter: "workspace_id=eq." + activeWorkspace
-    }, payload => {
-      const row = payload.new;
-      if (!row || !row.legacy_id) return;
-      const current = readLocal();
-      const index = current.findIndex(item => String(item.id) === String(row.legacy_id));
-      if (row.deleted_at) {
-        if (index < 0) return;
-        current.splice(index, 1);
-        try {
-          localStorage.setItem(STOCK_KEY, JSON.stringify(current));
-          say("An item was deleted on another device. Refreshing the stock list…", "info");
-          location.reload();
-        } catch (error) {
-          say("A cloud deletion arrived, but this device could not save it locally. " + (error?.message || ""), "warning");
-        }
-        return;
-      }
-      const old = index >= 0 ? current[index] : null;
-      const updated = fromCloud(row, old);
-      if (old && JSON.stringify(old) === JSON.stringify(updated)) return;
-      if (index >= 0) current[index] = updated;
-      else current.push(updated);
-      try {
-        localStorage.setItem(STOCK_KEY, JSON.stringify(current));
-        say("A stock update arrived from cloud. Refreshing the stock list…", "info");
-        location.reload();
-      } catch (error) {
-        say("A cloud stock update arrived, but this device could not save it locally. Keep this page open and check browser storage. " + (error?.message || ""), "warning");
-      }
+      filter: "workspace_id=eq." + workspaceId
+    }, () => {
+      syncStock("reconcile").catch(() => {});
     })
     .subscribe(status => {
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-        say("Cloud stock sync is connected for sign-in, but live updates are unavailable right now. Local stock remains available.", "warning");
+        say("Cloud sign-in is active, but live updates are unavailable. Background stock checks will continue.", "warning");
       }
     });
+
+  pollTimer = window.setInterval(() => {
+    if (activeWorkspace && document.visibilityState === "visible") {
+      syncStock("reconcile").catch(() => {});
+    }
+  }, POLL_INTERVAL_MS);
 }
 
-async function syncLocalStock(mode = "reconcile") {
-  if (syncing) { queuedItems = readLocal(); queuedMode = mode; return; }
-  if (!activeWorkspace) return;
-  syncing = true;
-  try {
-    let items = readLocal();
-    // An empty local list must still reconcile on a new device, so cloud-only stock can download.
-    // Push mode with no local items is a no-op and never deletes cloud records.
-    if (!items.length && mode === "push") return;
-    let merged = items;
-    if (mode === "reconcile") {
-      const { data: remoteRows, error: readError } = await supabase
-        .from("stock_items")
-        .select("legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes")
-        .eq("workspace_id", activeWorkspace);
-      if (readError) throw readError;
-      const remoteById = new Map((remoteRows || []).map(row => [String(row.legacy_id), row]));
-      // On initial sign-in, cloud values win for matching IDs; local-only items remain.
-      merged = items.map(item => {
-        const remote = remoteById.get(String(item.id));
-        return remote ? fromCloud(remote, item) : item;
-      });
-      for (const row of remoteRows || []) {
-        if (!merged.some(item => String(item.id) === String(row.legacy_id))) merged.push(fromCloud(row, null));
-      }
-    }
-    const cloudPayload = merged.map(item => toCloud(item, activeWorkspace));
-    for (let i = 0; i < cloudPayload.length; i += 100) {
-      const { error } = await supabase.from("stock_items").upsert(cloudPayload.slice(i, i + 100), { onConflict: "workspace_id,legacy_id" });
-      if (error) throw error;
-    }
-    const verify = await supabase.from("stock_items").select("legacy_id,name,qty,min_qty,max_qty").eq("workspace_id", activeWorkspace);
-    if (verify.error) throw verify.error;
-    const verifiedById = new Map((verify.data || []).map(row => [String(row.legacy_id), row]));
-    const mismatch = merged.some(item => {
-      const row = verifiedById.get(String(item.id));
-      return !row || row.name !== String(item.name || "Unnamed item") ||
-        Number(row.qty) !== Number(item.qty || 0) || Number(row.min_qty) !== Number(item.minQty || 0);
-    });
-    if (mismatch) throw new Error("Cloud verification found a mismatch; local stock was retained.");
-    const previous = JSON.stringify(readLocal());
-    const next = JSON.stringify(merged);
-    if (previous !== next) {
-      localStorage.setItem(STOCK_KEY, next);
-      // The stock UI is rendered from local storage at startup. Reload once after
-      // cloud reconciliation so the screen reflects the merged stock list.
-      if (!sessionStorage.getItem("van-stock-pro-cloud-reloaded")) {
-        sessionStorage.setItem("van-stock-pro-cloud-reloaded", "1");
-        location.reload();
-        return;
-      }
-    }
-    say("Cloud stock sync verified: " + merged.length + " items. Changes saved on this device are uploaded; cloud stock is reconciled at sign-in. Photos and movement/job/order history still require cloud integration.", "success");
-  } catch (error) {
-    say("Cloud stock sync needs attention: " + (error?.message || String(error)) + ". Local stock was kept.", "warning");
-  } finally {
-    syncing = false;
-    if (queuedItems) {
-      queuedItems = null;
-      const nextMode = queuedMode || "push";
-      queuedMode = null;
-      queueMicrotask(() => syncLocalStock(nextMode));
-    }
+async function getWorkspace() {
+  const result = await supabase.rpc("ensure_default_workspace");
+  if (result.error) throw result.error;
+
+  const row = Array.isArray(result.data) ? result.data[0] : result.data;
+  if (!row?.result_workspace_id || !["owner", "admin", "member"].includes(row.result_role)) {
+    throw new Error("No usable workspace membership was returned.");
   }
-}
-async function syncLocalStock(mode = "reconcile") {
-  if (syncing) { queuedItems = readLocal(); queuedMode = mode; return; }
-  if (!activeWorkspace) return;
-  syncing = true;
-  try {
-    let items = readLocal();
-    if (!items.length && mode === "push") return;
-    let merged = items;
-    let remoteRows = null;
-    let deletedIds = new Set();
-    if (mode === "reconcile") {
-      const result = await supabase.from("stock_items")
-        .select("legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes,deleted_at")
-        .eq("workspace_id", activeWorkspace);
-      if (result.error) throw result.error;
-      remoteRows = result.data || [];
-      deletedIds = new Set(remoteRows.filter(row => row.deleted_at).map(row => String(row.legacy_id)));
-    } else {
-      const result = await supabase.from("stock_items")
-        .select("legacy_id")
-        .eq("workspace_id", activeWorkspace)
-        .not("deleted_at", "is", null);
-      if (result.error) throw result.error;
-      deletedIds = new Set((result.data || []).map(row => String(row.legacy_id)));
-    }
-    items = items.filter(item => !deletedIds.has(String(item.id)));
-    merged = items;
-    if (mode === "reconcile") {
-      const activeRows = (remoteRows || []).filter(row => !row.deleted_at);
-      const remoteById = new Map(activeRows.map(row => [String(row.legacy_id), row]));
-      merged = items.map(item => {
-        const remote = remoteById.get(String(item.id));
-        return remote ? fromCloud(remote, item) : item;
-      });
-      for (const row of activeRows) {
-        if (!merged.some(item => String(item.id) === String(row.legacy_id))) merged.push(fromCloud(row, null));
-      }
-    }
-    const cloudPayload = merged.map(item => toCloud(item, activeWorkspace));
-    for (let i = 0; i < cloudPayload.length; i += 100) {
-      const { error } = await supabase.from("stock_items").upsert(cloudPayload.slice(i, i + 100), { onConflict: "workspace_id,legacy_id" });
-      if (error) throw error;
-    }
-    const verify = await supabase.from("stock_items").select("legacy_id,name,qty,min_qty,max_qty").eq("workspace_id", activeWorkspace).is("deleted_at", null);
-    if (verify.error) throw verify.error;
-    const verifiedById = new Map((verify.data || []).map(row => [String(row.legacy_id), row]));
-    const mismatch = merged.some(item => {
-      const row = verifiedById.get(String(item.id));
-      return !row || row.name !== String(item.name || "Unnamed item") ||
-        Number(row.qty) !== Number(item.qty || 0) || Number(row.min_qty) !== Number(item.minQty || 0);
-    });
-    if (mismatch) throw new Error("Cloud verification found a mismatch; local stock was retained.");
-    const previous = JSON.stringify(readLocal());
-    const next = JSON.stringify(merged);
-    if (previous !== next) {
-      localStorage.setItem(STOCK_KEY, next);
-      if (!sessionStorage.getItem("van-stock-pro-cloud-reloaded")) {
-        sessionStorage.setItem("van-stock-pro-cloud-reloaded", "1");
-        location.reload();
-        return;
-      }
-    }
-    say("Cloud stock sync verified: " + merged.length + " active items. Changes saved on this device are uploaded; deleted items stay deleted across devices. Photos and movement/job/order history still require cloud integration.", "success");
-  } catch (error) {
-    say("Cloud stock sync needs attention: " + (error?.message || String(error)) + ". Local stock was kept.", "warning");
-  } finally {
-    syncing = false;
-    if (queuedItems) {
-      queuedItems = null;
-      const nextMode = queuedMode || "push";
-      queuedMode = null;
-      queueMicrotask(() => syncLocalStock(nextMode));
-    }
+
+  if (activeWorkspace !== row.result_workspace_id) {
+    activeWorkspace = row.result_workspace_id;
+    startCloudListeners(activeWorkspace);
   }
+  return activeWorkspace;
 }
-window.vanStockProDeleteItem = async function(legacyId) {
-  if (!activeWorkspace) throw new Error("Sign in before deleting cloud stock.");
+
+window.vanStockProDeleteItem = async function deleteCloudStockItem(legacyId) {
   const id = String(legacyId);
-  const { data, error } = await supabase.from("stock_items")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("workspace_id", activeWorkspace)
-    .eq("legacy_id", id)
-    .is("deleted_at", null)
-    .select("legacy_id");
-  if (error) throw error;
-  if (!data || data.length !== 1) throw new Error("The cloud item was not found or was already deleted. Refresh the stock list and try again.");
-  const current = readLocal().filter(item => String(item.id) !== id);
-  localStorage.setItem(STOCK_KEY, JSON.stringify(current));
-  say("Item deleted in the cloud and removed from this device. Other devices will receive the deletion.", "success");
-  return true;
+  if (!activeWorkspace) throw new Error("Sign in before deleting shared cloud stock.");
+  if (deletingIds.has(id)) throw new Error("This item is already being deleted.");
+
+  deletingIds.add(id);
+  try {
+    // Wait for any earlier upload/reconciliation before writing the tombstone.
+    await syncQueue;
+    const result = await supabase
+      .from("stock_items")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("workspace_id", activeWorkspace)
+      .eq("legacy_id", id)
+      .is("deleted_at", null)
+      .select("legacy_id");
+
+    if (result.error) throw result.error;
+    if (!result.data || result.data.length !== 1) {
+      throw new Error("The cloud item was not found or was already deleted. Refresh stock and try again.");
+    }
+
+    const remaining = readLocalStock().filter(item => String(item.id) !== id);
+    writeLocalStock(remaining);
+    say("Item deleted from shared cloud stock. Other devices will remove it during their next update.", "success");
+    return true;
+  } finally {
+    deletingIds.delete(id);
+  }
 };
-window.addEventListener("van-stock-pro:stock-saved", event => {
-  if (!activeWorkspace) return;
-  // Stock saves remain local-first. Upload errors are reported without discarding local data.
-  syncLocalStock("push");
+
+window.addEventListener("van-stock-pro:stock-saved", () => {
+  if (activeWorkspace) syncStock("push").catch(() => {});
 });
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && activeWorkspace) {
+    syncStock("reconcile").catch(() => {});
+  }
+});
+
 supabase.auth.onAuthStateChange((event, session) => {
   const userId = session?.user?.id || null;
-  if (!userId) { activeWorkspace = null; lastSessionUser = null; return; }
-  if (userId !== lastSessionUser || event === "SIGNED_IN" || event === "INITIAL_SESSION") {
-    lastSessionUser = userId;
-    // Defer network calls until the auth-state callback has returned; this avoids
-    // holding Supabase's auth lock while making an RPC request.
+  if (!userId) {
+    activeUserId = null;
+    activeWorkspace = null;
+    stopCloudListeners();
+    return;
+  }
+
+  if (userId !== activeUserId || event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+    activeUserId = userId;
     queueMicrotask(() => {
-      getWorkspace().then(syncLocalStock).catch(error =>
-        say("Signed in, but cloud stock sync could not start: " + (error?.message || String(error)) + ". Local stock remains available.", "warning")
-      );
+      getWorkspace()
+        .then(() => syncStock("reconcile"))
+        .catch(error => {
+          say("Signed in, but cloud stock sync could not start: " +
+            (error?.message || String(error)) + ". Local stock remains available.", "warning");
+        });
     });
   }
 });
-
-
-// Realtime is best-effort and may not be enabled in every Supabase project.
-// Poll the shared stock table while this app is open so a second device still
-// receives quantity changes when Realtime delivery is unavailable.
-let pollTimer = null;
-function startStockPolling() {
-  if (pollTimer !== null) return;
-  pollTimer = window.setInterval(() => {
-    if (!activeWorkspace || document.visibilityState !== "visible" || syncing) return;
-    syncLocalStock("reconcile");
-  }, 12000);
-}
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && activeWorkspace && !syncing) {
-    syncLocalStock("reconcile");
-  }
-});
-startStockPolling();
