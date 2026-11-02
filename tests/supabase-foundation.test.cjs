@@ -123,7 +123,7 @@ assert.match(sync, /clearDirtyMarkerIfUnchanged\(markerAtStart\)/,
   'an upload may only clear the exact pending save it verified');
 assert.match(sync, /if \(mode === "reconcile" && hasPendingLocalStock\(\)\) mode = "push"/,
   'polling and realtime checks must retry any local save still pending in the cloud');
-assert.match(html, /cloud-sync\.js\?v=three-way-sync-merge-20261102c/,
+assert.match(html, /cloud-sync\.js\?v=three-way-sync-merge-20261102d/,
   'the app must load the new cloud sync module without using a cached copy');
 console.log('Cloud dirty-save, conflict-protection, and diagnostics checks passed.');
 
