@@ -66,6 +66,8 @@ function createRuntime({ remoteRows, localItems, baselineRaw = null, failUpsert 
   const windowListeners = new Map();
   let authListener = null;
   let reloadCount = 0;
+  let intervalCallback = null;
+  let activeFailUpsert = failUpsert;
 
   const remote = remoteRows;
   const supabase = {
@@ -99,7 +101,7 @@ function createRuntime({ remoteRows, localItems, baselineRaw = null, failUpsert 
           return this;
         },
         upsert(rows) {
-          if (failUpsert) return Promise.resolve({ data: null, error: failUpsert });
+          if (activeFailUpsert) return Promise.resolve({ data: null, error: activeFailUpsert });
           for (const row of rows) {
             const key = String(row.legacy_id);
             const old = remote.get(key) || {};
@@ -137,7 +139,7 @@ function createRuntime({ remoteRows, localItems, baselineRaw = null, failUpsert 
       if (!windowListeners.has(name)) windowListeners.set(name, []);
       windowListeners.get(name).push(callback);
     },
-    setInterval() { return 1; },
+    setInterval(callback) { intervalCallback = callback; return 1; },
     clearInterval() {},
     vanStockProDeleteItem: null
   };
@@ -181,7 +183,9 @@ function createRuntime({ remoteRows, localItems, baselineRaw = null, failUpsert 
       }
     },
     diagnostics() { return window.vanStockProCloudDiagnostics(); },
-    reloadCount: () => reloadCount
+    reloadCount: () => reloadCount,
+    setUpsertFailure(error) { activeFailUpsert = error; },
+    tickPoll() { if (intervalCallback) intervalCallback(); }
   };
 }
 
@@ -272,7 +276,15 @@ async function run() {
   assert.ok(failed.localStorage.getItem(DIRTY_KEY),
     "failed upload must retain the pending marker for retry");
 
-  console.log("Cloud sync runtime tests passed: upload, cross-device pull, conflict protection, and Supabase error handling.");
+  failed.setUpsertFailure(null);
+  failed.tickPoll();
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(failed.remote.get("item-1").qty, 1,
+    "the next background poll must retry a pending local upload");
+  assert.equal(failed.localStorage.getItem(DIRTY_KEY), null,
+    "a successful retry must clear the pending marker");
+
+  console.log("Cloud sync runtime tests passed: upload, cross-device pull, conflict protection, Supabase error handling, and retry.");
 }
 
 run().catch(error => {
