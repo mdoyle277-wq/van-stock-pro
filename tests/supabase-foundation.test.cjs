@@ -78,3 +78,32 @@ assert.match(html, /stockStorageMissing=stored===null/,
   'starter stock should only be seeded when no stock key exists');
 assert.match(schema, /deleted_at timestamptz/);
 console.log('Cloud deletion, single-sync, and empty-stock regression checks passed.');
+
+assert.match(html, /window\.dispatchEvent\(new CustomEvent\('van-stock-pro:stock-saved'/,
+  'verified local stock saves must emit the cloud-sync event');
+assert.match(sync, /const DIRTY_KEY = "van-stock-pro-cloud-dirty-v1"/,
+  'pending local saves must survive a page reload');
+assert.match(sync, /function markLocalStockDirty\(/,
+  'every local stock save must mark cloud data pending before checking workspace readiness');
+assert.match(sync, /hasPendingLocalStock\(\) \? "push" : "reconcile"/,
+  'startup must upload a previously pending local save before downloading remote stock');
+assert.match(sync, /findLocalCloudConflicts\(/,
+  'reconciliation must detect conflicting local and cloud quantities');
+assert.match(sync, /Sync paused: /,
+  'conflicting data must be preserved rather than silently overwritten');
+assert.match(sync, /Supabase stock upload failed:/,
+  'Supabase upsert errors must be visible to the user');
+assert.match(sync, /verifyCloudRows\(/,
+  'uploads and reconciliations must verify returned cloud values');
+assert.match(sync, /workspaceSuffix: activeWorkspace/,
+  'diagnostics must expose the workspace ID for safe two-device comparison');
+assert.match(sync, /lastPushAt:/,
+  'diagnostics must distinguish a completed cloud upload from a pull');
+assert.match(sync, /const pushMarkerAtStart = mode === "push" \? getDirtyMarker\(\) : null/,
+  'an upload must capture its starting dirty marker before network work');
+assert.match(sync, /currentMarker === pushMarkerAtStart/,
+  'an upload must not clear a newer save marker created while it was in flight');
+assert.match(html, /cloud-sync\.js\?v=cloud-dirty-conflict-diagnostics-20261102a/,
+  'the app must load the new cloud sync module without using a cached copy');
+console.log('Cloud dirty-save, conflict-protection, and diagnostics checks passed.');
+
