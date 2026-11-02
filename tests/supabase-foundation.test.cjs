@@ -115,7 +115,7 @@ assert.match(sync, /currentDirty\.marker !== markerAtStart/,
   'an upload must not overwrite a newer local save while it is in flight');
 assert.match(sync, /clearDirtyMarkerIfUnchanged\(markerAtStart\)/,
   'an upload may only clear the exact pending save it verified');
-assert.match(html, /cloud-sync\.js\?v=three-way-sync-merge-20261102b/,
+assert.match(html, /cloud-sync\.js\?v=three-way-sync-merge-20261102c/,
   'the app must load the new cloud sync module without using a cached copy');
 console.log('Cloud dirty-save, conflict-protection, and diagnostics checks passed.');
 
