@@ -42,3 +42,5 @@ jobs:
           node --check /tmp/van-stock-inline.js
       - name: Run integration and regression checks
         run: node tests/supabase-foundation.test.cjs
+      - name: Run simulated two-device cloud sync tests
+        run: node tests/cloud-sync-runtime.test.cjs
