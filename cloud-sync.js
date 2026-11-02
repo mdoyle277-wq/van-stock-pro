@@ -6,6 +6,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 });
 
 const STOCK_KEY = "van-stock-pro-items-v1";
+const DIRTY_KEY = "van-stock-pro-cloud-dirty-v1";
 const POLL_INTERVAL_MS = 15000;
 
 let activeWorkspace = null;
@@ -13,11 +14,26 @@ let activeUserId = null;
 let realtimeChannel = null;
 let pollTimer = null;
 let syncQueue = Promise.resolve();
-const deletingIds = new Set();
+let localStockDirty = false;
 let pendingLocalStockPushes = 0;
+let dirtySequence = 0;
+const deletingIds = new Set();
+const diagnostics = {
+  lastAction: "Not started",
+  lastError: "",
+  lastSuccessAt: null,
+  lastPushAt: null,
+  lastPullAt: null,
+  lastRemoteCount: null,
+  lastLocalCount: null
+};
 
 if (sessionStorage.getItem("van-stock-pro-cloud-reloaded") === "1") {
   sessionStorage.removeItem("van-stock-pro-cloud-reloaded");
+}
+
+function workspaceTag() {
+  return activeWorkspace ? String(activeWorkspace).slice(-8) : "not ready";
 }
 
 function say(message, kind = "info") {
@@ -26,6 +42,43 @@ function say(message, kind = "info") {
     element.textContent = message;
     element.dataset.kind = kind;
   }
+}
+
+function errorText(error) {
+  const parts = [
+    error?.message || String(error || "Unknown cloud error"),
+    error?.code ? "code " + error.code : "",
+    error?.details || "",
+    error?.hint || ""
+  ].filter(Boolean);
+  return parts.join(" · ");
+}
+
+function getDirtyMarker() {
+  try {
+    return localStorage.getItem(DIRTY_KEY);
+  } catch {
+    return localStockDirty ? "memory-pending" : null;
+  }
+}
+
+function hasPendingLocalStock() {
+  return localStockDirty || !!getDirtyMarker() || pendingLocalStockPushes > 0;
+}
+
+function markLocalStockDirty() {
+  localStockDirty = true;
+  dirtySequence++;
+  const marker = String(Date.now()) + "-" + String(dirtySequence);
+  try {
+    localStorage.setItem(DIRTY_KEY, marker);
+  } catch (error) {
+    diagnostics.lastError = "Could not persist the pending-sync marker: " + errorText(error);
+    say("Stock is saved on this device, but the cloud-pending marker could not be stored. Keep this device open and check the cloud connection.", "warning");
+  }
+  diagnostics.lastAction = "Local stock save detected";
+  diagnostics.lastLocalCount = readLocalStock().length;
+  return marker;
 }
 
 function readLocalStock() {
@@ -82,50 +135,141 @@ function fromCloudRow(row, previousItem) {
   };
 }
 
+function sameCloudValue(field, local, remote) {
+  if (field === "qty" || field === "min_qty") {
+    return Number(local || 0) === Number(remote || 0);
+  }
+  if (field === "max_qty") {
+    const a = local == null || local === "" ? null : Number(local);
+    const b = remote == null || remote === "" ? null : Number(remote);
+    return a === b;
+  }
+  return String(local ?? "") === String(remote ?? "");
+}
+
+function findLocalCloudConflicts(localItems, remoteRows) {
+  const remoteById = new Map(
+    remoteRows.filter(row => !row.deleted_at).map(row => [String(row.legacy_id), row])
+  );
+  const fields = [
+    "name", "sku", "barcode", "category", "qty", "min_qty",
+    "max_qty", "location", "supplier", "supplier_url", "notes"
+  ];
+  const conflicts = [];
+  for (const item of localItems) {
+    const remote = remoteById.get(String(item.id));
+    if (!remote) continue;
+    const localRow = toCloudRow(item, activeWorkspace);
+    const different = fields.filter(field => !sameCloudValue(field, localRow[field], remote[field]));
+    if (different.length) {
+      conflicts.push({ id: String(item.id), name: String(item.name || "Unnamed item"), fields: different });
+    }
+  }
+  return conflicts;
+}
+
 function requestReloadOnce() {
   if (sessionStorage.getItem("van-stock-pro-cloud-reloaded") === "1") return;
   sessionStorage.setItem("van-stock-pro-cloud-reloaded", "1");
   location.reload();
 }
 
+async function fetchActiveRows() {
+  const result = await supabase
+    .from("stock_items")
+    .select("legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes,deleted_at")
+    .eq("workspace_id", activeWorkspace);
+  if (result.error) throw new Error("Supabase stock download failed: " + errorText(result.error));
+  return result.data || [];
+}
+
+async function fetchDeletedRows() {
+  const result = await supabase
+    .from("stock_items")
+    .select("legacy_id,deleted_at")
+    .eq("workspace_id", activeWorkspace)
+    .not("deleted_at", "is", null);
+  if (result.error) throw new Error("Supabase deleted-item check failed: " + errorText(result.error));
+  return result.data || [];
+}
+
+async function verifyCloudRows(items, context) {
+  const result = await supabase
+    .from("stock_items")
+    .select("legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes")
+    .eq("workspace_id", activeWorkspace)
+    .is("deleted_at", null);
+  if (result.error) throw new Error("Supabase " + context + " verification query failed: " + errorText(result.error));
+
+  const verifiedById = new Map(
+    (result.data || []).map(row => [String(row.legacy_id), row])
+  );
+  const fields = [
+    "name", "sku", "barcode", "category", "qty", "min_qty",
+    "max_qty", "location", "supplier", "supplier_url", "notes"
+  ];
+  const mismatches = [];
+  for (const item of items) {
+    const expected = toCloudRow(item, activeWorkspace);
+    const saved = verifiedById.get(String(item.id));
+    if (!saved || fields.some(field => !sameCloudValue(field, expected[field], saved[field]))) {
+      mismatches.push(String(item.name || item.id));
+    }
+  }
+  if (mismatches.length) {
+    throw new Error(
+      "Supabase " + context + " verification failed for " + mismatches.length +
+      " item(s): " + mismatches.slice(0, 3).join(", ") +
+      ". The local stock was retained."
+    );
+  }
+  diagnostics.lastRemoteCount = (result.data || []).length;
+  return result.data || [];
+}
+
 async function performStockSync(mode) {
   if (!activeWorkspace) return;
 
   let localItems = readLocalStock();
-  if (mode === "push" && localItems.length === 0) return;
+  diagnostics.lastLocalCount = localItems.length;
 
-  let remoteRows = [];
-  if (mode === "reconcile") {
-    const result = await supabase
-      .from("stock_items")
-      .select("legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes,deleted_at")
-      .eq("workspace_id", activeWorkspace);
-    if (result.error) throw result.error;
-    remoteRows = result.data || [];
-  } else {
-    const result = await supabase
-      .from("stock_items")
-      .select("legacy_id")
-      .eq("workspace_id", activeWorkspace)
-      .not("deleted_at", "is", null);
-    if (result.error) throw result.error;
-    remoteRows = result.data || [];
+  // A pending local save must always be uploaded before any remote snapshot is
+  // allowed to replace local values. This marker survives a page reload.
+  if (mode === "reconcile" && hasPendingLocalStock()) {
+    diagnostics.lastAction = "Pull deferred while local upload is pending";
+    return;
   }
 
-  // A local stock edit has priority over a background reconcile. Do not
-  // let a reconcile that started earlier upload or restore its stale snapshot.
-  if (mode === "reconcile" && pendingLocalStockPushes > 0) return;
+  let remoteRows = mode === "reconcile" ? await fetchActiveRows() : await fetchDeletedRows();
 
-  const deletedIds = new Set(
-    remoteRows.filter(row => row.deleted_at || mode === "push").map(row => String(row.legacy_id))
-  );
+  // A save may occur while the network read is in flight. Re-check before
+  // merging so a stale remote snapshot can never replace a newer local edit.
+  if (mode === "reconcile" && hasPendingLocalStock()) {
+    diagnostics.lastAction = "Pull deferred after local save";
+    return;
+  }
+
+  const deletedIds = new Set(remoteRows.filter(row => row.deleted_at).map(row => String(row.legacy_id)));
   localItems = localItems.filter(item => !deletedIds.has(String(item.id)));
 
   let mergedItems = localItems;
   if (mode === "reconcile") {
+    const conflicts = findLocalCloudConflicts(localItems, remoteRows);
+    if (conflicts.length) {
+      diagnostics.lastAction = "Local/cloud conflict; no automatic overwrite";
+      diagnostics.lastError = conflicts.length + " item(s) differ between this device and Supabase";
+      const sample = conflicts.slice(0, 3).map(item => item.name + " (" + item.fields.join(", ") + ")").join("; ");
+      say(
+        "Sync paused: " + conflicts.length + " item(s) differ between this device and cloud (" +
+        sample + "). No stock was changed. Workspace …" + workspaceTag() +
+        ". Save the correct item on the device holding the intended quantity to upload it.",
+        "warning"
+      );
+      return;
+    }
+
     const activeRows = remoteRows.filter(row => !row.deleted_at);
     const remoteById = new Map(activeRows.map(row => [String(row.legacy_id), row]));
-
     mergedItems = localItems.map(item => {
       const remote = remoteById.get(String(item.id));
       return remote ? fromCloudRow(remote, item) : item;
@@ -139,62 +283,79 @@ async function performStockSync(mode) {
     }
   }
 
-  if (mode === "reconcile" && pendingLocalStockPushes > 0) return;
+  if (mode === "reconcile" && hasPendingLocalStock()) return;
 
   const payload = mergedItems.map(item => toCloudRow(item, activeWorkspace));
+  if (mode === "push" && payload.length === 0) {
+    diagnostics.lastAction = "Empty local stock; upload skipped";
+    say("Cloud upload skipped because this device has no stock items. No cloud items were deleted. Workspace …" + workspaceTag(), "warning");
+    return;
+  }
+
   for (let start = 0; start < payload.length; start += 100) {
     const result = await supabase
       .from("stock_items")
       .upsert(payload.slice(start, start + 100), { onConflict: "workspace_id,legacy_id" });
-    if (result.error) throw result.error;
+    if (result.error) {
+      throw new Error("Supabase stock upload failed: " + errorText(result.error));
+    }
   }
 
-  const verification = await supabase
-    .from("stock_items")
-    .select("legacy_id,name,qty,min_qty,max_qty")
-    .eq("workspace_id", activeWorkspace)
-    .is("deleted_at", null);
-  if (verification.error) throw verification.error;
+  const verifiedRows = await verifyCloudRows(mergedItems, mode === "push" ? "upload" : "reconciliation");
 
-  const verifiedById = new Map(
-    (verification.data || []).map(row => [String(row.legacy_id), row])
-  );
-  const mismatch = mergedItems.some(item => {
-    const saved = verifiedById.get(String(item.id));
-    return !saved ||
-      saved.name !== String(item.name || "Unnamed item") ||
-      Number(saved.qty) !== Number(item.qty || 0) ||
-      Number(saved.min_qty) !== Number(item.minQty || 0) ||
-      (item.maxQty == null || item.maxQty === ""
-        ? saved.max_qty !== null
-        : Number(saved.max_qty) !== Number(item.maxQty));
-  });
-  if (mismatch) {
-    throw new Error("Cloud verification found a mismatch. The previous local stock was retained.");
+  // A newer local edit may have been made while the upsert/verification ran.
+  if (mode === "reconcile" && hasPendingLocalStock()) return;
+
+  if (mode === "reconcile") {
+    const previous = JSON.stringify(readLocalStock());
+    const next = JSON.stringify(mergedItems);
+    if (previous !== next) {
+      writeLocalStock(mergedItems);
+      diagnostics.lastAction = "Cloud stock downloaded to this device";
+      diagnostics.lastPullAt = new Date().toISOString();
+      requestReloadOnce();
+      return;
+    }
+    diagnostics.lastAction = "Cloud and local stock match";
+    diagnostics.lastPullAt = new Date().toISOString();
+  } else {
+    const markerAtStart = getDirtyMarker();
+    const currentMarker = getDirtyMarker();
+    if (markerAtStart && currentMarker === markerAtStart) {
+      try {
+        localStorage.removeItem(DIRTY_KEY);
+        localStockDirty = false;
+      } catch (error) {
+        diagnostics.lastError = "Cloud upload succeeded but pending marker could not be cleared: " + errorText(error);
+      }
+    } else if (!currentMarker) {
+      localStockDirty = false;
+    }
+    diagnostics.lastAction = "Local stock uploaded and verified";
+    diagnostics.lastPushAt = new Date().toISOString();
   }
 
-  if (mode === "reconcile" && pendingLocalStockPushes > 0) return;
-
-  const previous = JSON.stringify(readLocalStock());
-  const next = JSON.stringify(mergedItems);
-  if (previous !== next) {
-    writeLocalStock(mergedItems);
-    requestReloadOnce();
-    return;
-  }
-
+  diagnostics.lastSuccessAt = new Date().toISOString();
+  diagnostics.lastError = "";
+  diagnostics.lastRemoteCount = verifiedRows.length;
   say(
-    "Cloud stock sync verified: " + mergedItems.length +
-    " active item(s). Deleted items remain deleted across devices. Photos and movement/job/order history are still device-local.",
+    (mode === "push" ? "Cloud upload verified: " : "Cloud stock sync verified: ") +
+    mergedItems.length + " active item(s). Workspace …" + workspaceTag() +
+    ". " + (mode === "push"
+      ? "Phone changes are saved in Supabase."
+      : "This device matches the shared cloud stock.") +
+    " Photos and movement/job/order history remain device-local.",
     "success"
   );
 }
 
 function syncStock(mode = "reconcile") {
-  // Serialize reads and writes so a background upload cannot race a deletion.
   const task = syncQueue.then(() => performStockSync(mode));
   syncQueue = task.catch(error => {
-    say("Cloud stock sync needs attention: " + (error?.message || String(error)) + ". Local stock was kept.", "warning");
+    const message = errorText(error);
+    diagnostics.lastAction = "Cloud sync failed";
+    diagnostics.lastError = message;
+    say("Cloud stock sync failed: " + message + ". Local stock was kept. Workspace …" + workspaceTag(), "warning");
   });
   return task;
 }
@@ -225,7 +386,8 @@ function startCloudListeners(workspaceId) {
     })
     .subscribe(status => {
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-        say("Cloud sign-in is active, but live updates are unavailable. Background stock checks will continue.", "warning");
+        diagnostics.lastError = "Realtime channel " + status;
+        say("Cloud sign-in is active, but live updates are unavailable. The 15-second stock check remains enabled. Workspace …" + workspaceTag(), "warning");
       }
     });
 
@@ -238,7 +400,7 @@ function startCloudListeners(workspaceId) {
 
 async function getWorkspace() {
   const result = await supabase.rpc("ensure_default_workspace");
-  if (result.error) throw result.error;
+  if (result.error) throw new Error("Workspace lookup failed: " + errorText(result.error));
 
   const row = Array.isArray(result.data) ? result.data[0] : result.data;
   if (!row?.result_workspace_id || !["owner", "admin", "member"].includes(row.result_role)) {
@@ -249,8 +411,26 @@ async function getWorkspace() {
     activeWorkspace = row.result_workspace_id;
     startCloudListeners(activeWorkspace);
   }
+  diagnostics.lastAction = "Workspace connected";
   return activeWorkspace;
 }
+
+window.vanStockProCloudDiagnostics = function () {
+  return {
+    userIdSuffix: activeUserId ? String(activeUserId).slice(-8) : null,
+    workspaceId: activeWorkspace,
+    workspaceSuffix: activeWorkspace ? String(activeWorkspace).slice(-8) : null,
+    localItemCount: readLocalStock().length,
+    pendingLocalPush: hasPendingLocalStock(),
+    pendingPushCount: pendingLocalStockPushes,
+    lastAction: diagnostics.lastAction,
+    lastError: diagnostics.lastError,
+    lastSuccessAt: diagnostics.lastSuccessAt,
+    lastPushAt: diagnostics.lastPushAt,
+    lastPullAt: diagnostics.lastPullAt,
+    lastRemoteCount: diagnostics.lastRemoteCount
+  };
+};
 
 window.vanStockProDeleteItem = async function deleteCloudStockItem(legacyId) {
   const id = String(legacyId);
@@ -261,7 +441,6 @@ window.vanStockProDeleteItem = async function deleteCloudStockItem(legacyId) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 15000);
   try {
-    // Do not wait behind background sync: a stuck poll must never leave Delete spinning.
     const result = await supabase
       .from("stock_items")
       .update({ deleted_at: new Date().toISOString() })
@@ -275,7 +454,7 @@ window.vanStockProDeleteItem = async function deleteCloudStockItem(legacyId) {
       if (result.error.name === "AbortError" || /abort/i.test(result.error.message || "")) {
         throw new Error("Supabase did not respond within 15 seconds. Check your connection and try again.");
       }
-      throw new Error(result.error.message || "Supabase rejected the delete request.");
+      throw new Error("Supabase delete failed: " + errorText(result.error));
     }
     if (!result.data || result.data.length !== 1) {
       throw new Error("Supabase matched no active item. Check that this item exists in your signed-in workspace.");
@@ -283,7 +462,7 @@ window.vanStockProDeleteItem = async function deleteCloudStockItem(legacyId) {
 
     const remaining = readLocalStock().filter(item => String(item.id) !== id);
     writeLocalStock(remaining);
-    say("Item deleted from shared cloud stock. Other devices will remove it during their next update.", "success");
+    say("Item deleted from shared cloud stock. Other devices will remove it during their next update. Workspace …" + workspaceTag(), "success");
     return true;
   } finally {
     window.clearTimeout(timeout);
@@ -292,11 +471,22 @@ window.vanStockProDeleteItem = async function deleteCloudStockItem(legacyId) {
 };
 
 window.addEventListener("van-stock-pro:stock-saved", () => {
-  if (!activeWorkspace) return;
+  const marker = markLocalStockDirty();
+  if (!activeWorkspace) {
+    say("Stock saved on this device. Cloud workspace is still starting; the upload is queued. Do not close this page yet.", "warning");
+    return;
+  }
   pendingLocalStockPushes++;
+  diagnostics.lastAction = "Uploading local stock to Supabase";
+  say("Local stock saved. Uploading to Supabase now… Workspace …" + workspaceTag(), "info");
   syncStock("push")
     .catch(() => {})
-    .finally(() => { pendingLocalStockPushes = Math.max(0, pendingLocalStockPushes - 1); });
+    .finally(() => {
+      pendingLocalStockPushes = Math.max(0, pendingLocalStockPushes - 1);
+      if (getDirtyMarker() && getDirtyMarker() !== marker) {
+        syncStock("push").catch(() => {});
+      }
+    });
 });
 
 document.addEventListener("visibilitychange", () => {
@@ -310,6 +500,7 @@ supabase.auth.onAuthStateChange((event, session) => {
   if (!userId) {
     activeUserId = null;
     activeWorkspace = null;
+    localStockDirty = false;
     stopCloudListeners();
     return;
   }
@@ -318,10 +509,12 @@ supabase.auth.onAuthStateChange((event, session) => {
     activeUserId = userId;
     queueMicrotask(() => {
       getWorkspace()
-        .then(() => syncStock("reconcile"))
+        .then(() => syncStock(hasPendingLocalStock() ? "push" : "reconcile"))
         .catch(error => {
-          say("Signed in, but cloud stock sync could not start: " +
-            (error?.message || String(error)) + ". Local stock remains available.", "warning");
+          const message = errorText(error);
+          diagnostics.lastAction = "Workspace/sync startup failed";
+          diagnostics.lastError = message;
+          say("Signed in, but cloud stock sync could not start: " + message + ". Local stock remains available.", "warning");
         });
     });
   }
