@@ -217,7 +217,7 @@ async function run() {
   const phone2Stock = JSON.parse(phone2.localStorage.getItem(STOCK_KEY));
   assert.equal(phone2Stock[0].qty, 4, "phone 2 must download a remote-only quantity change");
   assert.equal(phone2.diagnostics().lastPullAt !== null, true, "diagnostics must record a verified pull");
-  assert.match(phone2.statusElement.textContent, /Downloaded 1 cloud item/,
+  assert.match(phone2.statusElement.textContent, /downloaded 1 cloud item/,
     "the UI must identify the verified download on phone 2");
   assert.equal(phone2.diagnostics().workspaceSuffix, "12345678", "workspace suffix must be available for device comparison");
 
