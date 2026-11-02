@@ -408,8 +408,9 @@ async function performStockSync(mode) {
 
   say(
     "Cloud sync verified: " + mergedItems.length + " active item(s). Workspace …" +
-    workspaceTag() + ". Uploads and downloads checked against Supabase." +
-    " Photos and movement/job/order history remain device-local.",
+    workspaceTag() + ". Uploaded " + plan.localWins.length +
+    " local item(s); downloaded " + plan.remoteWins.length +
+    " cloud item(s). Photos and movement/job/order history remain device-local.",
     "success"
   );
 
