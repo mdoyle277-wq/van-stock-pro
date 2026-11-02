@@ -81,6 +81,12 @@ console.log('Cloud deletion, single-sync, and empty-stock regression checks pass
 
 assert.match(html, /changedIds/,
   'local stock saves must identify exactly which cloud stock items changed');
+assert.match(html, /function save\(forceSyncId=null\)/,
+  'the verified save routine must accept an explicit edited item ID');
+assert.match(html, /if\(forceSyncId&&!changedIds\.includes\(String\(forceSyncId\)\)\)/,
+  'an explicit Update item action must mark the selected item for cloud upload');
+assert.match(html, /if\(save\(id\)\)/,
+  'the item form must pass its edited ID into the verified save routine');
 assert.match(html, /window\.dispatchEvent\(new CustomEvent\('van-stock-pro:stock-saved'/,
   'verified local stock saves must emit the cloud-sync event');
 assert.match(sync, /const DIRTY_KEY = "van-stock-pro-cloud-dirty-v1"/,
