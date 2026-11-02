@@ -203,6 +203,8 @@ async function run() {
   assert.equal(firstRemote.get("item-1").qty, 4, "local stock save must be uploaded to Supabase");
   assert.equal(phone1.localStorage.getItem(DIRTY_KEY), null, "verified upload must clear only its own dirty marker");
   assert.equal(phone1.diagnostics().lastPushAt !== null, true, "diagnostics must record a verified push");
+  assert.match(phone1.statusElement.textContent, /Uploaded 1 local item/,
+    "the UI must identify the verified upload on phone 1");
 
   // Phone 2 starts from its previous synced state. The new cloud value must win
   // because phone 2 itself has not changed that item since its stored baseline.
@@ -215,6 +217,8 @@ async function run() {
   const phone2Stock = JSON.parse(phone2.localStorage.getItem(STOCK_KEY));
   assert.equal(phone2Stock[0].qty, 4, "phone 2 must download a remote-only quantity change");
   assert.equal(phone2.diagnostics().lastPullAt !== null, true, "diagnostics must record a verified pull");
+  assert.match(phone2.statusElement.textContent, /Downloaded 1 cloud item/,
+    "the UI must identify the verified download on phone 2");
   assert.equal(phone2.diagnostics().workspaceSuffix, "12345678", "workspace suffix must be available for device comparison");
 
   // If both sides changed since the baseline, neither side may silently win.
