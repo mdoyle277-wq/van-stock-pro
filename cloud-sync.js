@@ -7,7 +7,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 
 const STOCK_KEY = "van-stock-pro-items-v1";
 const DIRTY_KEY = "van-stock-pro-cloud-dirty-v1";
+const BASELINE_KEY = "van-stock-pro-cloud-baseline-v1";
 const POLL_INTERVAL_MS = 15000;
+const CLOUD_FIELDS = [
+  "name", "sku", "barcode", "category", "qty", "min_qty",
+  "max_qty", "location", "supplier", "supplier_url", "notes"
+];
 
 let activeWorkspace = null;
 let activeUserId = null;
@@ -17,6 +22,7 @@ let syncQueue = Promise.resolve();
 let localStockDirty = false;
 let pendingLocalStockPushes = 0;
 let dirtySequence = 0;
+let memoryDirtyIds = new Set();
 const deletingIds = new Set();
 const diagnostics = {
   lastAction: "Not started",
@@ -45,40 +51,12 @@ function say(message, kind = "info") {
 }
 
 function errorText(error) {
-  const parts = [
+  return [
     error?.message || String(error || "Unknown cloud error"),
     error?.code ? "code " + error.code : "",
     error?.details || "",
     error?.hint || ""
-  ].filter(Boolean);
-  return parts.join(" · ");
-}
-
-function getDirtyMarker() {
-  try {
-    return localStorage.getItem(DIRTY_KEY);
-  } catch {
-    return localStockDirty ? "memory-pending" : null;
-  }
-}
-
-function hasPendingLocalStock() {
-  return localStockDirty || !!getDirtyMarker() || pendingLocalStockPushes > 0;
-}
-
-function markLocalStockDirty() {
-  localStockDirty = true;
-  dirtySequence++;
-  const marker = String(Date.now()) + "-" + String(dirtySequence);
-  try {
-    localStorage.setItem(DIRTY_KEY, marker);
-  } catch (error) {
-    diagnostics.lastError = "Could not persist the pending-sync marker: " + errorText(error);
-    say("Stock is saved on this device, but the cloud-pending marker could not be stored. Keep this device open and check the cloud connection.", "warning");
-  }
-  diagnostics.lastAction = "Local stock save detected";
-  diagnostics.lastLocalCount = readLocalStock().length;
-  return marker;
+  ].filter(Boolean).join(" · ");
 }
 
 function readLocalStock() {
@@ -96,6 +74,54 @@ function writeLocalStock(items) {
   if (localStorage.getItem(STOCK_KEY) !== serialized) {
     throw new Error("Local stock could not be verified after saving.");
   }
+}
+
+function readDirtyState() {
+  try {
+    const raw = localStorage.getItem(DIRTY_KEY);
+    if (!raw) return { marker: null, ids: [] };
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        return {
+          marker: String(parsed.marker || raw),
+          ids: Array.isArray(parsed.ids) ? parsed.ids.map(String) : []
+        };
+      }
+    } catch {
+      // A legacy marker is still treated as pending, but has no item IDs.
+    }
+    return { marker: raw, ids: [] };
+  } catch {
+    return { marker: localStockDirty ? "memory-pending" : null, ids: [...memoryDirtyIds] };
+  }
+}
+
+function hasPendingLocalStock() {
+  return localStockDirty || !!readDirtyState().marker || pendingLocalStockPushes > 0;
+}
+
+function markLocalStockDirty(event) {
+  const changedIds = Array.isArray(event?.detail?.changedIds)
+    ? event.detail.changedIds.map(String)
+    : [];
+  if (!changedIds.length) return null;
+
+  localStockDirty = true;
+  changedIds.forEach(id => memoryDirtyIds.add(id));
+  dirtySequence++;
+  const marker = String(Date.now()) + "-" + String(dirtySequence);
+  const previous = readDirtyState();
+  const ids = [...new Set([...previous.ids, ...changedIds])];
+  try {
+    localStorage.setItem(DIRTY_KEY, JSON.stringify({ marker, ids }));
+  } catch (error) {
+    diagnostics.lastError = "Could not persist pending-sync marker: " + errorText(error);
+    say("Stock is saved on this device, but the pending cloud marker could not be stored. Keep this page open and check the connection.", "warning");
+  }
+  diagnostics.lastAction = "Local stock save detected";
+  diagnostics.lastLocalCount = readLocalStock().length;
+  return marker;
 }
 
 function toCloudRow(item, workspaceId) {
@@ -147,25 +173,89 @@ function sameCloudValue(field, local, remote) {
   return String(local ?? "") === String(remote ?? "");
 }
 
-function findLocalCloudConflicts(localItems, remoteRows) {
-  const remoteById = new Map(
-    remoteRows.filter(row => !row.deleted_at).map(row => [String(row.legacy_id), row])
-  );
-  const fields = [
-    "name", "sku", "barcode", "category", "qty", "min_qty",
-    "max_qty", "location", "supplier", "supplier_url", "notes"
-  ];
+function sameCloudRow(a, b) {
+  return CLOUD_FIELDS.every(field => sameCloudValue(field, a?.[field], b?.[field]));
+}
+
+function readBaseline() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(BASELINE_KEY) || "null");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeBaseline(items) {
+  const snapshot = {};
+  for (const item of items) {
+    snapshot[String(item.id)] = toCloudRow(item, activeWorkspace);
+  }
+  const serialized = JSON.stringify(snapshot);
+  localStorage.setItem(BASELINE_KEY, serialized);
+  if (localStorage.getItem(BASELINE_KEY) !== serialized) {
+    throw new Error("The last-synced comparison snapshot could not be verified.");
+  }
+}
+
+function buildMergePlan(localItems, remoteRows, forcedLocalIds) {
+  const baseline = readBaseline();
+  const activeRows = remoteRows.filter(row => !row.deleted_at);
+  const remoteById = new Map(activeRows.map(row => [String(row.legacy_id), row]));
+  const localById = new Map(localItems.map(item => [String(item.id), item]));
+  const mergedItems = [];
   const conflicts = [];
+  const localWins = [];
+  const remoteWins = [];
+
   for (const item of localItems) {
-    const remote = remoteById.get(String(item.id));
-    if (!remote) continue;
+    const id = String(item.id);
+    const remote = remoteById.get(id);
+    if (!remote) {
+      mergedItems.push(item);
+      localWins.push(id);
+      continue;
+    }
+
     const localRow = toCloudRow(item, activeWorkspace);
-    const different = fields.filter(field => !sameCloudValue(field, localRow[field], remote[field]));
-    if (different.length) {
-      conflicts.push({ id: String(item.id), name: String(item.name || "Unnamed item"), fields: different });
+    if (sameCloudRow(localRow, remote)) {
+      mergedItems.push(fromCloudRow(remote, item));
+      continue;
+    }
+
+    const base = baseline?.[id];
+    if (!base) {
+      if (forcedLocalIds.has(id)) {
+        mergedItems.push(item);
+        localWins.push(id);
+      } else {
+        conflicts.push({ id, name: String(item.name || id), reason: "No previous sync baseline" });
+      }
+      continue;
+    }
+
+    const localChanged = !sameCloudRow(localRow, base);
+    const remoteChanged = !sameCloudRow(remote, base);
+    if (localChanged && remoteChanged) {
+      conflicts.push({ id, name: String(item.name || id), reason: "Both device and cloud changed" });
+    } else if (localChanged) {
+      mergedItems.push(item);
+      localWins.push(id);
+    } else {
+      mergedItems.push(fromCloudRow(remote, item));
+      remoteWins.push(id);
     }
   }
-  return conflicts;
+
+  for (const row of activeRows) {
+    const id = String(row.legacy_id);
+    if (!localById.has(id)) {
+      mergedItems.push(fromCloudRow(row, null));
+      remoteWins.push(id);
+    }
+  }
+
+  return { mergedItems, conflicts, localWins, remoteWins };
 }
 
 function requestReloadOnce() {
@@ -183,16 +273,6 @@ async function fetchActiveRows() {
   return result.data || [];
 }
 
-async function fetchDeletedRows() {
-  const result = await supabase
-    .from("stock_items")
-    .select("legacy_id,deleted_at")
-    .eq("workspace_id", activeWorkspace)
-    .not("deleted_at", "is", null);
-  if (result.error) throw new Error("Supabase deleted-item check failed: " + errorText(result.error));
-  return result.data || [];
-}
-
 async function verifyCloudRows(items, context) {
   const result = await supabase
     .from("stock_items")
@@ -201,91 +281,83 @@ async function verifyCloudRows(items, context) {
     .is("deleted_at", null);
   if (result.error) throw new Error("Supabase " + context + " verification query failed: " + errorText(result.error));
 
-  const verifiedById = new Map(
-    (result.data || []).map(row => [String(row.legacy_id), row])
-  );
-  const fields = [
-    "name", "sku", "barcode", "category", "qty", "min_qty",
-    "max_qty", "location", "supplier", "supplier_url", "notes"
-  ];
+  const verifiedById = new Map((result.data || []).map(row => [String(row.legacy_id), row]));
   const mismatches = [];
   for (const item of items) {
     const expected = toCloudRow(item, activeWorkspace);
     const saved = verifiedById.get(String(item.id));
-    if (!saved || fields.some(field => !sameCloudValue(field, expected[field], saved[field]))) {
-      mismatches.push(String(item.name || item.id));
-    }
+    if (!saved || !sameCloudRow(expected, saved)) mismatches.push(String(item.name || item.id));
   }
   if (mismatches.length) {
     throw new Error(
       "Supabase " + context + " verification failed for " + mismatches.length +
-      " item(s): " + mismatches.slice(0, 3).join(", ") +
-      ". The local stock was retained."
+      " item(s): " + mismatches.slice(0, 3).join(", ") + ". Local stock was retained."
     );
   }
   diagnostics.lastRemoteCount = (result.data || []).length;
   return result.data || [];
 }
 
+function clearDirtyMarkerIfUnchanged(markerAtStart) {
+  const current = readDirtyState();
+  if (markerAtStart && current.marker === markerAtStart) {
+    try {
+      localStorage.removeItem(DIRTY_KEY);
+      localStockDirty = false;
+      memoryDirtyIds.clear();
+      return true;
+    } catch (error) {
+      diagnostics.lastError = "Cloud upload succeeded but the pending marker could not be cleared: " + errorText(error);
+      return false;
+    }
+  }
+  if (!current.marker) {
+    localStockDirty = false;
+    memoryDirtyIds.clear();
+    return true;
+  }
+  localStockDirty = true;
+  return false;
+}
+
 async function performStockSync(mode) {
   if (!activeWorkspace) return;
 
-  const pushMarkerAtStart = mode === "push" ? getDirtyMarker() : null;
+  const dirtyAtStart = readDirtyState();
+  const markerAtStart = dirtyAtStart.marker;
+  const forcedLocalIds = new Set([...dirtyAtStart.ids, ...memoryDirtyIds]);
   let localItems = readLocalStock();
   diagnostics.lastLocalCount = localItems.length;
 
-  // A pending local save must always be uploaded before any remote snapshot is
-  // allowed to replace local values. This marker survives a page reload.
   if (mode === "reconcile" && hasPendingLocalStock()) {
-    diagnostics.lastAction = "Pull deferred while local upload is pending";
+    diagnostics.lastAction = "Pull deferred while a local upload is pending";
     return;
   }
 
-  let remoteRows = mode === "reconcile" ? await fetchActiveRows() : await fetchDeletedRows();
-
-  // A save may occur while the network read is in flight. Re-check before
-  // merging so a stale remote snapshot can never replace a newer local edit.
+  const remoteRows = await fetchActiveRows();
   if (mode === "reconcile" && hasPendingLocalStock()) {
-    diagnostics.lastAction = "Pull deferred after local save";
+    diagnostics.lastAction = "Pull deferred after a local save";
     return;
   }
 
   const deletedIds = new Set(remoteRows.filter(row => row.deleted_at).map(row => String(row.legacy_id)));
   localItems = localItems.filter(item => !deletedIds.has(String(item.id)));
 
-  let mergedItems = localItems;
-  if (mode === "reconcile") {
-    const conflicts = findLocalCloudConflicts(localItems, remoteRows);
-    if (conflicts.length) {
-      diagnostics.lastAction = "Local/cloud conflict; no automatic overwrite";
-      diagnostics.lastError = conflicts.length + " item(s) differ between this device and Supabase";
-      const sample = conflicts.slice(0, 3).map(item => item.name + " (" + item.fields.join(", ") + ")").join("; ");
-      say(
-        "Sync paused: " + conflicts.length + " item(s) differ between this device and cloud (" +
-        sample + "). No stock was changed. Workspace …" + workspaceTag() +
-        ". Save the correct item on the device holding the intended quantity to upload it.",
-        "warning"
-      );
-      return;
-    }
-
-    const activeRows = remoteRows.filter(row => !row.deleted_at);
-    const remoteById = new Map(activeRows.map(row => [String(row.legacy_id), row]));
-    mergedItems = localItems.map(item => {
-      const remote = remoteById.get(String(item.id));
-      return remote ? fromCloudRow(remote, item) : item;
-    });
-
-    const localIds = new Set(mergedItems.map(item => String(item.id)));
-    for (const row of activeRows) {
-      if (!localIds.has(String(row.legacy_id))) {
-        mergedItems.push(fromCloudRow(row, null));
-      }
-    }
+  const plan = buildMergePlan(localItems, remoteRows, forcedLocalIds);
+  if (plan.conflicts.length) {
+    diagnostics.lastAction = "Local/cloud conflict; no automatic overwrite";
+    diagnostics.lastError = plan.conflicts.length + " item(s) differ on both sides or have no safe baseline";
+    const sample = plan.conflicts.slice(0, 3).map(item => item.name).join(", ");
+    say(
+      "Sync paused: " + plan.conflicts.length + " item(s) need conflict checking (" + sample +
+      "). No stock was changed. Workspace …" + workspaceTag() +
+      ". The app will not guess which quantity is correct.",
+      "warning"
+    );
+    return;
   }
 
-  if (mode === "reconcile" && hasPendingLocalStock()) return;
-
+  const mergedItems = plan.mergedItems;
   const payload = mergedItems.map(item => toCloudRow(item, activeWorkspace));
   if (mode === "push" && payload.length === 0) {
     diagnostics.lastAction = "Empty local stock; upload skipped";
@@ -297,58 +369,51 @@ async function performStockSync(mode) {
     const result = await supabase
       .from("stock_items")
       .upsert(payload.slice(start, start + 100), { onConflict: "workspace_id,legacy_id" });
-    if (result.error) {
-      throw new Error("Supabase stock upload failed: " + errorText(result.error));
-    }
+    if (result.error) throw new Error("Supabase stock upload failed: " + errorText(result.error));
   }
 
   const verifiedRows = await verifyCloudRows(mergedItems, mode === "push" ? "upload" : "reconciliation");
 
-  // A newer local edit may have been made while the upsert/verification ran.
+  // If another save arrived while this request was running, do not write this
+  // older snapshot or baseline over it. Its queued push will run next.
+  const currentDirty = readDirtyState();
+  if (hasPendingLocalStock() && currentDirty.marker !== markerAtStart) {
+    diagnostics.lastAction = "A newer local save is waiting to upload";
+    return;
+  }
   if (mode === "reconcile" && hasPendingLocalStock()) return;
 
-  if (mode === "reconcile") {
-    const previous = JSON.stringify(readLocalStock());
-    const next = JSON.stringify(mergedItems);
-    if (previous !== next) {
-      writeLocalStock(mergedItems);
-      diagnostics.lastAction = "Cloud stock downloaded to this device";
-      diagnostics.lastPullAt = new Date().toISOString();
-      requestReloadOnce();
-      return;
-    }
-    diagnostics.lastAction = "Cloud and local stock match";
-    diagnostics.lastPullAt = new Date().toISOString();
-  } else {
-    const currentMarker = getDirtyMarker();
-    if (pushMarkerAtStart && currentMarker === pushMarkerAtStart) {
-      try {
-        localStorage.removeItem(DIRTY_KEY);
-        localStockDirty = false;
-      } catch (error) {
-        diagnostics.lastError = "Cloud upload succeeded but pending marker could not be cleared: " + errorText(error);
-      }
-    } else if (!currentMarker) {
-      localStockDirty = false;
-    } else {
-      localStockDirty = true;
-      diagnostics.lastAction = "Upload verified; a newer local save is still queued";
-    }
+  const previous = JSON.stringify(readLocalStock());
+  const next = JSON.stringify(mergedItems);
+  if (previous !== next) {
+    writeLocalStock(mergedItems);
+  }
+  writeBaseline(mergedItems);
+
+  if (mode === "push") {
+    clearDirtyMarkerIfUnchanged(markerAtStart);
     diagnostics.lastPushAt = new Date().toISOString();
+  } else {
+    diagnostics.lastPullAt = new Date().toISOString();
   }
 
+  diagnostics.lastAction = plan.localWins.length
+    ? "Local changes merged and uploaded"
+    : plan.remoteWins.length
+      ? "Cloud changes downloaded and verified"
+      : "Local and cloud stock match";
   diagnostics.lastSuccessAt = new Date().toISOString();
   diagnostics.lastError = "";
   diagnostics.lastRemoteCount = verifiedRows.length;
+
   say(
-    (mode === "push" ? "Cloud upload verified: " : "Cloud stock sync verified: ") +
-    mergedItems.length + " active item(s). Workspace …" + workspaceTag() +
-    ". " + (mode === "push"
-      ? "Phone changes are saved in Supabase."
-      : "This device matches the shared cloud stock.") +
+    "Cloud sync verified: " + mergedItems.length + " active item(s). Workspace …" +
+    workspaceTag() + ". Uploads and downloads checked against Supabase." +
     " Photos and movement/job/order history remain device-local.",
     "success"
   );
+
+  if (previous !== next) requestReloadOnce();
 }
 
 function syncStock(mode = "reconcile") {
@@ -418,12 +483,14 @@ async function getWorkspace() {
 }
 
 window.vanStockProCloudDiagnostics = function () {
+  const dirty = readDirtyState();
   return {
     userIdSuffix: activeUserId ? String(activeUserId).slice(-8) : null,
     workspaceId: activeWorkspace,
     workspaceSuffix: activeWorkspace ? String(activeWorkspace).slice(-8) : null,
     localItemCount: readLocalStock().length,
     pendingLocalPush: hasPendingLocalStock(),
+    pendingItemIds: dirty.ids,
     pendingPushCount: pendingLocalStockPushes,
     lastAction: diagnostics.lastAction,
     lastError: diagnostics.lastError,
@@ -464,6 +531,11 @@ window.vanStockProDeleteItem = async function deleteCloudStockItem(legacyId) {
 
     const remaining = readLocalStock().filter(item => String(item.id) !== id);
     writeLocalStock(remaining);
+    const baseline = readBaseline();
+    if (baseline) {
+      delete baseline[id];
+      localStorage.setItem(BASELINE_KEY, JSON.stringify(baseline));
+    }
     say("Item deleted from shared cloud stock. Other devices will remove it during their next update. Workspace …" + workspaceTag(), "success");
     return true;
   } finally {
@@ -472,8 +544,9 @@ window.vanStockProDeleteItem = async function deleteCloudStockItem(legacyId) {
   }
 };
 
-window.addEventListener("van-stock-pro:stock-saved", () => {
-  const marker = markLocalStockDirty();
+window.addEventListener("van-stock-pro:stock-saved", event => {
+  const marker = markLocalStockDirty(event);
+  if (!marker) return;
   if (!activeWorkspace) {
     say("Stock saved on this device. Cloud workspace is still starting; the upload is queued. Do not close this page yet.", "warning");
     return;
@@ -485,7 +558,8 @@ window.addEventListener("van-stock-pro:stock-saved", () => {
     .catch(() => {})
     .finally(() => {
       pendingLocalStockPushes = Math.max(0, pendingLocalStockPushes - 1);
-      if (getDirtyMarker() && getDirtyMarker() !== marker) {
+      const current = readDirtyState();
+      if (current.marker && current.marker !== marker) {
         syncStock("push").catch(() => {});
       }
     });
@@ -503,6 +577,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     activeUserId = null;
     activeWorkspace = null;
     localStockDirty = false;
+    memoryDirtyIds.clear();
     stopCloudListeners();
     return;
   }
@@ -511,7 +586,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     activeUserId = userId;
     queueMicrotask(() => {
       getWorkspace()
-        .then(() => syncStock(hasPendingLocalStock() ? "push" : "reconcile"))
+        .then(() => syncStock(readDirtyState().marker ? "push" : "reconcile"))
         .catch(error => {
           const message = errorText(error);
           diagnostics.lastAction = "Workspace/sync startup failed";
