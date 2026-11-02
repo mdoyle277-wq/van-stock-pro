@@ -418,6 +418,7 @@ async function performStockSync(mode) {
 }
 
 function syncStock(mode = "reconcile") {
+  if (mode === "reconcile" && hasPendingLocalStock()) mode = "push";
   const task = syncQueue.then(() => performStockSync(mode));
   syncQueue = task.catch(error => {
     const message = errorText(error);
