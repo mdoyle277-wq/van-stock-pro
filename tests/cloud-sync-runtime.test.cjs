@@ -243,6 +243,15 @@ async function run() {
   assert.equal(unknownRemote.get("item-1").qty, 4);
   assert.match(unknown.statusElement.textContent, /Sync paused/);
 
+  // An explicit edit-form save is the user's signal that this device's version
+  // of the selected item is intentional, even when the value is unchanged.
+  unknown.triggerStockSaved(["item-1"]);
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(unknownRemote.get("item-1").qty, 3,
+    "an explicitly saved item with no baseline must be uploaded as the user's chosen version");
+  assert.equal(unknown.localStorage.getItem(DIRTY_KEY), null,
+    "the explicit local resolution must clear its verified dirty marker");
+
   // Supabase write errors must be shown and must leave the dirty marker in place.
   const failedRemote = new Map();
   const failed = createRuntime({
