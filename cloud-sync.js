@@ -230,6 +230,7 @@ async function verifyCloudRows(items, context) {
 async function performStockSync(mode) {
   if (!activeWorkspace) return;
 
+  const pushMarkerAtStart = mode === "push" ? getDirtyMarker() : null;
   let localItems = readLocalStock();
   diagnostics.lastLocalCount = localItems.length;
 
@@ -319,9 +320,8 @@ async function performStockSync(mode) {
     diagnostics.lastAction = "Cloud and local stock match";
     diagnostics.lastPullAt = new Date().toISOString();
   } else {
-    const markerAtStart = getDirtyMarker();
     const currentMarker = getDirtyMarker();
-    if (markerAtStart && currentMarker === markerAtStart) {
+    if (pushMarkerAtStart && currentMarker === pushMarkerAtStart) {
       try {
         localStorage.removeItem(DIRTY_KEY);
         localStockDirty = false;
@@ -330,8 +330,10 @@ async function performStockSync(mode) {
       }
     } else if (!currentMarker) {
       localStockDirty = false;
+    } else {
+      localStockDirty = true;
+      diagnostics.lastAction = "Upload verified; a newer local save is still queued";
     }
-    diagnostics.lastAction = "Local stock uploaded and verified";
     diagnostics.lastPushAt = new Date().toISOString();
   }
 
