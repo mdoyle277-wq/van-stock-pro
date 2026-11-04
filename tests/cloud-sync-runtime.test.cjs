@@ -141,6 +141,8 @@ function createRuntime({ remoteRows, localItems, baselineRaw = null, failUpsert 
     },
     setInterval(callback) { intervalCallback = callback; return 1; },
     clearInterval() {},
+    setTimeout,
+    clearTimeout,
     vanStockProDeleteItem: null
   };
   const document = {
@@ -284,7 +286,37 @@ async function run() {
   assert.equal(failed.localStorage.getItem(DIRTY_KEY), null,
     "a successful retry must clear the pending marker");
 
-  console.log("Cloud sync runtime tests passed: upload, cross-device pull, conflict protection, Supabase error handling, and retry.");
+  // A confirmed delete must write a cloud tombstone and remove the local item.
+  // A second device must then pull that tombstone instead of resurrecting it.
+  const deletionRemote = new Map([["item-1", cloudRow(makeItem(5))]]);
+  const deletionBaseline = JSON.stringify({ "item-1": cloudRow(makeItem(5)) });
+  const deletingPhone = createRuntime({
+    remoteRows: deletionRemote,
+    localItems: [makeItem(5)],
+    baselineRaw: deletionBaseline
+  });
+  await deletingPhone.signIn();
+  assert.equal(await deletingPhone.window.vanStockProDeleteItem("item-1"), true,
+    "phone 1 delete should complete only after Supabase confirms the tombstone");
+  assert.ok(deletionRemote.get("item-1").deleted_at,
+    "phone 1 delete must leave a soft-delete tombstone in the cloud");
+  assert.deepEqual(JSON.parse(deletingPhone.localStorage.getItem(STOCK_KEY)), [],
+    "phone 1 must remove the deleted item locally");
+  assert.equal(JSON.parse(deletingPhone.localStorage.getItem(BASELINE_KEY))["item-1"], undefined,
+    "phone 1 must remove the deleted item from its comparison baseline");
+
+  const secondPhone = createRuntime({
+    remoteRows: deletionRemote,
+    localItems: [makeItem(5)],
+    baselineRaw: deletionBaseline
+  });
+  await secondPhone.signIn();
+  assert.deepEqual(JSON.parse(secondPhone.localStorage.getItem(STOCK_KEY)), [],
+    "phone 2 must remove an item that has a cloud tombstone");
+  assert.equal(secondPhone.diagnostics().lastPullAt !== null, true,
+    "phone 2 must record a completed tombstone reconciliation");
+
+  console.log("Cloud sync runtime tests passed: upload, cross-device pull, conflict protection, Supabase error handling, retry, and cross-device soft deletion.");
 }
 
 run().catch(error => {
