@@ -62,6 +62,8 @@ assert.match(restore, /localStorage\.removeItem\('van-stock-pro-cloud-baseline-v
   "restore must clear stale cloud comparison baselines");
 assert.doesNotMatch(restore, /if\(!keep\.has\(k\)\)localStorage\.removeItem\(k\)/,
   "restore must not delete local history keys merely because a backup omitted them");
+assert.match(restore, /for\(const \[k\] of entries\)\{if\(!Object\.prototype\.hasOwnProperty\.call\(previous,k\)\)/,
+  "failed restore must remove newly added keys before rolling back the previous data");
 
 assert.match(html, /id="cloudImportBackupConfirmed"/,
   "cloud import must require a fresh-backup confirmation");
