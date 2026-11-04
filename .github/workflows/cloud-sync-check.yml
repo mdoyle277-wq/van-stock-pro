@@ -1,0 +1,48 @@
+name: Van Stock Pro cloud-sync checks
+
+on:
+  push:
+    branches:
+      - cloud-sync-test-work
+  pull_request:
+    branches:
+      - cloud-sync-test-work
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check cloud JavaScript modules
+        run: |
+          cp cloud-sync.js /tmp/cloud-sync.mjs
+          cp cloud-auth.js /tmp/cloud-auth.mjs
+          node --check /tmp/cloud-sync.mjs
+          node --check /tmp/cloud-auth.mjs
+      - name: Check inline application JavaScript
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
+            .filter(match => !/\bsrc\s*=/.test(match[1]))
+            .map(match => match[2])
+            .filter(source => source.trim());
+          if (!scripts.length) throw new Error('No inline application script was found.');
+          fs.writeFileSync('/tmp/van-stock-inline.js', scripts.join('\n;\n'));
+          NODE
+          node --check /tmp/van-stock-inline.js
+      - name: Run integration and regression checks
+        run: node tests/supabase-foundation.test.cjs
+      - name: Run simulated two-device cloud sync tests
+        run: node tests/cloud-sync-runtime.test.cjs
+      - name: Run stock save, backup, restore, and import safety checks
+        run: node tests/stock-safety-regression.test.cjs

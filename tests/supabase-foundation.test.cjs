@@ -16,7 +16,12 @@ assert.match(auth, /supabase\.auth\.signOut/);
 assert.match(auth, /supabase\.rpc\("ensure_default_workspace"\)/);
 assert.doesNotMatch(auth, /from\("workspaces"\)\.insert/);
 assert.doesNotMatch(auth, /from\("workspace_members"\)\.insert/);
-assert.doesNotMatch(auth, /\.from\("(?:stock_items|stock_movements|job_usage)"\)\.(?:insert|upsert|update|delete)/);
+// The explicit, user-confirmed migration action is allowed to upsert stock_items.
+// Authentication must not directly write movement or job history.
+assert.doesNotMatch(auth, /\.from\("(?:stock_movements|job_usage)"\)\.(?:insert|upsert|update|delete)/);
+assert.match(html, /id="cloudImportConfirm"/, 'stock import must show an explicit confirmation panel');
+assert.match(auth, /cloudImportConfirmYes/, 'stock import must require an affirmative confirmation click');
+assert.match(auth, /cloudImportConfirmNo/, 'stock import must provide a cancel action');
 assert.match(config, /https:\/\/cvigfyzpqsiqakguhrah\.supabase\.co/);
 assert.match(config, /sb_publishable_/);
 assert.doesNotMatch(config, /service_role|sb_secret_/);
@@ -56,3 +61,69 @@ assert.match(auth, /function previewLocalMigration/);
 assert.match(auth, /LOCAL MIGRATION PREVIEW ONLY/);
 assert.doesNotMatch(auth, /localStorage\.setItem|localStorage\.removeItem/, 'preview must not alter local stock');
 console.log('Supabase foundation static checks passed. No live auth, browser, or database tests were performed.');
+
+
+const sync = fs.readFileSync('cloud-sync.js', 'utf8');
+assert.equal((sync.match(/function syncStock\(/g) || []).length, 1, 'cloud sync must have one serialized sync entry point');
+assert.equal((sync.match(/setInterval\(/g) || []).length, 1, 'cloud sync must have one polling timer');
+assert.equal((sync.match(/addEventListener\(["']visibilitychange["']/g) || []).length, 1, 'cloud sync must have one visibility listener');
+assert.match(sync, /window\.vanStockProDeleteItem/);
+assert.match(sync, /update\(\{ deleted_at: new Date\(\)\.toISOString\(\) \}\)/);
+assert.match(sync, /deleted_at/);
+assert.match(sync, /syncQueue/);
+assert.match(html, /window\.vanStockProDeleteItem/);
+assert.doesNotMatch(html, /if\(items\.length===0\)\{items=STARTER_STOCK/,
+  'an intentionally empty stock list must not be repopulated with starter stock');
+assert.match(html, /stockStorageMissing=stored===null/,
+  'starter stock should only be seeded when no stock key exists');
+assert.match(schema, /deleted_at timestamptz/);
+console.log('Cloud deletion, single-sync, and empty-stock regression checks passed.');
+
+assert.match(html, /changedIds/,
+  'local stock saves must identify exactly which cloud stock items changed');
+assert.match(html, /function save\(forceSyncId=null\)/,
+  'the verified save routine must accept an explicit edited item ID');
+assert.match(html, /if\(forceSyncId&&!changedIds\.includes\(String\(forceSyncId\)\)\)/,
+  'an explicit Update item action must mark the selected item for cloud upload');
+assert.match(html, /if\(save\(id\)\)/,
+  'the item form must pass its edited ID into the verified save routine');
+assert.match(html, /window\.dispatchEvent\(new CustomEvent\('van-stock-pro:stock-saved'/,
+  'verified local stock saves must emit the cloud-sync event');
+assert.match(sync, /const DIRTY_KEY = "van-stock-pro-cloud-dirty-v1"/,
+  'pending local saves must survive a page reload');
+assert.match(sync, /const BASELINE_KEY = "van-stock-pro-cloud-baseline-v1"/,
+  'each device must retain a last-synced baseline for safe three-way merging');
+assert.match(sync, /function markLocalStockDirty\(/,
+  'every changed local stock save must be marked before workspace readiness is checked');
+assert.match(sync, /readDirtyState\(\)\.marker \? "push" : "reconcile"/,
+  'startup must upload a previously pending local save before downloading remote stock');
+assert.match(sync, /function buildMergePlan\(/,
+  'cloud reconciliation must use a baseline-aware merge');
+assert.match(sync, /const localChanged = !sameCloudRow\(localRow, base\)/,
+  'merge must detect local changes relative to the last synced baseline');
+assert.match(sync, /const remoteChanged = !sameCloudRow\(remote, base\)/,
+  'merge must detect cloud changes relative to the last synced baseline');
+assert.match(sync, /if \(localChanged && remoteChanged\)/,
+  'concurrent conflicting edits must be stopped rather than silently overwritten');
+assert.match(sync, /Sync paused: /,
+  'conflicting data must be preserved and reported');
+assert.match(sync, /Supabase stock upload failed:/,
+  'Supabase upsert errors must be visible to the user');
+assert.match(sync, /verifyCloudRows\(/,
+  'uploads and downloads must verify returned cloud values');
+assert.match(sync, /workspaceSuffix: activeWorkspace/,
+  'diagnostics must expose the workspace ID for safe two-device comparison');
+assert.match(sync, /lastPushAt:/,
+  'diagnostics must distinguish a completed cloud upload from a pull');
+assert.match(sync, /const markerAtStart = dirtyAtStart\.marker/,
+  'an upload must capture the dirty marker before network work');
+assert.match(sync, /currentDirty\.marker !== markerAtStart/,
+  'an upload must not overwrite a newer local save while it is in flight');
+assert.match(sync, /clearDirtyMarkerIfUnchanged\(markerAtStart\)/,
+  'an upload may only clear the exact pending save it verified');
+assert.match(sync, /if \(mode === "reconcile" && hasPendingLocalStock\(\)\) mode = "push"/,
+  'polling and realtime checks must retry any local save still pending in the cloud');
+assert.match(html, /cloud-sync\.js\?v=three-way-sync-merge-20261102d/,
+  'the app must load the new cloud sync module without using a cached copy');
+console.log('Cloud dirty-save, conflict-protection, and diagnostics checks passed.');
+

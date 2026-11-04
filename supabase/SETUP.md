@@ -1,6 +1,6 @@
 # Van Stock Pro — Supabase multi-device setup
 
-This is a **development branch only**. The app now includes Supabase browser configuration plus a sign-in/account-creation panel and a safe workspace setup action. It is not published to the live GitHub Pages app, and it does not yet sync or migrate stock. Keeping the live app untouched protects current stock data while the cloud workflow is prepared.
+This is a **development/test branch only**. It includes Supabase sign-in, workspace initialisation, stock reconciliation, cloud soft deletion, Realtime updates with polling fallback, and local-first stock storage. It is not the production app. Keep the live app and its data untouched until two-device tests and database checks pass.
 
 ## Architecture
 
@@ -36,6 +36,8 @@ The current Supabase project already has the base schema. Before using the works
 - Revokes anonymous table privileges on `workspace_members` and limits the bootstrap RPC to authenticated users.
 - Does not read, insert, update, or delete stock records.
 
+For the existing project used by the test branch, also run `supabase/soft-delete-stock.sql` to add the `deleted_at` tombstone column and index, then run `supabase/realtime-stock.sql` to enable and verify the `stock_items` Realtime publication. Both scripts are safe to re-run. The delete function will fail until the soft-delete migration has been applied.
+
 Then sign in with the account you created and press the workspace setup button. Confirm the status says the workspace and owner membership were confirmed. For read-only database checks, run `supabase/workspace-verification.sql`. Expected security results: anonymous execution/select are false, authenticated bootstrap execution is true, and authenticated direct UPDATE on `workspace_members` is false.
 
 ## 4. Current development functionality and preview limitation
@@ -44,21 +46,25 @@ Then sign in with the account you created and press the workspace setup button. 
 - Session persistence in the browser.
 - A schema readiness check.
 - Atomic workspace and owner-membership initialisation.
-- A read-only local migration preview; no stock upload or sync.
+- Local-first stock saving with cloud upload and reconciliation after sign-in
+- Workspace-scoped stock updates using Realtime, with a 15-second polling fallback
+- Cloud soft deletion using a deleted_at tombstone so another device cannot restore a deleted item
+- A read-only local migration preview and a separately confirmed stock import
+- Photos and movement/job/order history remain device-local in this test version.
 
 **The development branch is not published at the live GitHub Pages URL.** A separate staging/preview URL has not been configured, so authentication cannot yet be truthfully verified against this branch. The latest comparison also shows this branch is **37 commits ahead and 40 behind** current `main`, and its `index.html` does not include the same signed-out content gate as current `main`. Do not merge or deploy this branch as-is; first reconcile it with the latest app while preserving the live stock features. Do not enter credentials on a stale or untrusted preview. Keep the live app and local stock untouched until a current-main-based preview is available and the sign-in/workspace checks pass. Account creation may require email confirmation depending on Supabase Auth settings.
 
 ## 5. Implementation and migration sequence
 
-Before publishing any integration to `main`:
+Before publishing any integration to `main`, complete the remaining work:
 
 1. Add sign-in and sign-out with clear session handling.
 2. Create the first workspace for the signed-in user and assign the owner role.
 3. Add a one-time import preview from the existing Van Stock Pro JSON backup. Preview item counts, photo counts, movement counts and job-usage counts before applying.
 4. Upload photos to the private `van-stock-item-photos` bucket and store paths in `stock_items.photo_path`.
 5. Preserve legacy item IDs so movement/job history can be linked to the correct items.
-6. Add cloud CRUD, live refresh/realtime updates, and conflict-safe stock quantity updates.
-7. Test two devices, access restrictions, offline/error states, backup/restore, QR generation, and barcode scanning.
+6. Complete atomic conflict-safe stock quantity updates and cloud CRUD for the remaining data types.
+7. Test two devices, deletion propagation, access restrictions, offline/error states, backup/restore, QR generation, and barcode scanning.
 8. Only then deploy to the live branch. Keep the original local data and JSON backup until the migration has been verified on both devices.
 
 ## Current legacy browser storage keys
