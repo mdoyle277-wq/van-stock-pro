@@ -52,6 +52,10 @@ assert.match(backup, /startsWith\('van-stock-pro-cloud-'\)/,
   "data backups must exclude transient cloud-sync markers and comparison baselines");
 
 const restore = section(html, "async function restoreDataBackupFile(file)", "$('restoreSelectedDataBtn').addEventListener", "data restore");
+assert.match(restore, /backupIds/,
+  "restore must reject duplicate item IDs");
+assert.match(restore, /backupValid/,
+  "restore must validate item quantities and min/max levels");
 assert.match(restore, /missingHistoryKeys/,
   "restore must identify history keys absent from a backup");
 assert.match(restore, /Existing values for those keys on this phone will be preserved/,
