@@ -44,3 +44,5 @@ jobs:
         run: node tests/supabase-foundation.test.cjs
       - name: Run simulated two-device cloud sync tests
         run: node tests/cloud-sync-runtime.test.cjs
+      - name: Run stock save, backup, restore, and import safety checks
+        run: node tests/stock-safety-regression.test.cjs
