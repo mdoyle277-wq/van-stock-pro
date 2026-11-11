@@ -56,31 +56,31 @@ body.cloud-authenticated::before{display:none!important;content:none!important}
 .stock-tablewrap table{display:block;width:100%;min-width:0;border-collapse:separate;border-spacing:0}
 .stock-tablewrap thead{display:none}
 .stock-tablewrap tbody{display:grid;gap:12px}
-.stock-tablewrap tbody tr{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 66px 82px;grid-template-areas:"item qty min" "supplier category max" "status status status" "actions actions actions";gap:7px 9px;padding:13px 12px;background:var(--panel);border:1px solid var(--line);border-radius:13px;box-shadow:0 2px 7px #0002}
-.stock-tablewrap tbody td{display:block;min-width:0;padding:0;border:0;font-size:13px;overflow-wrap:anywhere}
-.stock-tablewrap tbody td:nth-child(1){position:absolute;top:9px;right:9px;z-index:1}
-.stock-tablewrap tbody td:nth-child(2){grid-area:item;padding-right:20px}
-.stock-tablewrap tbody td:nth-child(3){grid-area:supplier;display:flex;align-items:center;justify-content:flex-start}
-.stock-tablewrap tbody td:nth-child(4){grid-area:category;align-self:center;text-align:center;font-size:11px;color:var(--muted)}
-.stock-tablewrap tbody td:nth-child(5){grid-area:qty;text-align:center;align-self:start;font-size:17px;font-weight:800}
-.stock-tablewrap tbody td:nth-child(5)::before{content:"Available";display:block;margin-bottom:5px;font-size:10px;font-weight:600;color:var(--muted)}
-.stock-tablewrap tbody td:nth-child(6){grid-area:min;text-align:center;align-self:start;font-size:17px;font-weight:800}
-.stock-tablewrap tbody td:nth-child(6)::before{content:"Restock level";display:block;margin-bottom:5px;font-size:10px;font-weight:600;color:var(--muted)}
-.stock-tablewrap tbody td:nth-child(7){grid-area:max;text-align:center;font-size:11px;color:var(--muted)}
-.stock-tablewrap tbody td:nth-child(7)::before{content:"Max";display:block;font-size:10px;color:var(--muted)}
+.stock-tablewrap tbody tr{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"item item" "qty min" "supplier category" "status max" "actions actions";gap:10px 12px;padding:15px 13px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 7px #0002}
+.stock-tablewrap tbody td{display:block;min-width:0;padding:0;border:0;font-size:13px;overflow-wrap:normal;word-break:normal}
+.stock-tablewrap tbody td:nth-child(1){position:absolute;top:12px;right:12px;z-index:1}
+.stock-tablewrap tbody td:nth-child(2){grid-area:item;padding-right:34px}
+.stock-tablewrap tbody td:nth-child(3){grid-area:supplier;display:flex;align-items:center;justify-content:flex-start;min-width:0}
+.stock-tablewrap tbody td:nth-child(4){grid-area:category;align-self:center;text-align:right;font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+.stock-tablewrap tbody td:nth-child(5){grid-area:qty;text-align:center;align-self:stretch;font-size:20px;font-weight:800;padding:9px 6px;background:#0b1524;border:1px solid var(--line);border-radius:10px}
+.stock-tablewrap tbody td:nth-child(5)::before{content:"AVAILABLE";display:block;margin-bottom:5px;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--muted)}
+.stock-tablewrap tbody td:nth-child(6){grid-area:min;text-align:center;align-self:stretch;font-size:20px;font-weight:800;padding:9px 6px;background:#0b1524;border:1px solid var(--line);border-radius:10px}
+.stock-tablewrap tbody td:nth-child(6)::before{content:"RESTOCK LEVEL";display:block;margin-bottom:5px;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--muted)}
+.stock-tablewrap tbody td:nth-child(7){grid-area:max;text-align:right;font-size:11px;color:var(--muted);align-self:center}
+.stock-tablewrap tbody td:nth-child(7)::before{content:"Max: ";font-size:10px;color:var(--muted)}
 .stock-tablewrap tbody td:nth-child(8){grid-area:status;justify-self:start}
-.stock-tablewrap tbody td:nth-child(9){grid-area:actions;border-top:1px solid var(--line);padding-top:8px}
-.stock-tablewrap .itemcell{align-items:flex-start;gap:9px}
-.stock-tablewrap .itemdetails{min-width:0}
-.stock-tablewrap .itemname{font-size:15px;line-height:1.25}
-.stock-tablewrap .itemlocation{font-size:11px}
-.stock-tablewrap .sku{font-size:11px;overflow-wrap:anywhere}
+.stock-tablewrap tbody td:nth-child(9){grid-area:actions;border-top:1px solid var(--line);padding-top:10px}
+.stock-tablewrap .itemcell{align-items:flex-start;gap:10px;width:100%}
+.stock-tablewrap .itemdetails{flex:1 1 auto;min-width:0}
+.stock-tablewrap .itemname{font-size:16px;line-height:1.3;overflow-wrap:break-word;word-break:normal;hyphens:none}
+.stock-tablewrap .itemlocation{font-size:12px;line-height:1.35;overflow-wrap:break-word;word-break:normal}
+.stock-tablewrap .sku{font-size:11px;overflow-wrap:break-word;word-break:normal}
 .stock-tablewrap .thumb{flex:0 0 42px}
 .stock-tablewrap .supplier-cell{flex-direction:row;align-items:center;gap:7px;min-width:0}
 .stock-tablewrap .qr-thumb{width:38px;height:38px}
 .stock-tablewrap .supplier-link{white-space:normal}
-.stock-tablewrap .rowactions{gap:6px}
-.stock-tablewrap .rowactions .smallbtn{flex:1 1 auto;min-width:0;padding:8px 7px;font-size:11px}
+.stock-tablewrap .rowactions{gap:7px}
+.stock-tablewrap .rowactions .smallbtn{flex:1 1 0;min-width:0;padding:10px 7px;font-size:12px;min-height:44px}
 }
 </style>
 <style id="signed-out-content-visibility">body:not(.cloud-authenticated) main.wrap>:not(header):not(#cloudStatus){display:none!important}body.cloud-authenticated main.wrap>:not(#cloudStatus):not([hidden]){display:revert!important}</style>
