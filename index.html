@@ -56,7 +56,7 @@ body.cloud-authenticated::before{display:none!important;content:none!important}
 .stock-tablewrap table{display:block;width:100%;min-width:0;border-collapse:separate;border-spacing:0}
 .stock-tablewrap thead{display:none}
 .stock-tablewrap tbody{display:grid;gap:12px}
-.stock-tablewrap tbody tr{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"item item" "qty min" "supplier category" "status max" "actions actions";gap:10px 12px;padding:15px 13px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 7px #0002}
+.stock-tablewrap tbody tr{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"item item" "qty qty" "min max" "supplier category" "status status" "actions actions";gap:10px 12px;padding:15px 13px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 7px #0002}
 .stock-tablewrap tbody td{display:block;min-width:0;padding:0;border:0;font-size:13px;overflow-wrap:normal;word-break:normal}
 .stock-tablewrap tbody td:nth-child(1){position:absolute;top:12px;right:12px;z-index:1}
 .stock-tablewrap tbody td:nth-child(2){grid-area:item;padding-right:34px}
@@ -65,9 +65,9 @@ body.cloud-authenticated::before{display:none!important;content:none!important}
 .stock-tablewrap tbody td:nth-child(5){grid-area:qty;text-align:center;align-self:stretch;font-size:20px;font-weight:800;padding:9px 6px;background:#0b1524;border:1px solid var(--line);border-radius:10px}
 .stock-tablewrap tbody td:nth-child(5)::before{content:"AVAILABLE";display:block;margin-bottom:5px;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--muted)}
 .stock-tablewrap tbody td:nth-child(6){grid-area:min;text-align:center;align-self:stretch;font-size:20px;font-weight:800;padding:9px 6px;background:#0b1524;border:1px solid var(--line);border-radius:10px}
-.stock-tablewrap tbody td:nth-child(6)::before{content:"RESTOCK LEVEL";display:block;margin-bottom:5px;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--muted)}
-.stock-tablewrap tbody td:nth-child(7){grid-area:max;text-align:right;font-size:11px;color:var(--muted);align-self:center}
-.stock-tablewrap tbody td:nth-child(7)::before{content:"Max: ";font-size:10px;color:var(--muted)}
+.stock-tablewrap tbody td:nth-child(6)::before{content:"MINIMUM STOCK";display:block;margin-bottom:5px;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--muted)}
+.stock-tablewrap tbody td:nth-child(7){grid-area:max;text-align:center;align-self:stretch;font-size:20px;font-weight:800;padding:9px 6px;background:#0b1524;border:1px solid var(--line);border-radius:10px;color:var(--text)}
+.stock-tablewrap tbody td:nth-child(7)::before{content:"MAXIMUM STOCK";display:block;margin-bottom:5px;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--muted)}
 .stock-tablewrap tbody td:nth-child(8){grid-area:status;justify-self:start}
 .stock-tablewrap tbody td:nth-child(9){grid-area:actions;border-top:1px solid var(--line);padding-top:10px}
 .stock-tablewrap .itemcell{align-items:flex-start;gap:10px;width:100%}
