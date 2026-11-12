@@ -323,7 +323,18 @@ async function runStockSync() {
 window.addEventListener("vsp:stock-changed", () => {
   if (!stockSyncReady) return;
   if (stockSyncTimer) window.clearTimeout(stockSyncTimer);
-  stockSyncTimer = window.setTimeout(runStockSync, 350);
+  message("Saving stock to the cloud…", "info");
+  stockSyncTimer = window.setTimeout(() => {
+    stockSyncTimer = null;
+    runStockSync();
+  }, 120);
+});
+// Warn before a refresh/navigation can interrupt an in-flight cloud save.
+window.addEventListener("beforeunload", event => {
+  if (stockSyncReady && (stockSyncBusy || stockSyncTimer !== null)) {
+    event.preventDefault();
+    event.returnValue = "";
+  }
 });
 
 function readLocalArray(key) {
