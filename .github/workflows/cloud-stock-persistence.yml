@@ -53,27 +53,29 @@ jobs:
           required_auth=[
             'select("id,workspace_id,owner_user_id,legacy_id")',
             'event === "INITIAL_SESSION"',
-            'van-stock-pro-isolated-cache-" + userId',
+            'van-stock-pro-isolated-cache-v2-" + userId',
             'const personal =',
             'Cloud stock saved and verified',
             'count !== items.length',
             'CLOUD SAVE FAILED',
             'Saving stock to the cloud',
             'beforeunload',
-            'event === "INITIAL_SESSION"',
-            'const personal =',
             'isPersonal: !!personal',
             'workspace.isPersonal',
-            'van-stock-pro-isolated-cache-" + userId',
             'clearCloudLoadingWithEmptyStock',
             'CLOUD STOCK NOT READY',
             'cloudStockErrorDetail',
           ]
           required_app=[
             'window.__VSP_CLOUD_READY=true;',
-            'items.length===0&&!window.__VSP_CLOUD_READY',
             'window.__VSP_APPLY_CLOUD_STOCK',
             'body.cloud-loading main.wrap',
+            'Starter stock is intentionally not auto-loaded',
+            'id="maxQty"',
+            'maxQty:maxQty',
+            '<option>Extinguishers</option>',
+            '<option>Misc Products</option>',
+            '<option>JD Stock</option>',
           ]
           for marker in required_auth:
             if marker not in auth: raise SystemExit("Missing cloud safeguard: "+marker)
