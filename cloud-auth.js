@@ -278,6 +278,14 @@ async function initialiseCloudStock() {
       .order("name", { ascending: true });
     if (error) throw error;
     if (currentSession?.user?.id !== userId) return;
+    // Fail closed if the database ever returns a row outside this account/workspace.
+    // This is a second guard in addition to the explicit filters and Supabase RLS.
+    const foreignRows = (cloudRows || []).filter(row =>
+      row.owner_user_id !== userId || row.workspace_id !== stockWorkspaceId
+    );
+    if (foreignRows.length) {
+      throw new Error("Account isolation check failed: the database returned stock owned by another account. No stock was displayed or changed.");
+    }
     const cloudItems = stockRowsToItems(cloudRows || []);
     if (typeof window.__VSP_APPLY_CLOUD_STOCK !== "function") throw new Error("Stock screen is not ready to receive cloud data.");
     if (cloudItems.length) {
