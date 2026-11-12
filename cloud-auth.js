@@ -15,6 +15,114 @@ const signUpButton = $("cloudSignUp");
 const signOutButton = $("cloudSignOut");
 const setupButton = $("cloudWorkspace");
 let currentSession = null;
+let currentWorkspaceId = null;
+let stockSyncQueue = Promise.resolve();
+const workspaceImportButton = document.createElement("button");
+workspaceImportButton.type = "button";
+workspaceImportButton.className = "secondary";
+workspaceImportButton.textContent = "Import this device's existing stock into this workspace";
+workspaceImportButton.hidden = true;
+workspaceImportButton.style.marginTop = "10px";
+status?.insertAdjacentElement("afterend", workspaceImportButton);
+
+function toCloudRow(item) {
+  return {
+    workspace_id: currentWorkspaceId,
+    legacy_id: String(item.id),
+    name: String(item.name || "Unnamed item"),
+    sku: String(item.sku || ""),
+    barcode: String(item.barcode || ""),
+    category: String(item.category || ""),
+    qty: Number(item.qty) || 0,
+    min_qty: Number(item.minQty) || 0,
+    max_qty: item.maxQty === "" || item.maxQty == null ? null : Number(item.maxQty),
+    location: String(item.location || ""),
+    supplier: String(item.supplier || ""),
+    supplier_url: String(item.supplierUrl || ""),
+    notes: String(item.notes || "")
+  };
+}
+function fromCloudRow(row) {
+  return {
+    id: String(row.legacy_id || row.id),
+    name: row.name || "",
+    sku: row.sku || "",
+    barcode: row.barcode || "",
+    category: row.category || "",
+    qty: Number(row.qty) || 0,
+    minQty: Number(row.min_qty) || 0,
+    maxQty: row.max_qty == null ? null : Number(row.max_qty),
+    location: row.location || "",
+    supplier: row.supplier || "",
+    supplierUrl: row.supplier_url || "",
+    notes: row.notes || "",
+    photo: ""
+  };
+}
+async function loadWorkspaceStock() {
+  if (!currentSession?.user) return;
+  const { data: memberships, error: memberError } = await supabase
+    .from("workspace_members").select("workspace_id, role").eq("user_id", currentSession.user.id).limit(1);
+  if (memberError) throw memberError;
+  if (!memberships?.length) {
+    currentWorkspaceId = null;
+    workspaceImportButton.hidden = true;
+    message("Signed in, but no workspace membership was found. Use Set up workspace first.", "warning");
+    return;
+  }
+  currentWorkspaceId = memberships[0].workspace_id;
+  const { data: rows, error } = await supabase.from("stock_items")
+    .select("id, legacy_id, name, sku, barcode, category, qty, min_qty, max_qty, location, supplier, supplier_url, notes")
+    .eq("workspace_id", currentWorkspaceId).order("name", { ascending: true });
+  if (error) throw error;
+  const list = (rows || []).map(fromCloudRow);
+  if (window.VSP_STOCK_BRIDGE) window.VSP_STOCK_BRIDGE.setItems(list);
+  workspaceImportButton.hidden = list.length > 0;
+  message(list.length
+    ? "Workspace stock loaded securely: " + list.length + " item(s). Only stock in this workspace is shown."
+    : "Your workspace is ready and currently has no stock. It is separate from the administrator's stock. Import existing device stock only if this is the administrator's device.", "success");
+}
+async function syncWorkspaceStock(items) {
+  if (!currentWorkspaceId || !Array.isArray(items)) return;
+  const rows = items.map(toCloudRow);
+  if (rows.length) {
+    const { error } = await supabase.from("stock_items").upsert(rows, { onConflict: "workspace_id,legacy_id" });
+    if (error) throw error;
+  }
+  const { data: existing, error: readError } = await supabase.from("stock_items")
+    .select("id, legacy_id").eq("workspace_id", currentWorkspaceId);
+  if (readError) throw readError;
+  const keep = new Set(items.map(item => String(item.id)));
+  for (const row of (existing || [])) {
+    if (!keep.has(String(row.legacy_id))) {
+      const { error: deleteError } = await supabase.from("stock_items").delete()
+        .eq("workspace_id", currentWorkspaceId).eq("id", row.id);
+      if (deleteError) throw deleteError;
+    }
+  }
+  message("Workspace stock saved to cloud: " + items.length + " item(s).", "success");
+}
+window.addEventListener("vsp-stock-save", event => {
+  const snapshot = event.detail?.items;
+  stockSyncQueue = stockSyncQueue.then(() => syncWorkspaceStock(snapshot))
+    .catch(error => message("Stock is saved on this device, but cloud sync failed: " + (error?.message || error), "error"));
+});
+workspaceImportButton.addEventListener("click", async () => {
+  if (!currentWorkspaceId || !window.VSP_STOCK_BRIDGE) return;
+  const items = window.VSP_STOCK_BRIDGE.getItems();
+  if (!items.length) return message("There is no existing device stock to import.", "warning");
+  if (!confirm("Import " + items.length + " items from this device into this empty workspace? This does not overwrite any other workspace.")) return;
+  workspaceImportButton.disabled = true;
+  try {
+    await syncWorkspaceStock(items);
+    await loadWorkspaceStock();
+    message("Imported " + items.length + " stock item(s) into this workspace only.", "success");
+  } catch (error) {
+    message("Import failed: " + (error?.message || error), "error");
+  } finally {
+    workspaceImportButton.disabled = false;
+  }
+});
 
 function message(text, kind = "info") {
   if (!status) return;
@@ -113,7 +221,7 @@ setupButton.addEventListener("click", async () => {
       // Keep the created workspace for diagnosis; do not delete anything automatically.
       throw new Error("Workspace " + (createdNow ? "was created" : "was recovered") + " but owner membership did not finish: " + membershipError.message);
     }
-    message((createdNow ? "Van Stock Pro workspace created." : "Existing Van Stock Pro workspace recovered.") + " No stock data was uploaded or changed.", "success");
+    await loadWorkspaceStock();\n    message((createdNow ? "Van Stock Pro workspace created." : "Existing Van Stock Pro workspace recovered.") + " Your workspace stock is now isolated.", "success");
   } catch (error) {
     message(error?.message || "Workspace setup failed.", "error");
   } finally {
@@ -125,7 +233,7 @@ supabase.auth.onAuthStateChange((_event, session) => {
 });
 const { data: initial } = await supabase.auth.getSession();
 setSession(initial.session);
-if (initial.session) await checkSchema();
+if (initial.session) { const ready = await checkSchema(); if (ready) await loadWorkspaceStock(); }
 
 const backupFile = $("cloudBackupFile");
 const previewButton = $("cloudPreviewImport");
