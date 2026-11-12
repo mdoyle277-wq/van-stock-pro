@@ -45,7 +45,18 @@ function resetInactivityTimer() {
   window.addEventListener(eventName, resetInactivityTimer, { passive: true });
 });
 function setSession(session) {
+  const previousUserId = currentSession?.user?.id || null;
+  const nextUserId = session?.user?.id || null;
   currentSession = session;
+  if (previousUserId !== nextUserId) {
+    // Never leave the previous account's browser-cached stock visible while
+    // the newly authenticated account's private cloud stock is loading.
+    stockSyncReady = false;
+    stockWorkspaceId = null;
+    if (typeof window.__VSP_APPLY_CLOUD_STOCK === "function") {
+      window.__VSP_APPLY_CLOUD_STOCK([]);
+    }
+  }
   document.body.classList.toggle("cloud-authenticated", !!session?.user);
   const miniSignOut = $("cloudSignOutMini");
   const miniSignIn = $("cloudSignInMini");
