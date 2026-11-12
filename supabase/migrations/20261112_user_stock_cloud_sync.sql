@@ -35,6 +35,7 @@ drop policy if exists "members can view stock items" on public.stock_items;
 drop policy if exists "editors can add stock items" on public.stock_items;
 drop policy if exists "editors can update stock items" on public.stock_items;
 drop policy if exists "admins can delete stock items" on public.stock_items;
+drop policy if exists "workspace editors can delete stock items" on public.stock_items;
 drop policy if exists "users can view their own workspace stock" on public.stock_items;
 drop policy if exists "editors can add their own workspace stock" on public.stock_items;
 drop policy if exists "editors can update their own workspace stock" on public.stock_items;
