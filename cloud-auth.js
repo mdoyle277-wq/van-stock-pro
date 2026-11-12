@@ -400,8 +400,28 @@ setupButton.addEventListener("click", async () => {
     setupButton.disabled = false;
   }
 });
-supabase.auth.onAuthStateChange((_event, session) => {
+supabase.auth.onAuthStateChange((event, session) => {
   setSession(session);
+  // Supabase restores an existing login on page refresh using INITIAL_SESSION.
+  // Load that account's cloud stock after the auth callback returns so refresh
+  // never leaves the user looking at local starter/browser stock.
+  if (event === "INITIAL_SESSION" && session?.user) {
+    const userId = session.user.id;
+    window.setTimeout(async () => {
+      if (currentSession?.user?.id !== userId) return;
+      try {
+        const ready = await checkSchema();
+        if (!ready || currentSession?.user?.id !== userId) return;
+        await refreshAccessPanel();
+        if (currentSession?.user?.id === userId) await initialiseCloudStock();
+      } catch (error) {
+        if (currentSession?.user?.id === userId) {
+          stockSyncReady = false;
+          message("CLOUD STOCK RELOAD FAILED — " + (error?.message || "Unknown error"), "error");
+        }
+      }
+    }, 0);
+  }
 });
 
  
