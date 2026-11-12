@@ -53,7 +53,10 @@ function setSession(session) {
     // as the next account's stock: browsers can be shared between accounts.
     try {
       const cached = localStorage.getItem("van-stock-pro-items-v1");
-      if (cached && Array.isArray(JSON.parse(cached))) {
+      const cachedItems = cached ? JSON.parse(cached) : null;
+      // Never replace a non-empty account archive with the empty list written
+      // while switching accounts.
+      if (Array.isArray(cachedItems) && cachedItems.length) {
         const archiveKey = "van-stock-pro-isolated-cache-" + (previousUserId || nextUserId || "unassigned");
         localStorage.setItem(archiveKey, cached);
       }
