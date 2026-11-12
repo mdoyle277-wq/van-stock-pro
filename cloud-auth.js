@@ -49,8 +49,15 @@ function setSession(session) {
   const nextUserId = session?.user?.id || null;
   currentSession = session;
   if (previousUserId !== nextUserId) {
-    // Never leave the previous account's browser-cached stock visible while
-    // the newly authenticated account's private cloud stock is loading.
+    // Preserve a local snapshot for recovery, but never display or upload it
+    // as the next account's stock: browsers can be shared between accounts.
+    try {
+      const cached = localStorage.getItem("van-stock-pro-items-v1");
+      if (cached && Array.isArray(JSON.parse(cached))) {
+        const archiveKey = "van-stock-pro-isolated-cache-" + (previousUserId || "unassigned");
+        localStorage.setItem(archiveKey, cached);
+      }
+    } catch {}
     stockSyncReady = false;
     stockWorkspaceId = null;
     if (typeof window.__VSP_APPLY_CLOUD_STOCK === "function") {
