@@ -169,8 +169,8 @@ workspaceImport.hidden = true; workspaceImport.style.marginTop = "10px";
 status?.insertAdjacentElement("afterend", workspaceImport);
 const STOCK_KEY = "van-stock-pro-items-v1";
 function cloudStockMessage(t,k="info"){ message(t,k); }
-function stockToRow(item, workspaceId, photoPath=null) {
- return {workspace_id:workspaceId,legacy_id:String(item.id),name:String(item.name||"Unnamed item"),sku:String(item.sku||""),barcode:String(item.barcode||""),category:String(item.category||""),qty:Number(item.qty)||0,min_qty:Number(item.minQty)||0,max_qty:item.maxQty==null||item.maxQty===""?null:Number(item.maxQty),location:String(item.location||""),supplier:String(item.supplier||""),supplier_url:String(item.supplierUrl||""),notes:String(item.notes||""),photo_path:photoPath};
+function stockToRow(item, workspaceId, userId, photoPath=null) {
+ return {workspace_id:workspaceId,owner_user_id:userId,legacy_id:String(item.id),name:String(item.name||"Unnamed item"),sku:String(item.sku||""),barcode:String(item.barcode||""),category:String(item.category||""),qty:Number(item.qty)||0,min_qty:Number(item.minQty)||0,max_qty:item.maxQty==null||item.maxQty===""?null:Number(item.maxQty),location:String(item.location||""),supplier:String(item.supplier||""),supplier_url:String(item.supplierUrl||""),notes:String(item.notes||""),photo_path:photoPath};
 }
 function decodePhoto(dataUrl){
  const m=String(dataUrl||"").match(/^data:(image\/(?:jpeg|png|webp));base64,([\s\S]+)$/i);
@@ -189,22 +189,23 @@ async function uploadItemPhoto(item,workspaceId){
  return path;
 }
 async function syncWorkspaceItems(list,workspaceId=activeStockWorkspaceId){
- if(!workspaceId||!Array.isArray(list)) return;
- const {data:existing,error:readError}=await supabase.from("stock_items").select("id,legacy_id,photo_path").eq("workspace_id",workspaceId);
+ const userId=currentSession?.user?.id;
+ if(!workspaceId||!userId||!Array.isArray(list)) return;
+ const {data:existing,error:readError}=await supabase.from("stock_items").select("id,legacy_id,photo_path").eq("workspace_id",workspaceId).eq("owner_user_id",userId);
  if(readError)throw readError;
  const oldById=new Map((existing||[]).map(row=>[String(row.legacy_id),row]));
  const rows=[];
  for(const item of list){
   const old=oldById.get(String(item.id));
   const photoPath=item.photo ? (await uploadItemPhoto(item,workspaceId) || old?.photo_path || null) : null;
-  rows.push(stockToRow(item,workspaceId,photoPath));
+  rows.push(stockToRow(item,workspaceId,userId,photoPath));
  }
- if(rows.length){const {error}=await supabase.from("stock_items").upsert(rows,{onConflict:"workspace_id,legacy_id"});if(error)throw error;}
+ if(rows.length){const {error}=await supabase.from("stock_items").upsert(rows,{onConflict:"workspace_id,owner_user_id,legacy_id"});if(error)throw error;}
  // Only reconcile rows inside this workspace; preserve records if deletion permission is denied.
  if(readError)throw readError;
  const keep=new Set(list.map(x=>String(x.id)));
  for(const row of existing||[]) if(!keep.has(String(row.legacy_id))){
-  const {error}=await supabase.from("stock_items").delete().eq("workspace_id",workspaceId).eq("id",row.id);
+  const {error}=await supabase.from("stock_items").delete().eq("workspace_id",workspaceId).eq("owner_user_id",userId).eq("id",row.id);
   if(error)throw new Error("Stock saved, but removed items could not be deleted under the current workspace permissions: "+error.message);
  }
  cloudStockMessage("Cloud stock saved: "+list.length+" item(s).","success");
@@ -247,7 +248,7 @@ async function loadWorkspaceStock(){
  workspaceImportAllowed=["owner","admin"].includes(membership.role);
  const {data:rows,error}=await supabase.from("stock_items")
    .select("id,legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes,photo_path")
-   .eq("workspace_id",activeStockWorkspaceId).order("name");
+   .eq("workspace_id",activeStockWorkspaceId).eq("owner_user_id",userId).order("name");
  if(error)throw error;
  if(currentSession?.user?.id!==userId)return;
  const list=[];
