@@ -486,20 +486,33 @@ async function refreshAccessPanel() {
     activeWorkspaceId = null; activeWorkspaceRole = null; return;
   }
   try {
+    const userId = currentSession.user.id;
     const { data: mine, error: mineError } = await supabase.from("workspace_members")
-      .select("workspace_id, role").eq("user_id", currentSession.user.id)
-      .order("created_at", { ascending: true }).limit(1);
+      .select("workspace_id, role, created_at").eq("user_id", userId)
+      .order("created_at", { ascending: true }).limit(50);
     if (mineError) throw mineError;
-    if (!mine?.length || !["owner", "admin"].includes(mine[0].role)) {
-      accessPanel.hidden = true; activeWorkspaceId = null;
-      activeWorkspaceRole = mine?.[0]?.role || null; return;
+    if (!mine?.length) {
+      accessPanel.hidden = true; activeWorkspaceId = null; activeWorkspaceRole = null; return;
     }
-    activeWorkspaceId = mine[0].workspace_id;
-    activeWorkspaceRole = mine[0].role;
+    const workspaceIds = [...new Set(mine.map(row => row.workspace_id))];
+    const { data: workspaces, error: workspaceError } = await supabase.from("workspaces")
+      .select("id, created_by").in("id", workspaceIds);
+    if (workspaceError) throw workspaceError;
+    const personal = (workspaces || []).find(row => row.created_by === userId);
+    const personalMembership = personal ? mine.find(row => row.workspace_id === personal.id) : null;
+    const selected = personalMembership && ["owner", "admin"].includes(personalMembership.role)
+      ? personalMembership
+      : mine.find(row => ["owner", "admin"].includes(row.role));
+    if (!selected) {
+      accessPanel.hidden = true; activeWorkspaceId = null;
+      activeWorkspaceRole = mine[0]?.role || null; return;
+    }
+    activeWorkspaceId = selected.workspace_id;
+    activeWorkspaceRole = selected.role;
     accessPanel.hidden = false;
-    accessRoleLabel.textContent = mine[0].role.toUpperCase();
+    accessRoleLabel.textContent = selected.role.toUpperCase();
     const adminOption = $("accessRole")?.querySelector('option[value="admin"]');
-    if (adminOption) adminOption.disabled = mine[0].role !== "owner";
+    if (adminOption) adminOption.disabled = selected.role !== "owner";
     const { data: members, error: listError } = await supabase.from("workspace_members")
       .select("user_id, role, created_at").eq("workspace_id", activeWorkspaceId)
       .order("created_at", { ascending: true });
