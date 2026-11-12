@@ -63,6 +63,10 @@ create table if not exists public.stock_movements (
 
 create index if not exists stock_movements_workspace_date_idx on public.stock_movements(workspace_id, created_at desc);
 
+-- Idempotency keys for safe multi-device activity sync.
+alter table public.stock_movements add column if not exists legacy_id text;
+create unique index if not exists stock_movements_workspace_legacy_uidx on public.stock_movements(workspace_id, legacy_id);
+
 create table if not exists public.job_usage (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -77,7 +81,9 @@ create table if not exists public.job_usage (
   created_at timestamptz not null default now()
 );
 
+alter table public.job_usage add column if not exists legacy_id text;
 create index if not exists job_usage_workspace_date_idx on public.job_usage(workspace_id, created_at desc);
+create unique index if not exists job_usage_workspace_legacy_uidx on public.job_usage(workspace_id, legacy_id);
 
 create or replace function public.is_workspace_member(target_workspace uuid)
 returns boolean
