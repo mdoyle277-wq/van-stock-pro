@@ -59,7 +59,7 @@ jobs:
             'w.created_by===userId',
             'if(!ownedWorkspace)',
             'Shared administrator stock is not displayed',
-            'workspace is ready. Loading its separate stock',
+            'Your personal workspace is ready. Loading your separate stock',
             'window.addEventListener("vsp-stock-save"',
           ]
           for marker in required:
