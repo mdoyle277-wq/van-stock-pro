@@ -65,7 +65,6 @@ create index if not exists stock_movements_workspace_date_idx on public.stock_mo
 
 -- Idempotency keys for safe multi-device activity sync.
 alter table public.stock_movements add column if not exists legacy_id text;
-alter table public.job_usage add column if not exists legacy_id text;
 create unique index if not exists stock_movements_workspace_legacy_uidx on public.stock_movements(workspace_id, legacy_id);
 
 create table if not exists public.job_usage (
@@ -82,6 +81,7 @@ create table if not exists public.job_usage (
   created_at timestamptz not null default now()
 );
 
+alter table public.job_usage add column if not exists legacy_id text;
 create index if not exists job_usage_workspace_date_idx on public.job_usage(workspace_id, created_at desc);
 create unique index if not exists job_usage_workspace_legacy_uidx on public.job_usage(workspace_id, legacy_id);
 
