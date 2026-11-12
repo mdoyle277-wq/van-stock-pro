@@ -45,7 +45,15 @@ function resetInactivityTimer() {
   window.addEventListener(eventName, resetInactivityTimer, { passive: true });
 });
 function setSession(session) {
+  const previousUserId = currentSession?.user?.id || null;
+  const nextUserId = session?.user?.id || null;
   currentSession = session;
+  if (previousUserId !== nextUserId) {
+    activeStockWorkspaceId = null;
+    workspaceImport.hidden = true;
+    window.VSP_STOCK_BRIDGE?.setItems([]);
+    try { localStorage.setItem("van-stock-pro-movements-v2","[]"); localStorage.setItem("van-stock-pro-usage-v1","[]"); } catch {}
+  }
   document.body.classList.toggle("cloud-authenticated", !!session?.user);
   const miniSignOut = $("cloudSignOutMini");
   const miniSignIn = $("cloudSignInMini");
@@ -180,14 +188,17 @@ async function uploadItemPhoto(item,workspaceId){
 }
 async function syncWorkspaceItems(list,workspaceId=activeStockWorkspaceId){
  if(!workspaceId||!Array.isArray(list)) return;
+ const {data:existing,error:readError}=await supabase.from("stock_items").select("id,legacy_id,photo_path").eq("workspace_id",workspaceId);
+ if(readError)throw readError;
+ const oldById=new Map((existing||[]).map(row=>[String(row.legacy_id),row]));
  const rows=[];
  for(const item of list){
-  const photoPath=await uploadItemPhoto(item,workspaceId);
+  const old=oldById.get(String(item.id));
+  const photoPath=await uploadItemPhoto(item,workspaceId) || old?.photo_path || null;
   rows.push(stockToRow(item,workspaceId,photoPath));
  }
  if(rows.length){const {error}=await supabase.from("stock_items").upsert(rows,{onConflict:"workspace_id,legacy_id"});if(error)throw error;}
  // Only reconcile rows inside this workspace; preserve records if deletion permission is denied.
- const {data:existing,error:readError}=await supabase.from("stock_items").select("id,legacy_id").eq("workspace_id",workspaceId);
  if(readError)throw readError;
  const keep=new Set(list.map(x=>String(x.id)));
  for(const row of existing||[]) if(!keep.has(String(row.legacy_id))){
@@ -272,8 +283,9 @@ setupButton.addEventListener("click", async () => {
       .from("workspace_members").select("workspace_id, role").eq("user_id", uid).limit(1);
     if (memberError) throw memberError;
     if (memberships?.length) {
-      message("Workspace is ready. Your local stock has not been migrated. The next step is a reviewed import preview.", "success");
+      message("Workspace is ready. Loading its separate stock…", "success");
       await refreshAccessPanel();
+      await loadWorkspaceStock();
       return;
     }
     const { data: workspace, error: workspaceError } = await supabase
@@ -286,8 +298,9 @@ setupButton.addEventListener("click", async () => {
       // Keep the created workspace for diagnosis; do not delete anything automatically.
       throw new Error("Workspace was created but owner membership did not finish: " + membershipError.message);
     }
-    message("Van Stock Pro workspace created. No stock data was uploaded or changed. Next: build and test the backup import preview.", "success");
+    message("Van Stock Pro workspace created. Loading its empty workspace…", "success");
     await refreshAccessPanel();
+    await loadWorkspaceStock();
   } catch (error) {
     message(error?.message || "Workspace setup failed.", "error");
   } finally {
