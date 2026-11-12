@@ -99,8 +99,8 @@ async function runAuth(action) {
       if (error) throw error;
       setSession(data.session);
       message("Signed in. Checking your workspace setup…");
-      await checkSchema();
-      await refreshAccessPanel();
+      const schemaReady = await checkSchema();
+      if (schemaReady) await refreshAccessPanel();
     }
   } catch (error) {
     message(error?.message || "Authentication failed.", "error");
@@ -210,7 +210,7 @@ supabase.auth.onAuthStateChange((_event, session) => {
 });
 const { data: initial } = await supabase.auth.getSession();
 setSession(initial.session);
-if (initial.session) { await checkSchema(); await refreshAccessPanel(); }
+if (initial.session) { const schemaReady = await checkSchema(); if (schemaReady) await refreshAccessPanel(); }
 
  
 // Workspace access management. Uses the existing RLS-protected membership
