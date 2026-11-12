@@ -1,0 +1,74 @@
+name: Cloud stock persistence checks
+on:
+  push:
+    branches:
+      - fix/cloud-stock-save-audit-20261112
+  pull_request:
+    branches:
+      - main
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check cloud module syntax
+        run: node --input-type=module --check < cloud-auth.js
+      - name: Check inline app script syntax
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import subprocess, sys
+          class Scripts(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.active=False; self.current=[]; self.blocks=[]
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower()=="script": self.active=True; self.current=[]
+              def handle_data(self, data):
+                  if self.active: self.current.append(data)
+              def handle_endtag(self, tag):
+                  if tag.lower()=="script" and self.active:
+                      src="".join(self.current).strip()
+                      if src: self.blocks.append(src)
+                      self.active=False
+          parser=Scripts(); parser.feed(Path("index.html").read_text(encoding="utf-8"))
+          if not parser.blocks: raise SystemExit("No inline scripts found")
+          for n, src in enumerate(parser.blocks, 1):
+              result=subprocess.run(["node","--input-type=module","--check"],input=src,text=True,capture_output=True)
+              if result.returncode:
+                  print(f"Inline script {n} failed:\\n{result.stderr}",file=sys.stderr)
+                  raise SystemExit(result.returncode)
+          print(f"PASS: {len(parser.blocks)} inline script block(s)")
+          PY
+      - name: Check persistence and isolation safeguards
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          auth=Path("cloud-auth.js").read_text()
+          app=Path("index.html").read_text()
+          sql=Path("supabase/migrations/20261112_user_stock_cloud_sync.sql").read_text()
+          required_auth=[
+            'select("id,workspace_id,owner_user_id,legacy_id")',
+            'event === "INITIAL_SESSION"',
+            'van-stock-pro-isolated-cache-" + userId',
+            'const personal =',
+            'Cloud stock saved and verified',
+            'count !== items.length',
+            'CLOUD SAVE FAILED',
+          ]
+          required_app=[
+            'window.__VSP_CLOUD_READY=true;',
+            'items.length===0&&!window.__VSP_CLOUD_READY',
+            'window.__VSP_APPLY_CLOUD_STOCK',
+          ]
+          for marker in required_auth:
+            if marker not in auth: raise SystemExit("Missing cloud safeguard: "+marker)
+          for marker in required_app:
+            if marker not in app: raise SystemExit("Missing app safeguard: "+marker)
+          for marker in ['add column if not exists owner_user_id','stock_items_workspace_owner_legacy_uidx','owner_user_id = auth.uid()','drop policy if exists "workspace editors can delete stock items"']:
+            if marker not in sql: raise SystemExit("Missing database safeguard: "+marker)
+          print("PASS: refresh loading, account archive, empty-cloud handling, owner-scoped saves and migration safeguards")
+          PY
