@@ -62,6 +62,8 @@ jobs:
             'beforeunload',
             'event === "INITIAL_SESSION"',
             'const personal =',
+            'isPersonal: !!personal',
+            'workspace.isPersonal',
             'van-stock-pro-isolated-cache-" + userId',
             'clearCloudLoadingWithEmptyStock',
             'CLOUD STOCK NOT READY',
