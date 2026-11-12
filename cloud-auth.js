@@ -90,6 +90,7 @@ async function runAuth(action) {
       const { data, error } = await supabase.auth.signUp({ email: mail, password: pass });
       if (error) throw error;
       setSession(data.session);
+      if (data.session) await refreshAccessPanel();
       message(data.session
         ? "Account created and signed in. Next, initialise your Van Stock Pro workspace."
         : "Account created. Check your email to confirm the account, then sign in here.");
@@ -98,7 +99,8 @@ async function runAuth(action) {
       if (error) throw error;
       setSession(data.session);
       message("Signed in. Checking your workspace setup…");
-      await checkSchema();
+      const schemaReady = await checkSchema();
+      if (schemaReady) await refreshAccessPanel();
     }
   } catch (error) {
     message(error?.message || "Authentication failed.", "error");
@@ -182,6 +184,7 @@ setupButton.addEventListener("click", async () => {
     if (memberError) throw memberError;
     if (memberships?.length) {
       message("Workspace is ready. Your local stock has not been migrated. The next step is a reviewed import preview.", "success");
+      await refreshAccessPanel();
       return;
     }
     const { data: workspace, error: workspaceError } = await supabase
@@ -195,6 +198,7 @@ setupButton.addEventListener("click", async () => {
       throw new Error("Workspace was created but owner membership did not finish: " + membershipError.message);
     }
     message("Van Stock Pro workspace created. No stock data was uploaded or changed. Next: build and test the backup import preview.", "success");
+    await refreshAccessPanel();
   } catch (error) {
     message(error?.message || "Workspace setup failed.", "error");
   } finally {
@@ -206,4 +210,108 @@ supabase.auth.onAuthStateChange((_event, session) => {
 });
 const { data: initial } = await supabase.auth.getSession();
 setSession(initial.session);
-if (initial.session) await checkSchema();
+if (initial.session) { const schemaReady = await checkSchema(); if (schemaReady) await refreshAccessPanel(); }
+
+ 
+// Workspace access management. Uses the existing RLS-protected membership
+// table and never exposes a Supabase service-role key in browser code.
+const accessPanel = $("userAccessPanel");
+const accessMessage = $("accessMessage");
+const accessBody = $("accessMembersBody");
+const accessRoleLabel = $("accessRoleLabel");
+let activeWorkspaceId = null;
+let activeWorkspaceRole = null;
+function accessNotice(text, kind = "info") {
+  if (!accessMessage) return;
+  accessMessage.textContent = text;
+  accessMessage.dataset.kind = kind;
+}
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+async function refreshAccessPanel() {
+  if (!accessPanel || !currentSession?.user) {
+    if (accessPanel) accessPanel.hidden = true;
+    activeWorkspaceId = null; activeWorkspaceRole = null; return;
+  }
+  try {
+    const { data: mine, error: mineError } = await supabase.from("workspace_members")
+      .select("workspace_id, role").eq("user_id", currentSession.user.id)
+      .order("created_at", { ascending: true }).limit(1);
+    if (mineError) throw mineError;
+    if (!mine?.length || !["owner", "admin"].includes(mine[0].role)) {
+      accessPanel.hidden = true; activeWorkspaceId = null;
+      activeWorkspaceRole = mine?.[0]?.role || null; return;
+    }
+    activeWorkspaceId = mine[0].workspace_id;
+    activeWorkspaceRole = mine[0].role;
+    accessPanel.hidden = false;
+    accessRoleLabel.textContent = mine[0].role.toUpperCase();
+    const adminOption = $("accessRole")?.querySelector('option[value="admin"]');
+    if (adminOption) adminOption.disabled = mine[0].role !== "owner";
+    const { data: members, error: listError } = await supabase.from("workspace_members")
+      .select("user_id, role, created_at").eq("workspace_id", activeWorkspaceId)
+      .order("created_at", { ascending: true });
+    if (listError) throw listError;
+    accessBody.replaceChildren();
+    for (const member of members || []) {
+      const tr = document.createElement("tr");
+      const idCell = document.createElement("td");
+      idCell.textContent = member.user_id;
+      idCell.style.cssText = "font-family:monospace;font-size:11px;overflow-wrap:anywhere";
+      const roleCell = document.createElement("td"); roleCell.textContent = member.role;
+      const dateCell = document.createElement("td");
+      dateCell.textContent = member.created_at ? new Date(member.created_at).toLocaleDateString() : "—";
+      const actionCell = document.createElement("td");
+      if (member.user_id !== currentSession.user.id) {
+        const remove = document.createElement("button");
+        remove.type = "button"; remove.className = "danger smallbtn"; remove.textContent = "Remove";
+        remove.addEventListener("click", () => removeWorkspaceMember(member.user_id, remove));
+        actionCell.append(remove);
+      } else actionCell.textContent = "You";
+      tr.append(idCell, roleCell, dateCell, actionCell); accessBody.append(tr);
+    }
+    if (!members?.length) {
+      const tr = document.createElement("tr"); const td = document.createElement("td");
+      td.colSpan = 4; td.textContent = "No members found."; tr.append(td); accessBody.append(tr);
+    }
+    accessNotice("Workspace access loaded. " + (members?.length || 0) + " authorised account(s).", "success");
+  } catch (error) {
+    accessPanel.hidden = false;
+    accessNotice("Could not load user access: " + (error?.message || "Unknown error") + ". Check the workspace_members table and its access policies.", "error");
+  }
+}
+async function removeWorkspaceMember(userId, button) {
+  if (!activeWorkspaceId || !confirm("Remove this account from Van Stock Pro? Their account remains, but they lose access to this workspace.")) return;
+  button.disabled = true;
+  try {
+    const { error } = await supabase.from("workspace_members").delete()
+      .eq("workspace_id", activeWorkspaceId).eq("user_id", userId);
+    if (error) throw error;
+    accessNotice("User access removed.", "success"); await refreshAccessPanel();
+  } catch (error) {
+    accessNotice("Could not remove this user: " + (error?.message || "Unknown error"), "error");
+    button.disabled = false;
+  }
+}
+$("accessAddUser")?.addEventListener("click", async () => {
+  if (!activeWorkspaceId || !["owner", "admin"].includes(activeWorkspaceRole)) return;
+  const userId = ($("accessUserId")?.value || "").trim();
+  const role = $("accessRole")?.value || "member";
+  if (!isUuid(userId)) return accessNotice("Enter a valid Supabase User ID (UUID).", "warning");
+  if (userId === currentSession?.user?.id) return accessNotice("You are already a member of this workspace.", "warning");
+  if (!["member", "viewer", "admin"].includes(role)) return accessNotice("Choose a valid permission level.", "warning");
+  if (activeWorkspaceRole === "admin" && !["member", "viewer"].includes(role))
+    return accessNotice("Admins can only authorise members or viewers.", "warning");
+  const button = $("accessAddUser"); button.disabled = true;
+  try {
+    const { error } = await supabase.from("workspace_members").insert({
+      workspace_id: activeWorkspaceId, user_id: userId, role
+    });
+    if (error) throw error;
+    $("accessUserId").value = "";
+    accessNotice("User authorised as " + role + ".", "success"); await refreshAccessPanel();
+  } catch (error) {
+    accessNotice("Could not authorise this user: " + (error?.message || "Check that the account exists and the database policies are installed."), "error");
+  } finally { button.disabled = false; }
+});
