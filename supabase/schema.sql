@@ -36,6 +36,7 @@ create table if not exists public.stock_items (
   supplier_url text not null default '',
   photo_path text,
   notes text not null default '',
+  deleted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (workspace_id, legacy_id)
@@ -44,6 +45,7 @@ create table if not exists public.stock_items (
 create index if not exists stock_items_workspace_name_idx on public.stock_items(workspace_id, name);
 create index if not exists stock_items_workspace_sku_idx on public.stock_items(workspace_id, sku);
 create index if not exists stock_items_workspace_barcode_idx on public.stock_items(workspace_id, barcode);
+create index if not exists stock_items_workspace_deleted_idx on public.stock_items(workspace_id, deleted_at);
 
 create table if not exists public.stock_movements (
   id uuid primary key default gen_random_uuid(),

@@ -17,6 +17,14 @@ const setupButton = $("cloudWorkspace");
 const previewButton = $("cloudPreview");
 const importButton = $("cloudImport");
 const previewResult = $("cloudPreviewResult");
+const importBackupConfirmed = $("cloudImportBackupConfirmed");
+const importConfirmYes = $("cloudImportConfirmYes");
+if (importBackupConfirmed && importConfirmYes) {
+  importConfirmYes.disabled = true;
+  importBackupConfirmed.addEventListener("change", () => {
+    importConfirmYes.disabled = !importBackupConfirmed.checked;
+  });
+}
 let currentSession = null;
 
 function message(text, kind = "info") {
@@ -122,68 +130,208 @@ function previewLocalMigration() {
 
 async function importLocalStockToCloud() {
   if (!currentSession?.user) return message("Sign in first. No data was changed.", "warning");
-  const confirmed = window.confirm("Import local stock into your Supabase workspace? This uploads stock item fields only and updates matching legacy IDs. It does not delete cloud records. Keep a downloaded local backup first. Continue?");
-  if (!confirmed) return;
+  if (!importBackupConfirmed?.checked) {
+    return message("Download and check a fresh full data backup from this phone before importing. No stock was uploaded.", "warning");
+  }
+
   importButton.disabled = true;
+  importConfirmYes.disabled = true;
   try {
     const ready = await checkSchema();
     if (!ready) throw new Error("Supabase schema check failed. No stock was uploaded.");
+
     const { data: workspaceData, error: workspaceError } = await supabase.rpc("ensure_default_workspace");
     if (workspaceError) throw workspaceError;
     const workspace = Array.isArray(workspaceData) ? workspaceData[0] : workspaceData;
     if (!workspace?.result_workspace_id || workspace.result_role !== "owner") {
       throw new Error("An owner workspace could not be confirmed. No stock was uploaded.");
     }
+
     const stock = readLocalArray("van-stock-pro-items-v1");
     if (!stock.length) throw new Error("No local stock items found. Nothing uploaded.");
-    const invalid = stock.filter(i => !i || i.id === undefined || typeof i.name !== "string" || !Number.isFinite(Number(i.qty)) || !Number.isFinite(Number(i.minQty ?? 0)));
-    if (invalid.length) throw new Error(invalid.length + " invalid item(s) found. No stock was uploaded.");
-    const rows = stock.map(i => ({
+
+    const seenIds = new Set();
+    const invalid = stock.filter(item => {
+      if (!item || item.id === undefined || typeof item.name !== "string" || !item.name.trim()) return true;
+      const qty = Number(item.qty);
+      const min = Number(item.minQty ?? 0);
+      const max = item.maxQty === "" || item.maxQty === undefined || item.maxQty === null ? null : Number(item.maxQty);
+      if (!Number.isFinite(qty) || qty < 0 || !Number.isFinite(min) || min < 0) return true;
+      if (max !== null && (!Number.isFinite(max) || max < min)) return true;
+      const id = String(item.id);
+      if (seenIds.has(id)) return true;
+      seenIds.add(id);
+      return false;
+    });
+    if (invalid.length) {
+      throw new Error(invalid.length + " invalid or duplicate item(s) found. No stock was uploaded.");
+    }
+
+    const rows = stock.map(item => ({
       workspace_id: workspace.result_workspace_id,
-      legacy_id: String(i.id),
-      name: i.name,
-      sku: String(i.sku || ""),
-      barcode: String(i.barcode || ""),
-      category: String(i.category || ""),
-      qty: Number(i.qty),
-      min_qty: Number(i.minQty ?? 0),
-      max_qty: i.maxQty === "" || i.maxQty === undefined || i.maxQty === null ? null : Number(i.maxQty),
-      location: String(i.location || ""),
-      supplier: String(i.supplier || ""),
-      supplier_url: String(i.supplierUrl || ""),
+      legacy_id: String(item.id),
+      name: item.name.trim(),
+      sku: String(item.sku || ""),
+      barcode: String(item.barcode || ""),
+      category: String(item.category || ""),
+      qty: Number(item.qty),
+      min_qty: Number(item.minQty ?? 0),
+      max_qty: item.maxQty === "" || item.maxQty === undefined || item.maxQty === null ? null : Number(item.maxQty),
+      location: String(item.location || ""),
+      supplier: String(item.supplier || ""),
+      supplier_url: String(item.supplierUrl || ""),
       photo_path: null,
-      notes: String(i.notes || "")
+      notes: String(item.notes || "")
     }));
+
+    const existingActiveIds = new Set();
+    const tombstonedIds = new Set();
+    const rowsToInsert = new Map();
+
     for (let start = 0; start < rows.length; start += 100) {
       const batch = rows.slice(start, start + 100);
-      const { error } = await supabase.from("stock_items").upsert(batch, { onConflict: "workspace_id,legacy_id" });
-      if (error) throw new Error("Upload stopped at batch " + (Math.floor(start / 100) + 1) + ": " + error.message + ". Some earlier batches may have uploaded; rerun safely after checking cloud stock.");
+      const ids = batch.map(row => row.legacy_id);
+      const { data: existingRows, error: lookupError } = await supabase
+        .from("stock_items")
+        .select("legacy_id,deleted_at")
+        .eq("workspace_id", workspace.result_workspace_id)
+        .in("legacy_id", ids);
+      if (lookupError) {
+        throw new Error("Could not safely check existing cloud IDs before import: " + lookupError.message + ". No batch was uploaded.");
+      }
+
+      const existingById = new Map((existingRows || []).map(row => [String(row.legacy_id), row]));
+      for (const existing of existingRows || []) {
+        const id = String(existing.legacy_id);
+        if (existing.deleted_at) tombstonedIds.add(id);
+        else existingActiveIds.add(id);
+      }
+
+      const missing = batch.filter(row => !existingById.has(row.legacy_id));
+      if (!missing.length) continue;
+
+      // Insert-only upsert: a duplicate ID is ignored, never updated.
+      const { error } = await supabase.from("stock_items").upsert(missing, {
+        onConflict: "workspace_id,legacy_id",
+        ignoreDuplicates: true
+      });
+      if (error) {
+        throw new Error(
+          "Insert-only import stopped at batch " + (Math.floor(start / 100) + 1) +
+          ": " + error.message + ". Some earlier missing items may have been inserted; rerun safely after reviewing the preview."
+        );
+      }
+      for (const row of missing) rowsToInsert.set(row.legacy_id, row);
     }
-    const { data: cloudRows, error: verifyError } = await supabase.from("stock_items")
-      .select("legacy_id,name,qty,min_qty,max_qty")
-      .eq("workspace_id", workspace.result_workspace_id);
-    if (verifyError) throw new Error("Upload may have completed, but cloud verification failed: " + verifyError.message);
-    const byId = new Map((cloudRows || []).map(i => [String(i.legacy_id), i]));
-    const mismatches = rows.filter(i => {
-      const saved = byId.get(i.legacy_id);
-      return !saved || saved.name !== i.name || Number(saved.qty) !== i.qty || Number(saved.min_qty) !== i.min_qty ||
-        (i.max_qty === null ? saved.max_qty !== null : Number(saved.max_qty) !== i.max_qty);
+
+    const verifiedRows = [];
+    for (let start = 0; start < rows.length; start += 100) {
+      const ids = rows.slice(start, start + 100).map(row => row.legacy_id);
+      const { data, error } = await supabase.from("stock_items")
+        .select("legacy_id,deleted_at,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes")
+        .eq("workspace_id", workspace.result_workspace_id)
+        .in("legacy_id", ids);
+      if (error) throw new Error("Import may have inserted some missing items, but verification failed: " + error.message);
+      verifiedRows.push(...(data || []));
+    }
+
+    const activeById = new Map();
+    for (const row of verifiedRows) {
+      const id = String(row.legacy_id);
+      if (row.deleted_at) tombstonedIds.add(id);
+      else activeById.set(id, row);
+    }
+
+    const missingIds = rows.filter(row => !activeById.has(row.legacy_id) && !tombstonedIds.has(row.legacy_id));
+    if (missingIds.length) {
+      throw new Error(
+        "Verification incomplete: " + missingIds.length + " item ID(s) are not active in the cloud. " +
+        "No local stock was changed. Review the database before retrying."
+      );
+    }
+
+    const matchesInsertedRow = (saved, expected) => {
+      const sameText = (a, b) => String(a ?? "") === String(b ?? "");
+      const sameNumber = (a, b) => Number(a ?? 0) === Number(b ?? 0);
+      const savedMax = saved.max_qty == null ? null : Number(saved.max_qty);
+      const expectedMax = expected.max_qty == null ? null : Number(expected.max_qty);
+      return sameText(saved.name, expected.name) &&
+        sameText(saved.sku, expected.sku) &&
+        sameText(saved.barcode, expected.barcode) &&
+        sameText(saved.category, expected.category) &&
+        sameNumber(saved.qty, expected.qty) &&
+        sameNumber(saved.min_qty, expected.min_qty) &&
+        savedMax === expectedMax &&
+        sameText(saved.location, expected.location) &&
+        sameText(saved.supplier, expected.supplier) &&
+        sameText(saved.supplier_url, expected.supplier_url) &&
+        sameText(saved.notes, expected.notes);
+    };
+
+    const mismatches = [...rowsToInsert.values()].filter(expected => {
+      const saved = activeById.get(expected.legacy_id);
+      return saved && !matchesInsertedRow(saved, expected);
     });
-    if (mismatches.length) throw new Error("Verification failed for " + mismatches.length + " item(s). Do not switch the live app to cloud yet.");
-    message("SUCCESS — verified " + rows.length + " local stock items against Supabase. Local stock was not changed. Photos and movement/job/order history were not imported; cloud app-wide syncing is not yet complete.", "success");
+    if (mismatches.length) {
+      throw new Error(
+        "Verification found " + mismatches.length + " insert conflict(s). Existing cloud rows were not overwritten. " +
+        "Review those IDs before retrying."
+      );
+    }
+
+    const insertedVerified = [...rowsToInsert.keys()].filter(id => {
+      const saved = activeById.get(id);
+      const expected = rowsToInsert.get(id);
+      return saved && matchesInsertedRow(saved, expected);
+    }).length;
+
+    message(
+      "IMPORT VERIFIED — " + rows.length + " local IDs checked. " +
+      insertedVerified + " missing item(s) inserted and verified; " +
+      existingActiveIds.size + " existing active cloud item(s) preserved without overwrite; " +
+      tombstonedIds.size + " deleted cloud item(s) left deleted. " +
+      "Local stock was not changed. Photos and movement/job/order history remain device-local.",
+      "success"
+    );
     if (previewResult) {
       previewResult.hidden = false;
-      previewResult.textContent = "Cloud verification passed: " + rows.length + " stock items match local IDs, names, quantities and min/max values. Photos and history remain local.";
+      previewResult.textContent =
+        "Insert-only cloud import verified. Existing active records were preserved, deleted records were not restored, and local stock was unchanged.";
     }
+    importBackupConfirmed.checked = false;
+    importConfirmYes.disabled = true;
   } catch (error) {
-    message(error?.message || "Stock import failed. Keep the local app and backup unchanged.", "error");
+    message(
+      (error?.message || "Stock import failed.") +
+      " Local stock and existing cloud rows were not intentionally overwritten. If a batch completed before an error, rerunning this insert-only import will skip IDs already present.",
+      "error"
+    );
   } finally {
     importButton.disabled = false;
+    importConfirmYes.disabled = !importBackupConfirmed?.checked;
   }
 }
-
 previewButton.addEventListener("click", previewLocalMigration);
-if (importButton) importButton.addEventListener("click", importLocalStockToCloud);
+if (importButton) importButton.addEventListener("click", () => {
+  const confirmPanel = $("cloudImportConfirm");
+  if (confirmPanel) {
+    confirmPanel.hidden = false;
+    confirmPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    message("Review the confirmation below. No stock has been uploaded yet.", "warning");
+  } else {
+    message("Import confirmation panel is missing. No stock was uploaded.", "error");
+  }
+});
+$("cloudImportConfirmYes")?.addEventListener("click", async () => {
+  $("cloudImportConfirm").hidden = true;
+  await importLocalStockToCloud();
+});
+$("cloudImportConfirmNo")?.addEventListener("click", () => {
+  $("cloudImportConfirm").hidden = true;
+  if (importBackupConfirmed) importBackupConfirmed.checked = false;
+  if (importConfirmYes) importConfirmYes.disabled = true;
+  message("Import cancelled. No stock was uploaded or changed.", "info");
+});
 signInButton.addEventListener("click", () => runAuth("signin"));
 signUpButton.addEventListener("click", () => runAuth("signup"));
 signOutButton.addEventListener("click", async () => {
