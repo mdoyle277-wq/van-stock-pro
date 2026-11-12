@@ -29,6 +29,13 @@ function clearCloudLoadingWithEmptyStock() {
   }
   document.body.classList.remove("cloud-loading");
 }
+function cloudStockErrorDetail(error) {
+  const detail = error?.message || "Unknown cloud stock error";
+  if (/no unique or exclusion constraint|on conflict/i.test(detail)) {
+    return "The required workspace/owner/legacy-ID unique index is missing. Run supabase/migrations/20261112_user_stock_cloud_sync.sql in Supabase SQL Editor.";
+  }
+  return detail;
+}
 const INACTIVITY_LIMIT_MS = 2 * 60 * 1000;
 let inactivityTimer = null;
 function clearInactivityTimer() {
@@ -296,7 +303,7 @@ async function initialiseCloudStock() {
     if (currentSession?.user?.id === userId) {
       stockSyncReady = false;
       clearCloudLoadingWithEmptyStock();
-      message("CLOUD STOCK NOT READY — local data has been left untouched. " + (error?.message || "Unknown sync error"), "error");
+      message("CLOUD STOCK NOT READY — local data has been left untouched. " + cloudStockErrorDetail(error), "error");
     }
   }
 }
@@ -315,7 +322,7 @@ async function runStockSync() {
     message("Cloud stock saved and verified: " + items.length + " item(s).", "success");
   } catch (error) {
     if (currentSession?.user?.id === userId) {
-      message("CLOUD SAVE FAILED — your local stock is still on this device. " + (error?.message || "Unknown sync error"), "error");
+      message("CLOUD SAVE FAILED — your local stock is still on this device. " + cloudStockErrorDetail(error), "error");
     }
   } finally {
     stockSyncBusy = false;
