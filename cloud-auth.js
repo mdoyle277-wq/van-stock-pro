@@ -27,9 +27,9 @@ workspaceImportButton.hidden = true;
 workspaceImportButton.style.marginTop = "10px";
 status?.insertAdjacentElement("afterend", workspaceImportButton);
 
-function toCloudRow(item) {
+function toCloudRow(item, workspaceId = currentWorkspaceId) {
   return {
-    workspace_id: currentWorkspaceId,
+    workspace_id: workspaceId,
     legacy_id: String(item.id),
     name: String(item.name || "Unnamed item"),
     sku: String(item.sku || ""),
@@ -63,9 +63,11 @@ function fromCloudRow(row) {
 }
 async function loadWorkspaceStock() {
   if (!currentSession?.user) return;
+  const loadingUserId = currentSession.user.id;
   const { data: memberships, error: memberError } = await supabase
     .from("workspace_members").select("workspace_id, role").eq("user_id", currentSession.user.id).limit(1);
   if (memberError) throw memberError;
+  if (currentSession?.user?.id !== loadingUserId) return;
   if (!memberships?.length) {
     currentWorkspaceId = null;
     workspaceImportButton.hidden = true;
@@ -82,6 +84,7 @@ async function loadWorkspaceStock() {
     .select("id, legacy_id, name, sku, barcode, category, qty, min_qty, max_qty, location, supplier, supplier_url, notes")
     .eq("workspace_id", currentWorkspaceId).order("name", { ascending: true });
   if (error) throw error;
+  if (currentSession?.user?.id !== loadingUserId) return;
   const list = (rows || []).map(fromCloudRow);
   if (window.VSP_STOCK_BRIDGE) window.VSP_STOCK_BRIDGE.setItems(list);
   workspaceImportButton.hidden = list.length > 0 || !legacyImportAllowed;
@@ -89,21 +92,21 @@ async function loadWorkspaceStock() {
     ? "Workspace stock loaded securely: " + list.length + " item(s). Only stock in this workspace is shown."
     : "Your workspace is ready and currently has no stock. It is separate from the administrator's stock. Import existing device stock only if this is the administrator's device.", "success");
 }
-async function syncWorkspaceStock(items) {
-  if (!currentWorkspaceId || !Array.isArray(items)) return;
-  const rows = items.map(toCloudRow);
+async function syncWorkspaceStock(items, workspaceId = currentWorkspaceId) {
+  if (!workspaceId || !Array.isArray(items)) return;
+  const rows = items.map(item => toCloudRow(item, workspaceId));
   if (rows.length) {
     const { error } = await supabase.from("stock_items").upsert(rows, { onConflict: "workspace_id,legacy_id" });
     if (error) throw error;
   }
   const { data: existing, error: readError } = await supabase.from("stock_items")
-    .select("id, legacy_id").eq("workspace_id", currentWorkspaceId);
+    .select("id, legacy_id").eq("workspace_id", workspaceId);
   if (readError) throw readError;
   const keep = new Set(items.map(item => String(item.id)));
   for (const row of (existing || [])) {
     if (!keep.has(String(row.legacy_id))) {
       const { error: deleteError } = await supabase.from("stock_items").delete()
-        .eq("workspace_id", currentWorkspaceId).eq("id", row.id);
+        .eq("workspace_id", workspaceId).eq("id", row.id);
       if (deleteError) throw deleteError;
     }
   }
@@ -111,7 +114,8 @@ async function syncWorkspaceStock(items) {
 }
 window.addEventListener("vsp-stock-save", event => {
   const snapshot = event.detail?.items;
-  stockSyncQueue = stockSyncQueue.then(() => syncWorkspaceStock(snapshot))
+  const workspaceId = currentWorkspaceId;
+  stockSyncQueue = stockSyncQueue.then(() => syncWorkspaceStock(snapshot, workspaceId))
     .catch(error => message("Stock is saved on this device, but cloud sync failed: " + (error?.message || error), "error"));
 });
 workspaceImportButton.addEventListener("click", async () => {
@@ -137,7 +141,15 @@ function message(text, kind = "info") {
   status.dataset.kind = kind;
 }
 function setSession(session) {
+  const previousUserId = currentSession?.user?.id || null;
+  const nextUserId = session?.user?.id || null;
   currentSession = session;
+  if (previousUserId && previousUserId !== nextUserId) {
+    currentWorkspaceId = null;
+    legacyImportAllowed = false;
+    workspaceImportButton.hidden = true;
+    if (!nextUserId && window.VSP_STOCK_BRIDGE) window.VSP_STOCK_BRIDGE.setItems([]);
+  }
   const user = session?.user;
   sessionLabel.textContent = user ? "Signed in as " + user.email : "Not signed in";
   signInButton.hidden = !!user;
