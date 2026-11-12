@@ -16,6 +16,8 @@ const signOutButton = $("cloudSignOut");
 const setupButton = $("cloudWorkspace");
 let currentSession = null;
 let currentWorkspaceId = null;
+let legacyImportAllowed = false;
+const LEGACY_WORKSPACE_CUTOFF = "2026-11-12T00:00:00Z";
 let stockSyncQueue = Promise.resolve();
 const workspaceImportButton = document.createElement("button");
 workspaceImportButton.type = "button";
@@ -71,13 +73,18 @@ async function loadWorkspaceStock() {
     return;
   }
   currentWorkspaceId = memberships[0].workspace_id;
+  const { data: workspaceInfo, error: workspaceInfoError } = await supabase.from("workspaces")
+    .select("created_at").eq("id", currentWorkspaceId).single();
+  if (workspaceInfoError) throw workspaceInfoError;
+  legacyImportAllowed = ["owner", "admin"].includes(memberships[0].role) &&
+    !!workspaceInfo?.created_at && workspaceInfo.created_at < LEGACY_WORKSPACE_CUTOFF;
   const { data: rows, error } = await supabase.from("stock_items")
     .select("id, legacy_id, name, sku, barcode, category, qty, min_qty, max_qty, location, supplier, supplier_url, notes")
     .eq("workspace_id", currentWorkspaceId).order("name", { ascending: true });
   if (error) throw error;
   const list = (rows || []).map(fromCloudRow);
   if (window.VSP_STOCK_BRIDGE) window.VSP_STOCK_BRIDGE.setItems(list);
-  workspaceImportButton.hidden = list.length > 0;
+  workspaceImportButton.hidden = list.length > 0 || !legacyImportAllowed;
   message(list.length
     ? "Workspace stock loaded securely: " + list.length + " item(s). Only stock in this workspace is shown."
     : "Your workspace is ready and currently has no stock. It is separate from the administrator's stock. Import existing device stock only if this is the administrator's device.", "success");
@@ -108,7 +115,7 @@ window.addEventListener("vsp-stock-save", event => {
     .catch(error => message("Stock is saved on this device, but cloud sync failed: " + (error?.message || error), "error"));
 });
 workspaceImportButton.addEventListener("click", async () => {
-  if (!currentWorkspaceId || !window.VSP_STOCK_BRIDGE) return;
+  if (!currentWorkspaceId || !legacyImportAllowed || !window.VSP_STOCK_BRIDGE) return;
   const items = window.VSP_STOCK_BRIDGE.getPreCloudItems();
   if (!items.length) return message("There is no existing device stock to import.", "warning");
   if (!confirm("Import " + items.length + " items from this device into this empty workspace? This does not overwrite any other workspace.")) return;
