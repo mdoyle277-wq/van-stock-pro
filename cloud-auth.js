@@ -208,9 +208,15 @@ async function initialiseCloudStock() {
     if (error) throw error;
     if (cloudRows?.length) {
       const cloudItems = stockRowsToItems(cloudRows);
+      // Keep local-only additions if a refresh happened before the previous
+      // device-to-cloud write completed; cloud values win for matching IDs.
+      const localItems = readLocalArray("van-stock-pro-items-v1");
+      const cloudIds = new Set(cloudItems.map(item => String(item.id)));
+      const mergedItems = [...cloudItems, ...localItems.filter(item => !cloudIds.has(String(item.id)))];
       if (typeof window.__VSP_APPLY_CLOUD_STOCK !== "function") throw new Error("Stock screen is not ready to receive cloud data.");
-      window.__VSP_APPLY_CLOUD_STOCK(cloudItems);
-      message("Cloud stock loaded and verified: " + cloudItems.length + " item(s).", "success");
+      window.__VSP_APPLY_CLOUD_STOCK(mergedItems);
+      if (mergedItems.length !== cloudItems.length) await writeCloudStock(mergedItems);
+      message("Cloud stock loaded and verified: " + mergedItems.length + " item(s).", "success");
     } else {
       const local = readLocalArray("van-stock-pro-items-v1");
       if (!local.length) throw new Error("No cloud or local stock items were found. No data was changed.");
