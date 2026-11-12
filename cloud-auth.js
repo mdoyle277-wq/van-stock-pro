@@ -85,6 +85,27 @@ async function loadWorkspaceStock() {
     .eq("workspace_id", currentWorkspaceId).order("name", { ascending: true });
   if (error) throw error;
   if (currentSession?.user?.id !== loadingUserId) return;
+  const { data: movementRows, error: movementError } = await supabase.from("stock_movements")
+    .select("legacy_id, legacy_item_id, item_name, sku, action, change_qty, balance_after, note, created_at")
+    .eq("workspace_id", currentWorkspaceId).order("created_at", { ascending: false }).limit(1000);
+  if (movementError) throw movementError;
+  const { data: usageRows, error: usageError } = await supabase.from("job_usage")
+    .select("legacy_id, legacy_item_id, item_name, sku, quantity, job_reference, notes, created_at")
+    .eq("workspace_id", currentWorkspaceId).order("created_at", { ascending: false }).limit(2000);
+  if (usageError) throw usageError;
+  if (currentSession?.user?.id !== loadingUserId) return;
+  try {
+    localStorage.setItem("van-stock-pro-movements-v2", JSON.stringify((movementRows || []).map(row => ({
+      id: row.legacy_id, date: row.created_at, itemId: row.legacy_item_id || "", itemName: row.item_name || "",
+      sku: row.sku || "", action: row.action || "adjustment", change: Number(row.change_qty) || 0,
+      balance: row.balance_after == null ? 0 : Number(row.balance_after), note: row.note || ""
+    }))));
+    localStorage.setItem("van-stock-pro-usage-v1", JSON.stringify((usageRows || []).map(row => ({
+      id: row.legacy_id, date: row.created_at, usageDate: String(row.created_at || "").slice(0,10),
+      job: row.job_reference || "", itemId: row.legacy_item_id || "", itemName: row.item_name || "",
+      sku: row.sku || "", quantity: Number(row.quantity) || 0, notes: row.notes || ""
+    }))));
+  } catch (storageError) { console.warn("Could not cache workspace activity", storageError); }
   const list = (rows || []).map(fromCloudRow);
   if (window.VSP_STOCK_BRIDGE) window.VSP_STOCK_BRIDGE.setItems(list);
   workspaceImportButton.hidden = list.length > 0 || !legacyImportAllowed;
@@ -117,6 +138,39 @@ window.addEventListener("vsp-stock-save", event => {
   const workspaceId = currentWorkspaceId;
   stockSyncQueue = stockSyncQueue.then(() => syncWorkspaceStock(snapshot, workspaceId))
     .catch(error => message("Stock is saved on this device, but cloud sync failed: " + (error?.message || error), "error"));
+});
+async function syncMovement(entry, workspaceId, userId) {
+  if (!workspaceId || !entry?.id) return;
+  const row = {
+    workspace_id: workspaceId, legacy_id: String(entry.id), legacy_item_id: String(entry.itemId || ""),
+    item_name: String(entry.itemName || ""), sku: String(entry.sku || ""), action: String(entry.action || "adjustment"),
+    change_qty: Number(entry.change) || 0, balance_after: Number(entry.balance) || 0,
+    note: String(entry.note || ""), job_reference: /job/i.test(entry.action || "") ? String(entry.action || "").replace(/^.*?:\\s*/, "") : "",
+    created_at: entry.date || new Date().toISOString(), created_by: userId || null
+  };
+  const { error } = await supabase.from("stock_movements").upsert(row, { onConflict: "workspace_id,legacy_id" });
+  if (error) throw error;
+}
+async function syncJobUsage(entry, workspaceId, userId) {
+  if (!workspaceId || !entry?.id) return;
+  const row = {
+    workspace_id: workspaceId, legacy_id: String(entry.id), legacy_item_id: String(entry.itemId || ""),
+    item_name: String(entry.itemName || ""), sku: String(entry.sku || ""), quantity: Number(entry.quantity) || 0,
+    job_reference: String(entry.job || ""), notes: String(entry.notes || ""), created_at: entry.date || new Date().toISOString(),
+    created_by: userId || null
+  };
+  const { error } = await supabase.from("job_usage").upsert(row, { onConflict: "workspace_id,legacy_id" });
+  if (error) throw error;
+}
+window.addEventListener("vsp-movement", event => {
+  const entry = event.detail?.entry, workspaceId = currentWorkspaceId, userId = currentSession?.user?.id;
+  stockSyncQueue = stockSyncQueue.then(() => syncMovement(entry, workspaceId, userId))
+    .catch(error => message("Movement saved on this device, but cloud history sync failed: " + (error?.message || error), "error"));
+});
+window.addEventListener("vsp-job-usage", event => {
+  const entry = event.detail?.entry, workspaceId = currentWorkspaceId, userId = currentSession?.user?.id;
+  stockSyncQueue = stockSyncQueue.then(() => syncJobUsage(entry, workspaceId, userId))
+    .catch(error => message("Job usage saved on this device, but cloud sync failed: " + (error?.message || error), "error"));
 });
 workspaceImportButton.addEventListener("click", async () => {
   if (!currentWorkspaceId || !legacyImportAllowed || !window.VSP_STOCK_BRIDGE) return;
