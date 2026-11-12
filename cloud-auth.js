@@ -382,7 +382,7 @@ async function refreshAccessPanel() {
     activeWorkspaceId = selected.workspace_id;
     activeWorkspaceRole = selected.role;
     accessPanel.hidden = false;
-    accessRoleLabel.textContent = mine[0].role.toUpperCase();
+    accessRoleLabel.textContent = selected.role.toUpperCase();
     const adminOption = $("accessRole")?.querySelector('option[value="admin"]');
     if (adminOption) adminOption.disabled = mine[0].role !== "owner";
     const { data: members, error: listError } = await supabase.from("workspace_members")
