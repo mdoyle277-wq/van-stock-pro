@@ -74,14 +74,27 @@ function setSession(session) {
   password.disabled = !!user;
 }
 async function checkSchema() {
-  const { error } = await supabase.from("workspaces").select("id").limit(1);
-  if (error) {
-    if (error.code === "42P01" || /relation .* does not exist|schema cache/i.test(error.message || "")) {
-      message("Your Supabase project is reachable, but the Van Stock Pro database schema has not been installed yet. Open supabase/schema.sql in GitHub, paste it into Supabase SQL Editor, and run it. No stock data has been uploaded.", "warning");
-    } else if (error.code === "PGRST301" || error.code === "42501") {
-      message("Signed in, but database access is not ready. Check that the Van Stock Pro schema and row-level security policies were installed.", "warning");
+  const { error: workspaceError } = await supabase.from("workspaces").select("id").limit(1);
+  if (workspaceError) {
+    if (workspaceError.code === "42P01" || /relation .* does not exist|schema cache/i.test(workspaceError.message || "")) {
+      message("Your Supabase project is reachable, but the Van Stock Pro database schema has not been installed yet. Install the schema before using cloud stock.", "warning");
+    } else if (workspaceError.code === "PGRST301" || workspaceError.code === "42501") {
+      message("Signed in, but database access is not ready. Check the Van Stock Pro schema and row-level security policies.", "warning");
     } else {
-      message("Connected to Supabase, but the workspace check failed: " + error.message, "warning");
+      message("Connected to Supabase, but the workspace check failed: " + workspaceError.message, "warning");
+    }
+    return false;
+  }
+  // Fail before allowing a user to add cloud stock if the ownership migration
+  // (including the composite upsert key) has not been installed.
+  const { error: stockError } = await supabase.from("stock_items")
+    .select("id,workspace_id,owner_user_id,legacy_id").limit(1);
+  if (stockError) {
+    const detail = stockError.message || "Unknown stock schema error";
+    if (/owner_user_id|legacy_id|column .* does not exist|schema cache/i.test(detail)) {
+      message("Cloud stock is not ready: the per-user stock ownership migration has not been applied. In GitHub open supabase/migrations/20261112_user_stock_cloud_sync.sql, copy the full SQL into Supabase SQL Editor and run it. Existing stock is retained; do not run any reset or delete script.", "error");
+    } else {
+      message("Cloud stock schema check failed: " + detail + ". No cloud stock has been changed.", "error");
     }
     return false;
   }
@@ -188,9 +201,12 @@ async function uploadItemPhoto(item,workspaceId){
  if(error) throw error;
  return path;
 }
-async function syncWorkspaceItems(list,workspaceId=activeStockWorkspaceId){
+async function syncWorkspaceItems(list,workspaceId=activeStockWorkspaceId,expectedUserId=currentSession?.user?.id){
  const userId=currentSession?.user?.id;
- if(!workspaceId||!userId||!Array.isArray(list)) return;
+ if(!Array.isArray(list)) throw new Error("Stock save event did not contain a valid item list.");
+ if(!workspaceId) throw new Error("No personal workspace is active for this account. Tap Set up workspace, finish setup, then retry the save.");
+ if(!expectedUserId||!userId||userId!==expectedUserId) throw new Error("The signed-in account changed before the stock save completed. Sign in again and retry.");
+ if(activeStockWorkspaceId!==workspaceId) throw new Error("The active workspace changed before the stock save completed. Reload the workspace and retry.");
  const {data:existing,error:readError}=await supabase.from("stock_items").select("id,legacy_id,photo_path").eq("workspace_id",workspaceId).eq("owner_user_id",userId);
  if(readError)throw readError;
  const oldById=new Map((existing||[]).map(row=>[String(row.legacy_id),row]));
@@ -276,7 +292,15 @@ async function loadWorkspaceStock(){
  localStorage.setItem("van-stock-pro-usage-v1",JSON.stringify((usage.data||[]).map(x=>({id:x.legacy_id,date:x.created_at,usageDate:String(x.created_at||"").slice(0,10),job:x.job_reference||"",itemId:x.legacy_item_id||"",itemName:x.item_name||"",sku:x.sku||"",quantity:Number(x.quantity)||0,notes:x.notes||""}))));
  document.body.classList.remove("cloud-loading");
 }
-window.addEventListener("vsp-stock-save",e=>{const snapshot=e.detail?.items?.map(x=>({...x}));const wid=activeStockWorkspaceId;stockQueue=stockQueue.then(()=>syncWorkspaceItems(snapshot,wid)).catch(err=>cloudStockMessage("Stock is saved on this phone, but cloud sync failed: "+err.message,"error"));});
+window.addEventListener("vsp-stock-save",e=>{
+ const snapshot=Array.isArray(e.detail?.items)?e.detail.items.map(x=>({...x})):null;
+ const wid=activeStockWorkspaceId;
+ const uid=currentSession?.user?.id||null;
+ if(!currentSession?.user){cloudStockMessage("This item is only saved on this device. Sign in to a personal workspace to save it to the cloud.","warning");return;}
+ stockQueue=stockQueue.then(()=>syncWorkspaceItems(snapshot,wid,uid)).catch(err=>{
+  cloudStockMessage("CLOUD SAVE FAILED — this item is only on this device until sync succeeds. "+(err?.message||String(err)),"error");
+ });
+});
 async function syncActivity(table,entry,wid,userId){
  if(!wid||!entry?.id)return;
  const row=table==="stock_movements"?{workspace_id:wid,legacy_id:String(entry.id),legacy_item_id:String(entry.itemId||""),item_name:String(entry.itemName||""),sku:String(entry.sku||""),action:String(entry.action||"adjustment"),change_qty:Number(entry.change)||0,balance_after:Number(entry.balance)||0,note:String(entry.note||""),job_reference:/job/i.test(entry.action||"")?String(entry.action).replace(/^.*?:\s*/,""):"",created_at:entry.date||new Date().toISOString(),created_by:userId}:{workspace_id:wid,legacy_id:String(entry.id),legacy_item_id:String(entry.itemId||""),item_name:String(entry.itemName||""),sku:String(entry.sku||""),quantity:Number(entry.quantity)||0,job_reference:String(entry.job||""),notes:String(entry.notes||""),created_at:entry.date||new Date().toISOString(),created_by:userId};
