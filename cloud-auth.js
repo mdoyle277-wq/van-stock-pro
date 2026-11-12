@@ -229,13 +229,20 @@ async function loadWorkspaceStock(){
  const {data:workspaces,error:workspaceError}=await supabase.from("workspaces")
    .select("id,created_by,name").in("id",workspaceIds);
  if(workspaceError)throw workspaceError;
- // If this account created a personal workspace, prefer it over any separately shared admin workspace.
+ // Never fall back to a shared administrator workspace. Every account must use
+ // a workspace it created, so authorised users cannot see the administrator's stock.
  const ownedWorkspace=(workspaces||[]).find(w=>w.created_by===userId);
- const membership=ownedWorkspace
-   ? members.find(m=>m.workspace_id===ownedWorkspace.id)
-   : members[0];
- activeStockWorkspaceId=membership.workspace_id;
- const selectedWorkspace=(workspaces||[]).find(w=>w.id===activeStockWorkspaceId);
+ if(!ownedWorkspace){
+  activeStockWorkspaceId=null;workspaceImportAllowed=false;workspaceImport.hidden=true;
+  window.VSP_STOCK_BRIDGE?.setItems([]);
+  cloudStockMessage("This account does not have a personal workspace yet. Tap Set up workspace to create your own stock area. Shared administrator stock is not displayed.","warning");
+  document.body.classList.remove("cloud-loading");
+  return;
+ }
+ const membership=members.find(m=>m.workspace_id===ownedWorkspace.id);
+ if(!membership)throw new Error("Your personal workspace membership could not be verified.");
+ activeStockWorkspaceId=ownedWorkspace.id;
+ const selectedWorkspace=ownedWorkspace;
  if(currentSession?.user?.id!==userId)return;
  workspaceImportAllowed=["owner","admin"].includes(membership.role);
  const {data:rows,error}=await supabase.from("stock_items")
@@ -310,25 +317,30 @@ setupButton.addEventListener("click", async () => {
     if (!ready) return;
     const uid = currentSession.user.id;
     const { data: memberships, error: memberError } = await supabase
-      .from("workspace_members").select("workspace_id, role").eq("user_id", uid).limit(1);
+      .from("workspace_members").select("workspace_id, role").eq("user_id", uid).limit(20);
     if (memberError) throw memberError;
+    let personalWorkspace = null;
     if (memberships?.length) {
-      message("Workspace is ready. Loading its separate stock…", "success");
-      await refreshAccessPanel();
-      await loadWorkspaceStock();
-      return;
+      const ids = [...new Set(memberships.map(m => m.workspace_id))];
+      const { data: workspaces, error: workspaceListError } = await supabase
+        .from("workspaces").select("id, created_by").in("id", ids);
+      if (workspaceListError) throw workspaceListError;
+      personalWorkspace = (workspaces || []).find(w => w.created_by === uid) || null;
     }
-    const { data: workspace, error: workspaceError } = await supabase
-      .from("workspaces").insert({ name: "Van Stock Pro", created_by: uid }).select("id").single();
-    if (workspaceError) throw workspaceError;
-    const { error: membershipError } = await supabase.from("workspace_members").insert({
-      workspace_id: workspace.id, user_id: uid, role: "owner"
-    });
-    if (membershipError) {
-      // Keep the created workspace for diagnosis; do not delete anything automatically.
-      throw new Error("Workspace was created but owner membership did not finish: " + membershipError.message);
+    if (!personalWorkspace) {
+      const { data: workspace, error: workspaceError } = await supabase
+        .from("workspaces").insert({ name: "My Van Stock", created_by: uid }).select("id").single();
+      if (workspaceError) throw workspaceError;
+      const { error: membershipError } = await supabase.from("workspace_members").insert({
+        workspace_id: workspace.id, user_id: uid, role: "owner"
+      });
+      if (membershipError) {
+        // Keep the created workspace for diagnosis; do not delete anything automatically.
+        throw new Error("Your personal workspace was created but owner membership did not finish: " + membershipError.message);
+      }
+      personalWorkspace = workspace;
     }
-    message("Van Stock Pro workspace created. Loading its empty workspace…", "success");
+    message("Your personal workspace is ready. Loading your separate stock…", "success");
     await refreshAccessPanel();
     await loadWorkspaceStock();
   } catch (error) {
