@@ -100,7 +100,7 @@ async function runAuth(action) {
       setSession(data.session);
       message("Signed in. Checking your workspace setup…");
       const schemaReady = await checkSchema();
-      if (schemaReady) await refreshAccessPanel();
+      if (schemaReady) { await refreshAccessPanel(); await loadWorkspaceStock(); }
     }
   } catch (error) {
     message(error?.message || "Authentication failed.", "error");
@@ -147,6 +147,95 @@ function previewLocalMigration() {
     previewResult.dataset.kind = "error";
   }
 }
+
+// Workspace stock isolation and synchronisation.
+let activeStockWorkspaceId = null;
+let stockQueue = Promise.resolve();
+let workspaceImportAllowed = false;
+const workspaceImport = document.createElement("button");
+workspaceImport.type = "button"; workspaceImport.className = "secondary";
+workspaceImport.textContent = "Import this device's existing stock into this workspace";
+workspaceImport.hidden = true; workspaceImport.style.marginTop = "10px";
+status?.insertAdjacentElement("afterend", workspaceImport);
+const STOCK_KEY = "van-stock-pro-items-v1";
+function cloudStockMessage(t,k="info"){ message(t,k); }
+function stockToRow(item, workspaceId, photoPath=null) {
+ return {workspace_id:workspaceId,legacy_id:String(item.id),name:String(item.name||"Unnamed item"),sku:String(item.sku||""),barcode:String(item.barcode||""),category:String(item.category||""),qty:Number(item.qty)||0,min_qty:Number(item.minQty)||0,max_qty:item.maxQty==null||item.maxQty===""?null:Number(item.maxQty),location:String(item.location||""),supplier:String(item.supplier||""),supplier_url:String(item.supplierUrl||""),notes:String(item.notes||""),photo_path:photoPath};
+}
+function decodePhoto(dataUrl){
+ const m=String(dataUrl||"").match(/^data:(image\/(?:jpeg|png|webp));base64,([\s\S]+)$/i);
+ if(!m) return null;
+ const bytes=Uint8Array.from(atob(m[2]),c=>c.charCodeAt(0));
+ return {blob:new Blob([bytes],{type:m[1]}),ext:m[1].split("/")[1]==="jpeg"?"jpg":m[1].split("/")[1]};
+}
+async function uploadItemPhoto(item,workspaceId){
+ if(!item.photo || !String(item.photo).startsWith("data:")) return null;
+ const parsed=decodePhoto(item.photo);
+ if(!parsed) throw new Error("An item photo is not a supported JPEG, PNG or WebP image. No stock sync was completed.");
+ if(parsed.blob.size>5*1024*1024) throw new Error("Photo for "+item.name+" is over the 5 MB cloud limit. Reduce the photo size first.");
+ const path=workspaceId+"/"+encodeURIComponent(String(item.id))+"."+parsed.ext;
+ const {error}=await supabase.storage.from("van-stock-item-photos").upload(path,parsed.blob,{upsert:true,contentType:parsed.blob.type});
+ if(error) throw error;
+ return path;
+}
+async function syncWorkspaceItems(list,workspaceId=activeStockWorkspaceId){
+ if(!workspaceId||!Array.isArray(list)) return;
+ const rows=[];
+ for(const item of list){
+  const photoPath=await uploadItemPhoto(item,workspaceId);
+  rows.push(stockToRow(item,workspaceId,photoPath));
+ }
+ if(rows.length){const {error}=await supabase.from("stock_items").upsert(rows,{onConflict:"workspace_id,legacy_id"});if(error)throw error;}
+ // Only reconcile rows inside this workspace; preserve records if deletion permission is denied.
+ const {data:existing,error:readError}=await supabase.from("stock_items").select("id,legacy_id").eq("workspace_id",workspaceId);
+ if(readError)throw readError;
+ const keep=new Set(list.map(x=>String(x.id)));
+ for(const row of existing||[]) if(!keep.has(String(row.legacy_id))){
+  const {error}=await supabase.from("stock_items").delete().eq("workspace_id",workspaceId).eq("id",row.id);
+  if(error)throw new Error("Stock saved, but removed items could not be deleted under the current workspace permissions: "+error.message);
+ }
+ cloudStockMessage("Cloud stock saved: "+list.length+" item(s).","success");
+}
+async function loadWorkspaceStock(){
+ if(!currentSession?.user)return;
+ const userId=currentSession.user.id;
+ const {data:members,error:me}=await supabase.from("workspace_members").select("workspace_id,role").eq("user_id",userId).limit(1);
+ if(me)throw me;
+ if(currentSession?.user?.id!==userId)return;
+ if(!members?.length){activeStockWorkspaceId=null;workspaceImport.hidden=true;window.VSP_STOCK_BRIDGE?.setItems([]);cloudStockMessage("No workspace access is assigned to this account. Ask your administrator to authorise your account.","warning");return;}
+ const membership=members[0]; activeStockWorkspaceId=membership.workspace_id;
+ const {data:ws,error:we}=await supabase.from("workspaces").select("created_at").eq("id",activeStockWorkspaceId).single();
+ if(we)throw we;
+ workspaceImportAllowed=["owner","admin"].includes(membership.role)&&!!ws?.created_at&&ws.created_at<"2026-11-12T00:00:00Z";
+ const {data:rows,error}=await supabase.from("stock_items").select("id,legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes,photo_path").eq("workspace_id",activeStockWorkspaceId).order("name");
+ if(error)throw error;
+ if(currentSession?.user?.id!==userId)return;
+ const list=[];
+ for(const row of rows||[]){
+  let photo="";
+  if(row.photo_path){const {data:signed,error:photoError}=await supabase.storage.from("van-stock-item-photos").createSignedUrl(row.photo_path,3600);if(!photoError)photo=signed?.signedUrl||"";}
+  list.push({id:String(row.legacy_id||row.id),name:row.name||"",sku:row.sku||"",barcode:row.barcode||"",category:row.category||"",qty:Number(row.qty)||0,minQty:Number(row.min_qty)||0,maxQty:row.max_qty==null?null:Number(row.max_qty),location:row.location||"",supplier:row.supplier||"",supplierUrl:row.supplier_url||"",notes:row.notes||"",photo});
+ }
+ window.VSP_STOCK_BRIDGE?.setItems(list);
+ workspaceImport.hidden=!!list.length||!workspaceImportAllowed;
+ cloudStockMessage(list.length?"Workspace stock loaded: "+list.length+" item(s).":"Workspace is empty. It will not be filled with starter stock from another account.","success");
+ const [moves,usage]=await Promise.all([
+  supabase.from("stock_movements").select("legacy_id,legacy_item_id,item_name,sku,action,change_qty,balance_after,note,created_at").eq("workspace_id",activeStockWorkspaceId).order("created_at",{ascending:false}).limit(1000),
+  supabase.from("job_usage").select("legacy_id,legacy_item_id,item_name,sku,quantity,job_reference,notes,created_at").eq("workspace_id",activeStockWorkspaceId).order("created_at",{ascending:false}).limit(2000)
+ ]);
+ if(moves.error)throw moves.error;if(usage.error)throw usage.error;
+ localStorage.setItem("van-stock-pro-movements-v2",JSON.stringify((moves.data||[]).map(x=>({id:x.legacy_id,date:x.created_at,itemId:x.legacy_item_id||"",itemName:x.item_name||"",sku:x.sku||"",action:x.action||"adjustment",change:Number(x.change_qty)||0,balance:Number(x.balance_after)||0,note:x.note||""}))));
+ localStorage.setItem("van-stock-pro-usage-v1",JSON.stringify((usage.data||[]).map(x=>({id:x.legacy_id,date:x.created_at,usageDate:String(x.created_at||"").slice(0,10),job:x.job_reference||"",itemId:x.legacy_item_id||"",itemName:x.item_name||"",sku:x.sku||"",quantity:Number(x.quantity)||0,notes:x.notes||""}))));
+}
+window.addEventListener("vsp-stock-save",e=>{const snapshot=e.detail?.items?.map(x=>({...x}));const wid=activeStockWorkspaceId;stockQueue=stockQueue.then(()=>syncWorkspaceItems(snapshot,wid)).catch(err=>cloudStockMessage("Stock is saved on this phone, but cloud sync failed: "+err.message,"error"));});
+async function syncActivity(table,entry,wid,userId){
+ if(!wid||!entry?.id)return;
+ const row=table==="stock_movements"?{workspace_id:wid,legacy_id:String(entry.id),legacy_item_id:String(entry.itemId||""),item_name:String(entry.itemName||""),sku:String(entry.sku||""),action:String(entry.action||"adjustment"),change_qty:Number(entry.change)||0,balance_after:Number(entry.balance)||0,note:String(entry.note||""),job_reference:/job/i.test(entry.action||"")?String(entry.action).replace(/^.*?:\s*/,""):"",created_at:entry.date||new Date().toISOString(),created_by:userId}:{workspace_id:wid,legacy_id:String(entry.id),legacy_item_id:String(entry.itemId||""),item_name:String(entry.itemName||""),sku:String(entry.sku||""),quantity:Number(entry.quantity)||0,job_reference:String(entry.job||""),notes:String(entry.notes||""),created_at:entry.date||new Date().toISOString(),created_by:userId};
+ const {error}=await supabase.from(table).upsert(row,{onConflict:"workspace_id,legacy_id"});if(error)throw error;
+}
+for(const [eventName,table] of [["vsp-movement","stock_movements"],["vsp-job-usage","job_usage"]])window.addEventListener(eventName,e=>{const entry=e.detail?.entry,wid=activeStockWorkspaceId,uid=currentSession?.user?.id;stockQueue=stockQueue.then(()=>syncActivity(table,entry,wid,uid)).catch(err=>cloudStockMessage("Activity is saved on this phone, but cloud sync failed: "+err.message,"error"));});
+workspaceImport.addEventListener("click",async()=>{if(!activeStockWorkspaceId||!workspaceImportAllowed)return;const list=window.VSP_STOCK_BRIDGE?.getPreCloudItems()||[];if(!list.length)return cloudStockMessage("No saved pre-cloud stock was found on this device.","warning");if(!confirm("Import "+list.length+" items from this device into this empty workspace?"))return;workspaceImport.disabled=true;try{await syncWorkspaceItems(list);await loadWorkspaceStock();cloudStockMessage("Imported "+list.length+" items into this workspace.","success");}catch(e){cloudStockMessage("Import failed: "+e.message,"error");}finally{workspaceImport.disabled=false;}});
+
 previewButton.addEventListener("click", previewLocalMigration);
 signInButton.addEventListener("click", () => runAuth("signin"));
 signUpButton.addEventListener("click", () => runAuth("signup"));
@@ -207,6 +296,7 @@ setupButton.addEventListener("click", async () => {
 });
 supabase.auth.onAuthStateChange((_event, session) => {
   setSession(session);
+  if (session?.user) { checkSchema().then(ok=>ok&&loadWorkspaceStock()).catch(e=>message("Workspace load failed: "+e.message,"error")); }
 });
 
  
@@ -318,5 +408,5 @@ const { data: initial } = await supabase.auth.getSession();
 setSession(initial.session);
 if (initial.session) {
   const schemaReady = await checkSchema();
-  if (schemaReady) await refreshAccessPanel();
+  if (schemaReady) { await refreshAccessPanel(); await loadWorkspaceStock(); }
 }
