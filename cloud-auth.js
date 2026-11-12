@@ -169,7 +169,7 @@ async function getMyStockWorkspace() {
   if (error) throw error;
   if (!data?.length) throw new Error("No workspace is linked to this account. Set up or authorise the workspace first.");
   if (data[0].role === "viewer") throw new Error("This account has view-only access and cannot change stock.");
-  return data[0].workspace_id;
+  return { id: data[0].workspace_id, role: data[0].role };
 }
 async function writeCloudStock(items) {
   if (!stockWorkspaceId || !currentSession?.user) throw new Error("Cloud workspace is not ready.");
@@ -200,28 +200,38 @@ async function writeCloudStock(items) {
 async function initialiseCloudStock() {
   if (!currentSession?.user) return;
   try {
-    stockWorkspaceId = await getMyStockWorkspace();
+    const workspace = await getMyStockWorkspace();
+    stockWorkspaceId = workspace.id;
     const userId = currentSession.user.id;
     const { data: cloudRows, error } = await supabase.from("stock_items")
       .select("*").eq("workspace_id", stockWorkspaceId).eq("owner_user_id", userId)
       .order("name", { ascending: true });
     if (error) throw error;
-    if (cloudRows?.length) {
-      const cloudItems = stockRowsToItems(cloudRows);
-      // Keep local-only additions if a refresh happened before the previous
-      // device-to-cloud write completed; cloud values win for matching IDs.
-      const localItems = readLocalArray("van-stock-pro-items-v1");
-      const cloudIds = new Set(cloudItems.map(item => String(item.id)));
-      const mergedItems = [...cloudItems, ...localItems.filter(item => !cloudIds.has(String(item.id)))];
-      if (typeof window.__VSP_APPLY_CLOUD_STOCK !== "function") throw new Error("Stock screen is not ready to receive cloud data.");
-      window.__VSP_APPLY_CLOUD_STOCK(mergedItems);
-      if (mergedItems.length !== cloudItems.length) await writeCloudStock(mergedItems);
-      message("Cloud stock loaded and verified: " + mergedItems.length + " item(s).", "success");
-    } else {
+    const cloudItems = stockRowsToItems(cloudRows || []);
+    if (typeof window.__VSP_APPLY_CLOUD_STOCK !== "function") throw new Error("Stock screen is not ready to receive cloud data.");
+    if (cloudItems.length) {
+      // The signed-in user's cloud list is authoritative. Never merge browser
+      // storage here: it may contain the previous account's/admin's stock.
+      window.__VSP_APPLY_CLOUD_STOCK(cloudItems);
+      message("Your private cloud stock loaded and verified: " + cloudItems.length + " item(s).", "success");
+    } else if (workspace.role === "owner") {
+      // Only a workspace owner may perform the one-time legacy-device import.
+      // Invited members must start with an empty private stock list, not a
+      // copy of stock left in this browser by the administrator.
       const local = readLocalArray("van-stock-pro-items-v1");
-      if (!local.length) throw new Error("No cloud or local stock items were found. No data was changed.");
-      await writeCloudStock(local);
-      message("Initial stock copied to this account's private cloud stock and verified: " + local.length + " item(s).", "success");
+      if (local.length) {
+        await writeCloudStock(local);
+        window.__VSP_APPLY_CLOUD_STOCK(local);
+        message("Your initial stock was copied to your private cloud list and verified: " + local.length + " item(s).", "success");
+      } else {
+        window.__VSP_APPLY_CLOUD_STOCK([]);
+        message("Your private stock is ready. Add your first item to begin.", "success");
+      }
+    } else {
+      // Crucial isolation rule: never import an administrator's local browser
+      // stock into an invited user's empty cloud list.
+      window.__VSP_APPLY_CLOUD_STOCK([]);
+      message("Your private stock is empty. The administrator's stock is kept separate.", "success");
     }
     stockSyncReady = true;
   } catch (error) {
