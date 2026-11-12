@@ -5,6 +5,20 @@
 alter table public.stock_items
   add column if not exists owner_user_id uuid references auth.users(id) on delete cascade;
 
+alter table public.stock_items
+  add column if not exists legacy_id text;
+
+update public.stock_items
+set legacy_id = id::text
+where legacy_id is null;
+
+do $
+begin
+  if exists (select 1 from public.stock_items where legacy_id is null) then
+    raise exception 'Some stock rows have no legacy ID. No rows were deleted; inspect stock_items before continuing.';
+  end if;
+end $;
+
 update public.stock_items si
 set owner_user_id = w.created_by
 from public.workspaces w
