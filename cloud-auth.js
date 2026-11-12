@@ -69,8 +69,13 @@ function setSession(session) {
       const cachedItems = cached ? JSON.parse(cached) : null;
       // Never replace a non-empty account archive with the empty list written
       // while switching accounts.
-      if (Array.isArray(cachedItems) && cachedItems.length) {
-        const archiveKey = "van-stock-pro-isolated-cache-" + (previousUserId || nextUserId || "unassigned");
+      // Only archive stock when switching away from a known signed-in account.
+      // A browser's unassigned legacy cache must never be attributed to the
+      // next account: on a first sign-in that cache may contain the admin's
+      // 62 starter items and would otherwise be imported into a new user's
+      // personal workspace.
+      if (previousUserId && Array.isArray(cachedItems) && cachedItems.length) {
+        const archiveKey = "van-stock-pro-isolated-cache-v2-" + previousUserId;
         localStorage.setItem(archiveKey, cached);
       }
     } catch {}
@@ -281,7 +286,7 @@ async function initialiseCloudStock() {
     } else if (workspace.role === "owner" && workspace.isPersonal) {
       // Import only the cache archived for this exact account on sign-in.
       // Never read the shared browser stock key for a newly invited user.
-      const local = readLocalArray("van-stock-pro-isolated-cache-" + userId);
+      const local = readLocalArray("van-stock-pro-isolated-cache-v2-" + userId);
       if (local.length) {
         await writeCloudStock(local);
         if (currentSession?.user?.id !== userId) return;
