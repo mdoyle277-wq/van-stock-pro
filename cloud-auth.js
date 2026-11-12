@@ -213,8 +213,11 @@ async function getMyStockWorkspace() {
   // Prefer a personal workspace if one exists. If the account only has a
   // shared workspace membership, owner_user_id + RLS still isolate its rows.
   const personal = (workspaces || []).find(row => row.created_by === userId);
-  const membership = personal
+  const personalMembership = personal
     ? memberships.find(row => row.workspace_id === personal.id)
+    : null;
+  const membership = personalMembership?.role !== "viewer" && personalMembership
+    ? personalMembership
     : memberships.find(row => row.role !== "viewer");
   if (!membership) throw new Error("This account has view-only access and cannot change stock.");
   return { id: membership.workspace_id, role: membership.role };
