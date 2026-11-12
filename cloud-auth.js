@@ -50,6 +50,8 @@ function setSession(session) {
   currentSession = session;
   if (previousUserId !== nextUserId) {
     activeStockWorkspaceId = null;
+    activeWorkspaceId = null; activeWorkspaceRole = null;
+    document.body.classList.add("cloud-loading");
     workspaceImport.hidden = true;
     window.VSP_STOCK_BRIDGE?.setItems([]);
     try { localStorage.setItem("van-stock-pro-movements-v2","[]"); localStorage.setItem("van-stock-pro-usage-v1","[]"); } catch {}
@@ -210,33 +212,61 @@ async function syncWorkspaceItems(list,workspaceId=activeStockWorkspaceId){
 async function loadWorkspaceStock(){
  if(!currentSession?.user)return;
  const userId=currentSession.user.id;
- const {data:members,error:me}=await supabase.from("workspace_members").select("workspace_id,role").eq("user_id",userId).limit(1);
+ document.body.classList.add("cloud-loading");
+ const {data:members,error:me}=await supabase.from("workspace_members")
+   .select("workspace_id,role,created_at").eq("user_id",userId)
+   .order("created_at",{ascending:true}).limit(20);
  if(me)throw me;
  if(currentSession?.user?.id!==userId)return;
- if(!members?.length){activeStockWorkspaceId=null;workspaceImport.hidden=true;window.VSP_STOCK_BRIDGE?.setItems([]);cloudStockMessage("No workspace access is assigned to this account. Ask your administrator to authorise your account.","warning");return;}
- const membership=members[0]; activeStockWorkspaceId=membership.workspace_id;
- const {data:ws,error:we}=await supabase.from("workspaces").select("created_at").eq("id",activeStockWorkspaceId).single();
- if(we)throw we;
+ if(!members?.length){
+  activeStockWorkspaceId=null;workspaceImport.hidden=true;
+  window.VSP_STOCK_BRIDGE?.setItems([]);
+  cloudStockMessage("No workspace is assigned to this account. Ask the administrator to authorise you, or create your own workspace.","warning");
+  document.body.classList.remove("cloud-loading");
+  return;
+ }
+ const workspaceIds=[...new Set(members.map(m=>m.workspace_id))];
+ const {data:workspaces,error:workspaceError}=await supabase.from("workspaces")
+   .select("id,created_by,name").in("id",workspaceIds);
+ if(workspaceError)throw workspaceError;
+ // If this account created a personal workspace, prefer it over any separately shared admin workspace.
+ const ownedWorkspace=(workspaces||[]).find(w=>w.created_by===userId);
+ const membership=ownedWorkspace
+   ? members.find(m=>m.workspace_id===ownedWorkspace.id)
+   : members[0];
+ activeStockWorkspaceId=membership.workspace_id;
+ const selectedWorkspace=(workspaces||[]).find(w=>w.id===activeStockWorkspaceId);
+ if(currentSession?.user?.id!==userId)return;
  workspaceImportAllowed=["owner","admin"].includes(membership.role);
- const {data:rows,error}=await supabase.from("stock_items").select("id,legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes,photo_path").eq("workspace_id",activeStockWorkspaceId).order("name");
+ const {data:rows,error}=await supabase.from("stock_items")
+   .select("id,legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes,photo_path")
+   .eq("workspace_id",activeStockWorkspaceId).order("name");
  if(error)throw error;
  if(currentSession?.user?.id!==userId)return;
  const list=[];
  for(const row of rows||[]){
   let photo="";
-  if(row.photo_path){const {data:signed,error:photoError}=await supabase.storage.from("van-stock-item-photos").createSignedUrl(row.photo_path,3600);if(!photoError)photo=signed?.signedUrl||"";}
-  list.push({id:String(row.legacy_id||row.id),name:row.name||"",sku:row.sku||"",barcode:row.barcode||"",category:row.category||"",qty:Number(row.qty)||0,minQty:Number(row.min_qty)||0,maxQty:row.max_qty==null?null:Number(row.max_qty),location:row.location||"",supplier:row.supplier||"",supplierUrl:row.supplier_url||"",notes:row.notes||"",photo});
+  if(row.photo_path){
+   const {data:signed,error:photoError}=await supabase.storage.from("van-stock-item-photos").createSignedUrl(row.photo_path,3600);
+   if(!photoError)photo=signed?.signedUrl||"";
+  }
+  list.push({id:String(row.legacy_id||row.id),name:row.name||"",sku:row.sku||"",barcode:row.barcode||"",
+   category:row.category||"",qty:Number(row.qty)||0,minQty:Number(row.min_qty)||0,
+   maxQty:row.max_qty==null?null:Number(row.max_qty),location:row.location||"",supplier:row.supplier||"",
+   supplierUrl:row.supplier_url||"",notes:row.notes||"",photo});
  }
  window.VSP_STOCK_BRIDGE?.setItems(list);
  workspaceImport.hidden=!!list.length||!workspaceImportAllowed;
- cloudStockMessage(list.length?"Workspace stock loaded: "+list.length+" item(s).":"Workspace is empty. It will not be filled with starter stock from another account.","success");
+ cloudStockMessage("Workspace: "+(selectedWorkspace?.name||"Van Stock Pro")+". Loaded "+list.length+" stock item(s) from "+(ownedWorkspace?"your own workspace":"your authorised workspace")+".","success");
  const [moves,usage]=await Promise.all([
   supabase.from("stock_movements").select("legacy_id,legacy_item_id,item_name,sku,action,change_qty,balance_after,note,created_at").eq("workspace_id",activeStockWorkspaceId).order("created_at",{ascending:false}).limit(1000),
   supabase.from("job_usage").select("legacy_id,legacy_item_id,item_name,sku,quantity,job_reference,notes,created_at").eq("workspace_id",activeStockWorkspaceId).order("created_at",{ascending:false}).limit(2000)
  ]);
  if(moves.error)throw moves.error;if(usage.error)throw usage.error;
+ if(currentSession?.user?.id!==userId)return;
  localStorage.setItem("van-stock-pro-movements-v2",JSON.stringify((moves.data||[]).map(x=>({id:x.legacy_id,date:x.created_at,itemId:x.legacy_item_id||"",itemName:x.item_name||"",sku:x.sku||"",action:x.action||"adjustment",change:Number(x.change_qty)||0,balance:Number(x.balance_after)||0,note:x.note||""}))));
  localStorage.setItem("van-stock-pro-usage-v1",JSON.stringify((usage.data||[]).map(x=>({id:x.legacy_id,date:x.created_at,usageDate:String(x.created_at||"").slice(0,10),job:x.job_reference||"",itemId:x.legacy_item_id||"",itemName:x.item_name||"",sku:x.sku||"",quantity:Number(x.quantity)||0,notes:x.notes||""}))));
+ document.body.classList.remove("cloud-loading");
 }
 window.addEventListener("vsp-stock-save",e=>{const snapshot=e.detail?.items?.map(x=>({...x}));const wid=activeStockWorkspaceId;stockQueue=stockQueue.then(()=>syncWorkspaceItems(snapshot,wid)).catch(err=>cloudStockMessage("Stock is saved on this phone, but cloud sync failed: "+err.message,"error"));});
 async function syncActivity(table,entry,wid,userId){
@@ -336,15 +366,21 @@ async function refreshAccessPanel() {
   }
   try {
     const { data: mine, error: mineError } = await supabase.from("workspace_members")
-      .select("workspace_id, role").eq("user_id", currentSession.user.id)
-      .order("created_at", { ascending: true }).limit(1);
+      .select("workspace_id, role, created_at").eq("user_id", currentSession.user.id)
+      .order("created_at", { ascending: true }).limit(20);
     if (mineError) throw mineError;
-    if (!mine?.length || !["owner", "admin"].includes(mine[0].role)) {
-      accessPanel.hidden = true; activeWorkspaceId = null;
-      activeWorkspaceRole = mine?.[0]?.role || null; return;
+    if (!mine?.length) { accessPanel.hidden = true; activeWorkspaceId = null; activeWorkspaceRole = null; return; }
+    const ids = [...new Set(mine.map(m => m.workspace_id))];
+    const { data: owned, error: ownedError } = await supabase.from("workspaces")
+      .select("id, created_by").in("id", ids);
+    if (ownedError) throw ownedError;
+    const own = (owned || []).find(w => w.created_by === currentSession.user.id);
+    const selected = own ? mine.find(m => m.workspace_id === own.id) : mine[0];
+    if (!["owner", "admin"].includes(selected.role)) {
+      accessPanel.hidden = true; activeWorkspaceId = null; activeWorkspaceRole = selected.role; return;
     }
-    activeWorkspaceId = mine[0].workspace_id;
-    activeWorkspaceRole = mine[0].role;
+    activeWorkspaceId = selected.workspace_id;
+    activeWorkspaceRole = selected.role;
     accessPanel.hidden = false;
     accessRoleLabel.textContent = mine[0].role.toUpperCase();
     const adminOption = $("accessRole")?.querySelector('option[value="admin"]');
