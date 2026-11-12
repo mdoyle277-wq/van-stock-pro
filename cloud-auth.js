@@ -109,7 +109,7 @@ window.addEventListener("vsp-stock-save", event => {
 });
 workspaceImportButton.addEventListener("click", async () => {
   if (!currentWorkspaceId || !window.VSP_STOCK_BRIDGE) return;
-  const items = window.VSP_STOCK_BRIDGE.getItems();
+  const items = window.VSP_STOCK_BRIDGE.getPreCloudItems();
   if (!items.length) return message("There is no existing device stock to import.", "warning");
   if (!confirm("Import " + items.length + " items from this device into this empty workspace? This does not overwrite any other workspace.")) return;
   workspaceImportButton.disabled = true;
@@ -175,7 +175,8 @@ async function runAuth(action) {
       if (error) throw error;
       setSession(data.session);
       message("Signed in. Checking your workspace setup…");
-      await checkSchema();
+      const ready = await checkSchema();
+      if (ready) await loadWorkspaceStock();
     }
   } catch (error) {
     message(error?.message || "Authentication failed.", "error");
@@ -201,7 +202,7 @@ setupButton.addEventListener("click", async () => {
       .from("workspace_members").select("workspace_id, role").eq("user_id", uid).limit(1);
     if (memberError) throw memberError;
     if (memberships?.length) {
-      message("Workspace is ready. Your local stock has not been migrated. The next step is a reviewed import preview.", "success");
+      await loadWorkspaceStock();
       return;
     }
     const { data: owned, error: ownedError } = await supabase.from("workspaces").select("id").eq("created_by", uid).order("created_at", { ascending: true }).limit(1);
