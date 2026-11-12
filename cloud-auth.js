@@ -220,7 +220,7 @@ async function getMyStockWorkspace() {
     ? personalMembership
     : memberships.find(row => row.role !== "viewer");
   if (!membership) throw new Error("This account has view-only access and cannot change stock.");
-  return { id: membership.workspace_id, role: membership.role };
+  return { id: membership.workspace_id, role: membership.role, isPersonal: !!personal && membership.workspace_id === personal.id };
 }
 async function writeCloudStock(items) {
   if (!stockWorkspaceId || !currentSession?.user) throw new Error("Cloud workspace is not ready.");
@@ -271,7 +271,7 @@ async function initialiseCloudStock() {
     if (cloudItems.length) {
       window.__VSP_APPLY_CLOUD_STOCK(cloudItems);
       message("Your private cloud stock loaded and verified: " + cloudItems.length + " item(s).", "success");
-    } else if (workspace.role === "owner") {
+    } else if (workspace.role === "owner" && workspace.isPersonal) {
       // Import only the cache archived for this exact account on sign-in.
       // Never read the shared browser stock key for a newly invited user.
       const local = readLocalArray("van-stock-pro-isolated-cache-" + userId);
