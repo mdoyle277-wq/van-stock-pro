@@ -208,9 +208,6 @@ setupButton.addEventListener("click", async () => {
 supabase.auth.onAuthStateChange((_event, session) => {
   setSession(session);
 });
-const { data: initial } = await supabase.auth.getSession();
-setSession(initial.session);
-if (initial.session) { const schemaReady = await checkSchema(); if (schemaReady) await refreshAccessPanel(); }
 
  
 // Workspace access management. Uses the existing RLS-protected membership
@@ -315,3 +312,11 @@ $("accessAddUser")?.addEventListener("click", async () => {
     accessNotice("Could not authorise this user: " + (error?.message || "Check that the account exists and the database policies are installed."), "error");
   } finally { button.disabled = false; }
 });
+
+// Restore the saved session only after the access-management panel is initialised.
+const { data: initial } = await supabase.auth.getSession();
+setSession(initial.session);
+if (initial.session) {
+  const schemaReady = await checkSchema();
+  if (schemaReady) await refreshAccessPanel();
+}
