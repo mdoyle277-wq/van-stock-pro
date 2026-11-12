@@ -36,27 +36,8 @@ function cloudStockErrorDetail(error) {
   }
   return detail;
 }
-const INACTIVITY_LIMIT_MS = 2 * 60 * 1000;
-let inactivityTimer = null;
-function clearInactivityTimer() {
-  if (inactivityTimer !== null) window.clearTimeout(inactivityTimer);
-  inactivityTimer = null;
-}
-async function signOutForInactivity() {
-  clearInactivityTimer();
-  if (!currentSession?.user) return;
-  message("Signed out after 2 minutes without keyboard activity. Sign in again to continue.", "warning");
-  const { error } = await supabase.auth.signOut();
-  if (error) message("Automatic sign-out failed: " + error.message, "error");
-}
-function resetInactivityTimer() {
-  if (!currentSession?.user) return;
-  clearInactivityTimer();
-  inactivityTimer = window.setTimeout(signOutForInactivity, INACTIVITY_LIMIT_MS);
-}
-["keydown"].forEach((eventName) => {
-  window.addEventListener(eventName, resetInactivityTimer, { passive: true });
-});
+// Supabase manages session expiry and token refresh; do not force-sign-out
+// active mobile users merely because they are tapping rather than typing.
 function setSession(session) {
   const previousUserId = currentSession?.user?.id || null;
   const nextUserId = session?.user?.id || null;
@@ -91,8 +72,6 @@ function setSession(session) {
   const miniSignIn = $("cloudSignInMini");
   if (miniSignOut) { const show = !!session?.user; miniSignOut.hidden = !show; miniSignOut.classList.toggle("is-hidden", !show); miniSignOut.style.setProperty("display", show ? "inline-flex" : "none", "important"); miniSignOut.disabled = !show; miniSignOut.title = "Sign out"; }
   if (miniSignIn) { const show = !session?.user; miniSignIn.hidden = !show; miniSignIn.classList.toggle("is-hidden", !show); miniSignIn.style.setProperty("display", show ? "inline-flex" : "none", "important"); miniSignIn.disabled = !show; miniSignIn.title = "Open sign-in fields below the title"; }
-  if (session?.user) resetInactivityTimer();
-  else clearInactivityTimer();
   const user = session?.user;
   sessionLabel.textContent = user ? "Signed in as " + user.email : "Not signed in";
   signInButton.hidden = !!user;
