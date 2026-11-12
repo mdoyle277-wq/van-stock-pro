@@ -58,6 +58,8 @@ jobs:
             'Cloud stock saved and verified',
             'count !== items.length',
             'CLOUD SAVE FAILED',
+            'Saving stock to the cloud',
+            'beforeunload',
             'event === "INITIAL_SESSION"',
             'const personal =',
             'van-stock-pro-isolated-cache-" + userId',
