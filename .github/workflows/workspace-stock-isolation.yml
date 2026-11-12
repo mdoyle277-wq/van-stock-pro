@@ -1,0 +1,66 @@
+name: Workspace stock isolation checks
+on:
+  push:
+    branches:
+      - fix/main-workspace-stock-isolation
+  pull_request:
+    branches:
+      - main
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check cloud authentication module syntax
+        run: node --input-type=module --check < cloud-auth.js
+      - name: Check every inline JavaScript block
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import subprocess, sys
+          class Scripts(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.in_script=False; self.current=[]; self.blocks=[]
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower()=="script":
+                      self.in_script=True; self.current=[]
+              def handle_data(self, data):
+                  if self.in_script: self.current.append(data)
+              def handle_endtag(self, tag):
+                  if tag.lower()=="script" and self.in_script:
+                      source="".join(self.current).strip()
+                      if source: self.blocks.append(source)
+                      self.in_script=False
+          parser=Scripts(); parser.feed(Path("index.html").read_text(encoding="utf-8"))
+          if not parser.blocks: raise SystemExit("No inline JavaScript blocks found")
+          for number, source in enumerate(parser.blocks, 1):
+              result=subprocess.run(["node","--input-type=module","--check"],input=source,text=True,capture_output=True)
+              if result.returncode:
+                  print(f"Inline script {number} failed syntax check:\n{result.stderr}",file=sys.stderr)
+                  raise SystemExit(result.returncode)
+          print(f"PASS: {len(parser.blocks)} inline JavaScript block(s)")
+          PY
+      - name: Check workspace isolation guardrails
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          html=Path("index.html").read_text()
+          auth=Path("cloud-auth.js").read_text()
+          required=[
+            "body class=\"cloud-loading\"",
+            "window.VSP_STOCK_BRIDGE",
+            "getPreCloudItems",
+            "async function loadWorkspaceStock()",
+            '.eq("workspace_id",activeStockWorkspaceId)',
+            'w.created_by===userId',
+            'window.addEventListener("vsp-stock-save"',
+          ]
+          for marker in required:
+            source=html if marker in html else auth
+            if marker not in source: raise SystemExit("Missing isolation guardrail: "+marker)
+          print("PASS: workspace-scoped load/save and personal-workspace preference are present")
+          PY
