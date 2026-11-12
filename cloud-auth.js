@@ -323,6 +323,7 @@ setupButton.addEventListener("click", async () => {
     if (memberships?.length) {
       message("Workspace is ready. Your local stock has not been migrated. The next step is a reviewed import preview.", "success");
       await refreshAccessPanel();
+      await initialiseCloudStock();
       return;
     }
     const { data: workspace, error: workspaceError } = await supabase
@@ -337,6 +338,7 @@ setupButton.addEventListener("click", async () => {
     }
     message("Van Stock Pro workspace created. No stock data was uploaded or changed. Next: build and test the backup import preview.", "success");
     await refreshAccessPanel();
+    await initialiseCloudStock();
   } catch (error) {
     message(error?.message || "Workspace setup failed.", "error");
   } finally {
@@ -456,5 +458,8 @@ const { data: initial } = await supabase.auth.getSession();
 setSession(initial.session);
 if (initial.session) {
   const schemaReady = await checkSchema();
-  if (schemaReady) await refreshAccessPanel();
+  if (schemaReady) {
+    await refreshAccessPanel();
+    await initialiseCloudStock();
+  }
 }
