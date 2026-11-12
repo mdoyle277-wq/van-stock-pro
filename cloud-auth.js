@@ -241,7 +241,8 @@ setupButton.addEventListener("click", async () => {
       // Keep the created workspace for diagnosis; do not delete anything automatically.
       throw new Error("Workspace " + (createdNow ? "was created" : "was recovered") + " but owner membership did not finish: " + membershipError.message);
     }
-    await loadWorkspaceStock();\n    message((createdNow ? "Van Stock Pro workspace created." : "Existing Van Stock Pro workspace recovered.") + " Your workspace stock is now isolated.", "success");
+    await loadWorkspaceStock();
+    message((createdNow ? "Van Stock Pro workspace created." : "Existing Van Stock Pro workspace recovered.") + " Your workspace stock is now isolated.", "success");
   } catch (error) {
     message(error?.message || "Workspace setup failed.", "error");
   } finally {
