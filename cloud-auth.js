@@ -230,6 +230,7 @@ async function loadWorkspaceStock(){
  if(!currentSession?.user)return;
  const userId=currentSession.user.id;
  document.body.classList.add("cloud-loading");
+ try {
  const {data:members,error:me}=await supabase.from("workspace_members")
    .select("workspace_id,role,created_at").eq("user_id",userId)
    .order("created_at",{ascending:true}).limit(20);
@@ -291,6 +292,9 @@ async function loadWorkspaceStock(){
  localStorage.setItem("van-stock-pro-movements-v2",JSON.stringify((moves.data||[]).map(x=>({id:x.legacy_id,date:x.created_at,itemId:x.legacy_item_id||"",itemName:x.item_name||"",sku:x.sku||"",action:x.action||"adjustment",change:Number(x.change_qty)||0,balance:Number(x.balance_after)||0,note:x.note||""}))));
  localStorage.setItem("van-stock-pro-usage-v1",JSON.stringify((usage.data||[]).map(x=>({id:x.legacy_id,date:x.created_at,usageDate:String(x.created_at||"").slice(0,10),job:x.job_reference||"",itemId:x.legacy_item_id||"",itemName:x.item_name||"",sku:x.sku||"",quantity:Number(x.quantity)||0,notes:x.notes||""}))));
  document.body.classList.remove("cloud-loading");
+ } finally {
+  if(currentSession?.user?.id===userId) document.body.classList.remove("cloud-loading");
+ }
 }
 window.addEventListener("vsp-stock-save",e=>{
  const snapshot=Array.isArray(e.detail?.items)?e.detail.items.map(x=>({...x})):null;
