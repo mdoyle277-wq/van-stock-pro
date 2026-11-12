@@ -90,7 +90,7 @@ async function runAuth(action) {
       const { data, error } = await supabase.auth.signUp({ email: mail, password: pass });
       if (error) throw error;
       setSession(data.session);
-      if (data.session) await refreshAccessPanel();
+      if (data.session) { await refreshWorkspaceStock(); await refreshAccessPanel(); }
       message(data.session
         ? "Account created and signed in. Next, initialise your Van Stock Pro workspace."
         : "Account created. Check your email to confirm the account, then sign in here.");
@@ -100,7 +100,7 @@ async function runAuth(action) {
       setSession(data.session);
       message("Signed in. Checking your workspace setup…");
       const schemaReady = await checkSchema();
-      if (schemaReady) await refreshAccessPanel();
+      if (schemaReady) { await refreshWorkspaceStock(); await refreshAccessPanel(); }
     }
   } catch (error) {
     message(error?.message || "Authentication failed.", "error");
@@ -166,6 +166,7 @@ signOutButton.addEventListener("click", async () => {
   const { error } = await supabase.auth.signOut();
   if (error) message(error.message, "error");
   else {
+    window.VSP_CLOUD_READY=false; window.VSP_CLOUD_SAVE=null; document.body.classList.add("cloud-loading");
     setSession(null);
     email.value = "";
     password.value = "";
@@ -183,7 +184,8 @@ setupButton.addEventListener("click", async () => {
       .from("workspace_members").select("workspace_id, role").eq("user_id", uid).limit(1);
     if (memberError) throw memberError;
     if (memberships?.length) {
-      message("Workspace is ready. Your local stock has not been migrated. The next step is a reviewed import preview.", "success");
+      await refreshWorkspaceStock();
+      message("Workspace is ready. Your stock is loaded from your own workspace.", "success");
       await refreshAccessPanel();
       return;
     }
@@ -197,7 +199,8 @@ setupButton.addEventListener("click", async () => {
       // Keep the created workspace for diagnosis; do not delete anything automatically.
       throw new Error("Workspace was created but owner membership did not finish: " + membershipError.message);
     }
-    message("Van Stock Pro workspace created. No stock data was uploaded or changed. Next: build and test the backup import preview.", "success");
+    await refreshWorkspaceStock();
+    message("Your empty Van Stock Pro workspace is ready. Administrator stock has not been copied into it.", "success");
     await refreshAccessPanel();
   } catch (error) {
     message(error?.message || "Workspace setup failed.", "error");
@@ -218,6 +221,73 @@ const accessBody = $("accessMembersBody");
 const accessRoleLabel = $("accessRoleLabel");
 let activeWorkspaceId = null;
 let activeWorkspaceRole = null;
+let knownCloudLegacyIds = new Set();
+let cloudSaveQueue = Promise.resolve();
+
+function cloudRowToItem(row) {
+  return { id:String(row.legacy_id ?? row.id), name:row.name||"", sku:row.sku||"",
+    barcode:row.barcode||"", category:row.category||"Other", qty:Number(row.qty||0),
+    minQty:Number(row.min_qty||0), maxQty:row.max_qty==null?null:Number(row.max_qty),
+    location:row.location||"", supplier:row.supplier||"", supplierUrl:row.supplier_url||"", photo:"" };
+}
+async function refreshWorkspaceStock() {
+  document.body.classList.add("cloud-loading");
+  window.VSP_CLOUD_READY=false; window.VSP_CLOUD_SAVE=null;
+  if (!currentSession?.user) {
+    activeWorkspaceId=null; activeWorkspaceRole=null; knownCloudLegacyIds=new Set();
+    window.VSP_SET_ITEMS?.([]); document.body.classList.remove("cloud-loading"); return;
+  }
+  const {data:memberships,error:memberErr}=await supabase.from("workspace_members")
+    .select("workspace_id,role,created_at").eq("user_id",currentSession.user.id)
+    .order("created_at",{ascending:true}).limit(10);
+  if(memberErr) throw memberErr;
+  const membership=(memberships||[]).find(m=>["owner","admin","member","viewer"].includes(m.role));
+  if(!membership) {
+    activeWorkspaceId=null; activeWorkspaceRole=null; knownCloudLegacyIds=new Set();
+    window.VSP_SET_ITEMS?.([]);
+    message("Your account is signed in, but it has no workspace yet. Tap Set up workspace to create your own empty stock area. Administrator stock will not be copied into it.","success");
+    document.body.classList.remove("cloud-loading"); return;
+  }
+  activeWorkspaceId=membership.workspace_id; activeWorkspaceRole=membership.role;
+  const {data:workspace,error:wsErr}=await supabase.from("workspaces")
+    .select("id,name").eq("id",activeWorkspaceId).maybeSingle();
+  if(wsErr) throw wsErr;
+  const {data:rows,error:stockErr}=await supabase.from("stock_items")
+    .select("*").eq("workspace_id",activeWorkspaceId).order("name",{ascending:true}).range(0,999);
+  if(stockErr) throw stockErr;
+  const items=(rows||[]).map(cloudRowToItem);
+  knownCloudLegacyIds=new Set(items.map(item=>String(item.id)));
+  window.VSP_ACTIVE_USER_KEY="van-stock-pro-items-user-"+currentSession.user.id;
+  window.VSP_SET_ITEMS?.(items);
+  window.VSP_CLOUD_SAVE=(nextItems)=>{
+    if(!activeWorkspaceId||activeWorkspaceRole==="viewer") throw new Error("This account has read-only stock access.");
+    const workspaceId=activeWorkspaceId, next=Array.isArray(nextItems)?nextItems:[];
+    const nextIds=new Set(next.map(item=>String(item.id)));
+    const payload=next.map(item=>({workspace_id:workspaceId,legacy_id:String(item.id),
+      name:String(item.name||"").trim(),sku:String(item.sku||""),barcode:String(item.barcode||""),
+      category:String(item.category||"Other"),qty:Number(item.qty||0),min_qty:Number(item.minQty||0),
+      max_qty:item.maxQty==null||item.maxQty===""?null:Number(item.maxQty),
+      location:String(item.location||""),supplier:String(item.supplier||""),
+      supplier_url:String(item.supplierUrl||""),notes:String(item.notes||item.description||"")}));
+    cloudSaveQueue=cloudSaveQueue.then(async()=>{
+      for(let i=0;i<payload.length;i+=50){
+        const {error}=await supabase.from("stock_items").upsert(payload.slice(i,i+50),{onConflict:"workspace_id,legacy_id"});
+        if(error) throw error;
+      }
+      const removed=[...knownCloudLegacyIds].filter(id=>!nextIds.has(id));
+      for(let i=0;i<removed.length;i+=100){
+        const {error}=await supabase.from("stock_items").delete().eq("workspace_id",workspaceId).in("legacy_id",removed.slice(i,i+100));
+        if(error) throw error;
+      }
+      knownCloudLegacyIds=nextIds; return true;
+    });
+    return cloudSaveQueue;
+  };
+  window.VSP_CLOUD_READY=true;
+  message("Workspace: "+(workspace?.name||"Van Stock Pro")+". Loaded "+items.length+" stock item(s) for your account only.","success");
+  document.body.classList.remove("cloud-loading");
+  if(activeWorkspaceRole==="viewer") document.querySelectorAll("#entryPanel input,#entryPanel select,#entryPanel button,#stockPanel [data-adjust],#stockPanel [data-edit],#stockPanel [data-usejob]").forEach(el=>{el.disabled=true;});
+}
 function accessNotice(text, kind = "info") {
   if (!accessMessage) return;
   accessMessage.textContent = text;
@@ -318,5 +388,5 @@ const { data: initial } = await supabase.auth.getSession();
 setSession(initial.session);
 if (initial.session) {
   const schemaReady = await checkSchema();
-  if (schemaReady) await refreshAccessPanel();
-}
+  if (schemaReady) { try { await refreshWorkspaceStock(); await refreshAccessPanel(); } catch (error) { message("Could not safely load your workspace stock: " + (error?.message || "Unknown error") + ". The stock screen remains locked to prevent another user's data appearing.", "error"); } }
+} else { document.body.classList.remove("cloud-loading"); }
