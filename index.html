@@ -104,6 +104,17 @@ body.cloud-authenticated::before{display:none!important;content:none!important}
   <div class="notice" id="cloudMessage" role="status" aria-live="polite">Sign in with the account you created in Supabase. If email confirmation is required, confirm it first. Stock has not been uploaded.</div>
   <div class="notice" id="cloudPreviewResult" role="status" aria-live="polite" hidden></div>
 </section>
+<section class="panel" id="userAccessPanel" hidden style="margin:0 0 16px">
+  <div class="panelhead"><div><h2>👥 Manage app access</h2><div class="sub">Only workspace owners and admins can manage access.</div></div><span class="pill" id="accessRoleLabel">Access</span></div>
+  <div class="notice" id="accessMessage" role="status" aria-live="polite">Loading workspace members…</div>
+  <div class="formgrid" style="margin-top:12px">
+    <div class="full"><label class="fieldlabel" for="accessUserId">New user's Supabase User ID</label><input class="field" id="accessUserId" autocomplete="off" placeholder="Paste the user's UUID from Supabase Authentication → Users"></div>
+    <div><label class="fieldlabel" for="accessRole">Permission level</label><select class="field" id="accessRole"><option value="member">Member — can use and edit stock</option><option value="viewer">Viewer — read-only access</option><option value="admin">Admin — manage stock and basic users</option></select></div>
+    <div style="display:flex;align-items:end"><button type="button" id="accessAddUser">Authorise user</button></div>
+  </div>
+  <div class="notice">The person must create and confirm their Van Stock Pro account first. Copy their User ID from Supabase → Authentication → Users. Email invitations are not enabled yet; passwords and service keys are never exposed here.</div>
+  <div class="tablewrap" style="margin-top:12px"><table style="min-width:520px"><thead><tr><th>Account User ID</th><th>Role</th><th>Added</th><th>Action</th></tr></thead><tbody id="accessMembersBody"><tr><td colspan="4">Loading…</td></tr></tbody></table></div>
+</section>
 <section class="stats">
 <div class="stat mint selected-photo-card"><div class="label">SELECTED ITEM</div><div class="selected-photo-tile" id="selectedPhotoTile"><div class="selected-photo-placeholder">📦</div></div><div class="selected-photo-name" id="selectedPhotoName">Select an item below</div><div class="hint" id="selectedPhotoDetails">Item photo and details will appear here</div></div>
 <div class="stat"><div class="label">SKU COUNT</div><div class="num" id="skuCount">0</div><div class="hint">Unique stock lines</div></div>
@@ -250,4 +261,4 @@ $('backupCodeBtn').addEventListener('click',()=>{try{downloadVanFile('van-stock-
 $('restoreCodeBtn').addEventListener('click',()=>$('restoreCodeFile').click());
 $('restoreCodeFile').addEventListener('change',async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{const html=await file.text();if(!/Van Stock Pro/i.test(html)||!/<html[\\s>]/i.test(html)||!/<script[\\s>]/i.test(html))throw new Error('Choose a valid Van Stock Pro HTML functionality backup.');if(!confirm('Prepare this app functionality backup as index.html? This downloads a replacement file but does not change the live website automatically. To publish it, replace index.html in your GitHub repository.'))return;downloadVanFile('index.html',html,'text/html;charset=utf-8');$('backupStatus').textContent='Replacement index.html prepared. To restore the live app, upload this file to the repository and commit the change.';toast('Replacement app file prepared')}catch(err){$('backupStatus').textContent='App restore failed: '+err.message;toast('App restore failed')}finally{e.target.value=''}});
 render();if(items.length){const savedWithPhoto=items.find(i=>i.photo);showSelectedItem(savedWithPhoto||items[0])}
-</script><script type="module" src="./cloud-auth.js?v=account-polish-1"></script></body></html>
+</script><script type="module" src="./cloud-auth.js?v=user-access-1"></script></body></html>
