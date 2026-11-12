@@ -67,6 +67,7 @@ jobs:
             'van-stock-pro-isolated-cache-" + userId',
             'clearCloudLoadingWithEmptyStock',
             'CLOUD STOCK NOT READY',
+            'cloudStockErrorDetail',
           ]
           required_app=[
             'window.__VSP_CLOUD_READY=true;',
