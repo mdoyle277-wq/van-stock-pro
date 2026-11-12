@@ -23,6 +23,12 @@ function message(text, kind = "info") {
   status.textContent = text;
   status.dataset.kind = kind;
 }
+function clearCloudLoadingWithEmptyStock() {
+  if (typeof window.__VSP_APPLY_CLOUD_STOCK === "function") {
+    try { window.__VSP_APPLY_CLOUD_STOCK([]); } catch {}
+  }
+  document.body.classList.remove("cloud-loading");
+}
 const INACTIVITY_LIMIT_MS = 2 * 60 * 1000;
 let inactivityTimer = null;
 function clearInactivityTimer() {
@@ -61,6 +67,7 @@ function setSession(session) {
         localStorage.setItem(archiveKey, cached);
       }
     } catch {}
+    document.body.classList.add("cloud-loading");
     stockSyncReady = false;
     stockWorkspaceId = null;
     if (typeof window.__VSP_APPLY_CLOUD_STOCK === "function") {
@@ -87,6 +94,7 @@ function setSession(session) {
 async function checkSchema() {
   const { error: workspaceError } = await supabase.from("workspaces").select("id").limit(1);
   if (workspaceError) {
+    clearCloudLoadingWithEmptyStock();
     message("Workspace database check failed: " + (workspaceError.message || "Unknown error") + ". No cloud stock was changed.", "error");
     return false;
   }
@@ -95,8 +103,10 @@ async function checkSchema() {
   if (stockError) {
     const detail = stockError.message || "Unknown stock schema error";
     if (/owner_user_id|legacy_id|column .* does not exist|schema cache/i.test(detail)) {
+      clearCloudLoadingWithEmptyStock();
       message("CLOUD STOCK NOT READY — the per-user stock migration is missing. Run supabase/migrations/20261112_user_stock_cloud_sync.sql in Supabase SQL Editor before adding stock. Existing stock rows are retained; do not run a reset or delete script.", "error");
     } else {
+      clearCloudLoadingWithEmptyStock();
       message("Stock database check failed: " + detail + ". No cloud stock was changed.", "error");
     }
     return false;
@@ -275,10 +285,14 @@ async function initialiseCloudStock() {
       window.__VSP_APPLY_CLOUD_STOCK([]);
       message("Your private stock is empty. The administrator's stock is kept separate.", "success");
     }
-    if (currentSession?.user?.id === userId) stockSyncReady = true;
+    if (currentSession?.user?.id === userId) {
+      stockSyncReady = true;
+      document.body.classList.remove("cloud-loading");
+    }
   } catch (error) {
     if (currentSession?.user?.id === userId) {
       stockSyncReady = false;
+      clearCloudLoadingWithEmptyStock();
       message("CLOUD STOCK NOT READY — local data has been left untouched. " + (error?.message || "Unknown sync error"), "error");
     }
   }
