@@ -144,11 +144,11 @@ function setSession(session) {
   const previousUserId = currentSession?.user?.id || null;
   const nextUserId = session?.user?.id || null;
   currentSession = session;
-  if (previousUserId && previousUserId !== nextUserId) {
+  if (previousUserId !== nextUserId) {
     currentWorkspaceId = null;
     legacyImportAllowed = false;
     workspaceImportButton.hidden = true;
-    if (!nextUserId && window.VSP_STOCK_BRIDGE) window.VSP_STOCK_BRIDGE.setItems([]);
+    if (window.VSP_STOCK_BRIDGE) window.VSP_STOCK_BRIDGE.setItems([]);
   }
   const user = session?.user;
   sessionLabel.textContent = user ? "Signed in as " + user.email : "Not signed in";
