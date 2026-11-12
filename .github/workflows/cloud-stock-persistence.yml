@@ -83,5 +83,5 @@ jobs:
             if marker not in app: raise SystemExit("Missing app safeguard: "+marker)
           for marker in ['add column if not exists owner_user_id','set legacy_id = id::text','stock_items_workspace_owner_legacy_uidx','owner_user_id = auth.uid()','drop policy if exists "workspace editors can delete stock items"']:
             if marker not in sql: raise SystemExit("Missing database safeguard: "+marker)
-          print("PASS: refresh loading, account archive, empty-cloud handling, owner-scoped saves and migration safeguards")
+          print("PASS: syntax, per-user isolation, empty-cloud safety, max stock editing, requested categories and migration safeguards")
           PY
