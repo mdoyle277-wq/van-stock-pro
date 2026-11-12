@@ -194,7 +194,7 @@ async function syncWorkspaceItems(list,workspaceId=activeStockWorkspaceId){
  const rows=[];
  for(const item of list){
   const old=oldById.get(String(item.id));
-  const photoPath=await uploadItemPhoto(item,workspaceId) || old?.photo_path || null;
+  const photoPath=item.photo ? (await uploadItemPhoto(item,workspaceId) || old?.photo_path || null) : null;
   rows.push(stockToRow(item,workspaceId,photoPath));
  }
  if(rows.length){const {error}=await supabase.from("stock_items").upsert(rows,{onConflict:"workspace_id,legacy_id"});if(error)throw error;}
