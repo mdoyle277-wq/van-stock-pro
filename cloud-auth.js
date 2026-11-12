@@ -213,25 +213,30 @@ async function writeCloudStock(items) {
   if (!stockWorkspaceId || !currentSession?.user) throw new Error("Cloud workspace is not ready.");
   if (!Array.isArray(items)) throw new Error("Local stock is not a valid item list.");
   const userId = currentSession.user.id;
-  const rows = items.map(item => itemToStockRow(item, stockWorkspaceId, userId));
+  const workspaceId = stockWorkspaceId;
+  const rows = items.map(item => itemToStockRow(item, workspaceId, userId));
   if (rows.length) {
     const { error } = await supabase.from("stock_items")
       .upsert(rows, { onConflict: "workspace_id,owner_user_id,legacy_id" });
     if (error) throw error;
   }
+  if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId)
+    throw new Error("The signed-in account or workspace changed during the save. Sign in again and retry.");
   const { data: existing, error: readError } = await supabase.from("stock_items")
-    .select("legacy_id").eq("workspace_id", stockWorkspaceId).eq("owner_user_id", userId);
+    .select("legacy_id").eq("workspace_id", workspaceId).eq("owner_user_id", userId);
   if (readError) throw readError;
   const keep = new Set(items.map(item => String(item.id)));
   const remove = (existing || []).map(row => String(row.legacy_id)).filter(id => !keep.has(id));
   if (remove.length) {
     const { error } = await supabase.from("stock_items").delete()
-      .eq("workspace_id", stockWorkspaceId).eq("owner_user_id", userId).in("legacy_id", remove);
+      .eq("workspace_id", workspaceId).eq("owner_user_id", userId).in("legacy_id", remove);
     if (error) throw error;
   }
+  if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId)
+    throw new Error("The signed-in account or workspace changed during the save. Sign in again and retry.");
   const { count, error: verifyError } = await supabase.from("stock_items")
     .select("id", { count: "exact", head: true })
-    .eq("workspace_id", stockWorkspaceId).eq("owner_user_id", userId);
+    .eq("workspace_id", workspaceId).eq("owner_user_id", userId);
   if (verifyError) throw verifyError;
   if (count !== items.length) throw new Error("Cloud verification failed: expected " + items.length + " stock lines but found " + count + ".");
 }
@@ -282,17 +287,23 @@ async function runStockSync() {
   if (!stockSyncReady || !currentSession?.user || !stockWorkspaceId) return;
   if (stockSyncBusy) { stockSyncAgain = true; return; }
   stockSyncBusy = true;
+  const userId = currentSession.user.id;
+  const workspaceId = stockWorkspaceId;
   try {
     const raw = localStorage.getItem("van-stock-pro-items-v1");
     const items = raw == null ? [] : JSON.parse(raw);
     if (!Array.isArray(items)) throw new Error("Saved local stock is not a valid list.");
     await writeCloudStock(items);
+    if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId) return;
     message("Cloud stock saved and verified: " + items.length + " item(s).", "success");
   } catch (error) {
-    message("CLOUD SAVE FAILED — your local stock is still on this device. " + (error?.message || "Unknown sync error"), "error");
+    if (currentSession?.user?.id === userId) {
+      message("CLOUD SAVE FAILED — your local stock is still on this device. " + (error?.message || "Unknown sync error"), "error");
+    }
   } finally {
     stockSyncBusy = false;
-    if (stockSyncAgain) { stockSyncAgain = false; runStockSync(); }
+    if (stockSyncAgain && stockSyncReady) { stockSyncAgain = false; runStockSync(); }
+    else stockSyncAgain = false;
   }
 }
 window.addEventListener("vsp:stock-changed", () => {
