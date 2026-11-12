@@ -217,7 +217,7 @@ async function loadWorkspaceStock(){
  const membership=members[0]; activeStockWorkspaceId=membership.workspace_id;
  const {data:ws,error:we}=await supabase.from("workspaces").select("created_at").eq("id",activeStockWorkspaceId).single();
  if(we)throw we;
- workspaceImportAllowed=["owner","admin"].includes(membership.role)&&!!ws?.created_at&&ws.created_at<"2026-11-12T00:00:00Z";
+ workspaceImportAllowed=["owner","admin"].includes(membership.role);
  const {data:rows,error}=await supabase.from("stock_items").select("id,legacy_id,name,sku,barcode,category,qty,min_qty,max_qty,location,supplier,supplier_url,notes,photo_path").eq("workspace_id",activeStockWorkspaceId).order("name");
  if(error)throw error;
  if(currentSession?.user?.id!==userId)return;
