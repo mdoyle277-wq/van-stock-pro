@@ -191,9 +191,31 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 .access-summary-note{font-size:11px;font-weight:600;color:var(--muted);flex:1 1 100%;padding-left:29px}
 .access-dropdown-content{display:grid;gap:10px;padding:0 13px 14px}
 @media(max-width:600px){.access-dropdown>summary{align-items:flex-start;flex-direction:column;gap:4px;padding:13px 12px}.access-dropdown>summary:after{position:absolute;right:28px}.access-dropdown{position:relative}.access-summary-note{padding-left:29px}.access-dropdown-content{padding:0 12px 12px}.access-dropdown-content #accessAddUser{width:100%;min-height:44px}}
+
+/* Signed-in mobile tidy-up: keep the four tool groups as a clean, closed pull-down list. */
+@media(max-width:600px){
+  .home-actions,
+  body.cloud-authenticated .home-actions{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:7px!important;
+    width:100%!important;
+    margin:18px 0 14px!important;
+    align-items:stretch!important;
+  }
+  .home-group,
+  body.cloud-authenticated .home-group{width:100%!important;min-width:0!important}
+  .home-group>summary{min-height:48px!important;padding:12px 14px!important;font-size:13px!important}
+  .home-group-items{padding:0 10px 10px!important}
+  .home-group-items button{min-height:44px!important}
+  header.top{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:0!important}
+  header.top>.brand{width:100%!important;flex:0 0 auto!important}
+  header.top>.home-actions{width:100%!important;flex:0 0 auto!important}
+}
+/* Never leave a tool dropdown expanded when switching accounts or after choosing an action. */
 </style></head>
 <body><main class="wrap">
-<header class="top"><div class="brand"><img class="logo" src="./van-stock-header-logo.svg?v=1" alt="Van Stock Pro futuristic van logo"><span class="app-version" aria-label="Build number 0001">Build 0001</span><div><div class="eyebrow">Field inventory system</div><h1>Van Stock Pro</h1><div class="title-auth-actions" style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" id="cloudSignInMini" type="button">☁️ Sign in</button><button class="secondary" id="cloudSignOutMini" type="button" aria-label="Sign out of Van Stock Pro" hidden>☁️ Sign out</button></div><div class="sub">Your stock. Your van. Under control.</div></div></div><div class="actions home-actions" aria-label="Main app tools">
+<header class="top"><div class="brand"><img class="logo" src="./van-stock-header-logo.svg?v=1" alt="Van Stock Pro futuristic van logo"><span class="app-version" aria-label="Build number 0002">Build 0002</span><div><div class="eyebrow">Field inventory system</div><h1>Van Stock Pro</h1><div class="title-auth-actions" style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" id="cloudSignInMini" type="button">☁️ Sign in</button><button class="secondary" id="cloudSignOutMini" type="button" aria-label="Sign out of Van Stock Pro" hidden>☁️ Sign out</button></div><div class="sub">Your stock. Your van. Under control.</div></div></div><div class="actions home-actions" aria-label="Main app tools">
 <details class="home-group"><summary>📦 Stock</summary><div class="home-group-items"><button id="addFocusBtn">＋ Add item</button><button class="secondary" id="addSelectedTop">＋ Add selected</button><button class="secondary" id="receiveStockBtn" type="button">📦 Receive delivery</button><button class="secondary" id="stocktakeBtn" type="button">📋 Stocktake</button><button class="secondary" id="stockAlertsBtn" type="button">🔔 Stock alerts</button><button class="secondary" id="minMaxBtn" type="button">🎯 Min / max levels</button></div></details>
 <details class="home-group"><summary>🛒 Reordering</summary><div class="home-group-items"><button class="secondary" id="reorderPlannerBtn" type="button">Reorder planner</button><button class="secondary" id="emailRestockTop">Email restock</button><button class="secondary" id="exportBtn">Export stock CSV</button></div></details>
 <details class="home-group"><summary>📋 Jobs &amp; history</summary><div class="home-group-items"><button class="secondary" id="jobReportBtn" type="button">📊 Job usage report</button><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open'));">Stock history</button></div></details>
@@ -428,4 +450,24 @@ $('backupCodeBtn').addEventListener('click',()=>{try{downloadVanFile('van-stock-
 $('restoreCodeBtn').addEventListener('click',()=>$('restoreCodeFile').click());
 $('restoreCodeFile').addEventListener('change',async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{const html=await file.text();if(!/Van Stock Pro/i.test(html)||!/<html[\\s>]/i.test(html)||!/<script[\\s>]/i.test(html))throw new Error('Choose a valid Van Stock Pro HTML functionality backup.');if(!confirm('Prepare this app functionality backup as index.html? This downloads a replacement file but does not change the live website automatically. To publish it, replace index.html in your GitHub repository.'))return;downloadVanFile('index.html',html,'text/html;charset=utf-8');$('backupStatus').textContent='Replacement index.html prepared. To restore the live app, upload this file to the repository and commit the change.';toast('Replacement app file prepared')}catch(err){$('backupStatus').textContent='App restore failed: '+err.message;toast('App restore failed')}finally{e.target.value=''}});
 render();if(items.length){const savedWithPhoto=items.find(i=>i.photo);showSelectedItem(savedWithPhoto||items[0])}
+</script><script>
+/* Keep navigation predictable across sign-in state changes and menu actions. */
+(function(){
+  const groups = Array.from(document.querySelectorAll('.home-actions .home-group'));
+  function closeMenus(except){
+    groups.forEach(group=>{if(group!==except)group.open=false;});
+  }
+  groups.forEach(group=>{
+    group.addEventListener('toggle',()=>{
+      if(group.open) closeMenus(group);
+    });
+    group.addEventListener('click',event=>{
+      if(event.target.closest('.home-group-items button')) group.open=false;
+    });
+  });
+  const observer = new MutationObserver(()=>{
+    closeMenus(null);
+  });
+  observer.observe(document.body,{attributes:true,attributeFilter:['class']});
+})();
 </script><script type="module" src="./cloud-auth.js?v=20261113-admin-backup-visibility"></script></body></html>
