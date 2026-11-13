@@ -42,7 +42,8 @@ function setSession(session) {
   const previousUserId = currentSession?.user?.id || null;
   const nextUserId = session?.user?.id || null;
   currentSession = session;
-  if (previousUserId !== nextUserId) {
+  if (previousUserId !== nextUserId || !nextUserId) {
+    document.body.classList.remove("cloud-admin");
     // Preserve a local snapshot for recovery, but never display or upload it
     // as the next account's stock: browsers can be shared between accounts.
     try {
@@ -275,6 +276,8 @@ async function initialiseCloudStock() {
     const workspace = await getMyStockWorkspace();
     if (currentSession?.user?.id !== userId) return;
     stockWorkspaceId = workspace.id;
+    // Only workspace owners/admins may access app-code backup and restore.
+    document.body.classList.toggle("cloud-admin", ["owner", "admin"].includes(String(workspace.role || "").toLowerCase()));
     const { data: cloudRows, error } = await supabase.from("stock_items")
       .select("*").eq("workspace_id", stockWorkspaceId).eq("owner_user_id", userId)
       .order("name", { ascending: true });
