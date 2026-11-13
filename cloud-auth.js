@@ -216,6 +216,29 @@ async function getMyStockWorkspace() {
 async function writeCloudStock(items) {
   if (!stockWorkspaceId || !currentSession?.user) throw new Error("Cloud workspace is not ready.");
   if (!Array.isArray(items)) throw new Error("Local stock is not a valid item list.");
+  // Guard cloud writes as well as the Add Item form: legacy imports or restored
+  // local data can bypass the form-level check. Never upload duplicate SKU/location
+  // pairs, and never partially update cloud stock when the local list is ambiguous.
+  const normaliseStockKey = value => String(value || "").trim().toLowerCase().replace(/\\s+/g, " ");
+  const seenStockKeys = new Map();
+  const duplicateStockKeys = [];
+  for (const item of items) {
+    const sku = normaliseStockKey(item?.sku);
+    if (!sku) continue;
+    const location = normaliseStockKey(item?.location);
+    const key = sku + "\\u0000" + location;
+    if (seenStockKeys.has(key)) {
+      const label = String(item.sku || "").trim() + (String(item.location || "").trim() ? " @ " + String(item.location).trim() : "");
+      if (!duplicateStockKeys.includes(label)) duplicateStockKeys.push(label);
+    } else {
+      seenStockKeys.set(key, true);
+    }
+  }
+  if (duplicateStockKeys.length) {
+    const shown = duplicateStockKeys.slice(0, 5).join(", ");
+    const extra = duplicateStockKeys.length > 5 ? " (and " + (duplicateStockKeys.length - 5) + " more)" : "";
+    throw new Error("Cloud save stopped: duplicate SKU and location entries were found (" + shown + extra + "). No cloud stock was changed. Keep both records until their quantities and history have been checked, then edit or remove the duplicate.");
+  }
   const userId = currentSession.user.id;
   const workspaceId = stockWorkspaceId;
   const rows = items.map(item => itemToStockRow(item, workspaceId, userId));
