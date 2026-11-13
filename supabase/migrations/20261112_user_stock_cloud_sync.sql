@@ -12,12 +12,12 @@ update public.stock_items
 set legacy_id = id::text
 where legacy_id is null;
 
-do $
+do $$
 begin
   if exists (select 1 from public.stock_items where legacy_id is null) then
     raise exception 'Some stock rows have no legacy ID. No rows were deleted; inspect stock_items before continuing.';
   end if;
-end $;
+end $$;
 
 update public.stock_items si
 set owner_user_id = w.created_by
@@ -25,12 +25,12 @@ from public.workspaces w
 where si.workspace_id = w.id
   and si.owner_user_id is null;
 
-do $
+do $$
 begin
   if exists (select 1 from public.stock_items where owner_user_id is null) then
     raise exception 'Some stock rows could not be assigned to a workspace owner. No rows were deleted; inspect stock_items and workspaces before continuing.';
   end if;
-end $;
+end $$;
 
 alter table public.stock_items
   alter column owner_user_id set not null;
