@@ -180,6 +180,17 @@ body.cloud-authenticated::before{display:none!important;content:none!important}
 
 /* App code backup/restore is reserved for workspace owners and admins. */
 body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
+
+/* Collapsible workspace access controls, matching the backup dropdown style. */
+.access-dropdown{border:1px solid var(--line);border-radius:13px;background:rgba(8,17,30,.42);overflow:hidden}
+.access-dropdown>summary{list-style:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 13px;min-height:58px;cursor:pointer;font-weight:800}
+.access-dropdown>summary::-webkit-details-marker{display:none}
+.access-dropdown>summary:after{content:"＋";color:var(--mint);font-size:20px;line-height:1;margin-left:auto}
+.access-dropdown[open]>summary:after{content:"−"}
+.access-summary-title{font-size:16px}
+.access-summary-note{font-size:11px;font-weight:600;color:var(--muted);flex:1 1 100%;padding-left:29px}
+.access-dropdown-content{display:grid;gap:10px;padding:0 13px 14px}
+@media(max-width:600px){.access-dropdown>summary{align-items:flex-start;flex-direction:column;gap:4px;padding:13px 12px}.access-dropdown>summary:after{position:absolute;right:28px}.access-dropdown{position:relative}.access-summary-note{padding-left:29px}.access-dropdown-content{padding:0 12px 12px}.access-dropdown-content #accessAddUser{width:100%;min-height:44px}}
 </style></head>
 <body><main class="wrap">
 <header class="top"><div class="brand"><img class="logo" src="./van-stock-header-logo.svg?v=1" alt="Van Stock Pro futuristic van logo"><span class="app-version" aria-label="Build number 0001">Build 0001</span><div><div class="eyebrow">Field inventory system</div><h1>Van Stock Pro</h1><div class="title-auth-actions" style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" id="cloudSignInMini" type="button">☁️ Sign in</button><button class="secondary" id="cloudSignOutMini" type="button" aria-label="Sign out of Van Stock Pro" hidden>☁️ Sign out</button></div><div class="sub">Your stock. Your van. Under control.</div></div></div><div class="actions home-actions" aria-label="Main app tools">
@@ -205,16 +216,24 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
   <div class="notice" id="cloudMessage" role="status" aria-live="polite">Sign in with the account you created in Supabase. If email confirmation is required, confirm it first. Stock has not been uploaded.</div>
   <div class="notice" id="cloudPreviewResult" role="status" aria-live="polite" hidden></div>
 </section>
-<section class="panel" id="userAccessPanel" hidden style="margin:0 0 16px">
-  <div class="panelhead"><div><h2>👥 Manage app access</h2><div class="sub">Only workspace owners and admins can manage access.</div></div><span class="pill" id="accessRoleLabel">Access</span></div>
-  <div class="notice" id="accessMessage" role="status" aria-live="polite">Loading workspace members…</div>
-  <div class="formgrid" style="margin-top:12px">
-    <div class="full"><label class="fieldlabel" for="accessUserId">New user's Supabase User ID</label><input class="field" id="accessUserId" autocomplete="off" placeholder="Paste the user's UUID from Supabase Authentication → Users"></div>
-    <div><label class="fieldlabel" for="accessRole">Permission level</label><select class="field" id="accessRole"><option value="member">Member — can use and edit stock</option><option value="viewer">Viewer — read-only access</option><option value="admin">Admin — manage stock and basic users</option></select></div>
-    <div style="display:flex;align-items:end"><button type="button" id="accessAddUser">Authorise user</button></div>
-  </div>
-  <div class="notice">The person must create and confirm their Van Stock Pro account first. Copy their User ID from Supabase → Authentication → Users. Email invitations are not enabled yet; passwords and service keys are never exposed here.</div>
-  <div class="tablewrap" style="margin-top:12px"><table style="min-width:520px"><thead><tr><th>Account User ID</th><th>Role</th><th>Added</th><th>Action</th></tr></thead><tbody id="accessMembersBody"><tr><td colspan="4">Loading…</td></tr></tbody></table></div>
+<section class="panel access-panel" id="userAccessPanel" hidden style="margin:0 0 16px">
+  <details class="access-dropdown">
+    <summary>
+      <span class="access-summary-title">👥 Manage app access</span>
+      <span class="access-summary-note">Authorise users and manage permissions</span>
+      <span class="pill" id="accessRoleLabel">Access</span>
+    </summary>
+    <div class="access-dropdown-content">
+      <div class="notice" id="accessMessage" role="status" aria-live="polite">Loading workspace members…</div>
+      <div class="formgrid" style="margin-top:12px">
+        <div class="full"><label class="fieldlabel" for="accessUserId">New user's Supabase User ID</label><input class="field" id="accessUserId" autocomplete="off" placeholder="Paste the user's UUID from Supabase Authentication → Users"></div>
+        <div><label class="fieldlabel" for="accessRole">Permission level</label><select class="field" id="accessRole"><option value="member">Member — can use and edit stock</option><option value="viewer">Viewer — read-only access</option><option value="admin">Admin — manage stock and basic users</option></select></div>
+        <div style="display:flex;align-items:end"><button type="button" id="accessAddUser">Authorise user</button></div>
+      </div>
+      <div class="notice">The person must create and confirm their Van Stock Pro account first. Copy their User ID from Supabase → Authentication → Users. Email invitations are not enabled yet; passwords and service keys are never exposed here.</div>
+      <div class="tablewrap" style="margin-top:12px"><table style="min-width:520px"><thead><tr><th>Account User ID</th><th>Role</th><th>Added</th><th>Action</th></tr></thead><tbody id="accessMembersBody"><tr><td colspan="4">Loading…</td></tr></tbody></table></div>
+    </div>
+  </details>
 </section>
 <section class="stats">
 <div class="stat mint selected-photo-card"><div class="label">SELECTED ITEM</div><div class="selected-photo-tile" id="selectedPhotoTile"><div class="selected-photo-placeholder">📦</div></div><div class="selected-photo-name" id="selectedPhotoName">Select an item below</div><div class="hint" id="selectedPhotoDetails">Item photo and details will appear here</div></div>
