@@ -177,6 +177,9 @@ body.cloud-authenticated::before{display:none!important;content:none!important}
 .backup-file-control .field{width:100%;min-width:0}
 .backup-panel .notice{margin-top:10px}
 @media(max-width:600px){.backup-dropdown>summary{align-items:flex-start;flex-direction:column;gap:3px;padding:13px 12px}.backup-dropdown>summary:after{position:absolute;right:28px;margin-top:0}.backup-dropdown{position:relative}.backup-summary-note{text-align:left}.backup-dropdown-content{padding:0 12px 12px}.backup-dropdown-content button{width:100%;min-height:44px}.backup-dropdown-content .entryactions{display:grid;grid-template-columns:1fr}}
+
+/* App code backup/restore is reserved for workspace owners and admins. */
+body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 </style></head>
 <body><main class="wrap">
 <header class="top"><div class="brand"><img class="logo" src="./van-stock-header-logo.svg?v=1" alt="Van Stock Pro futuristic van logo"><span class="app-version" aria-label="Build number 0001">Build 0001</span><div><div class="eyebrow">Field inventory system</div><h1>Van Stock Pro</h1><div class="title-auth-actions" style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" id="cloudSignInMini" type="button">☁️ Sign in</button><button class="secondary" id="cloudSignOutMini" type="button" aria-label="Sign out of Van Stock Pro" hidden>☁️ Sign out</button></div><div class="sub">Your stock. Your van. Under control.</div></div></div><div class="actions home-actions" aria-label="Main app tools">
@@ -234,7 +237,7 @@ body.cloud-authenticated::before{display:none!important;content:none!important}
         </div>
       </div>
     </details>
-    <details class="backup-dropdown">
+    <details class="backup-dropdown" id="backupAppFunctionality">
       <summary><span>🛠️ App functionality</span><span class="backup-summary-note">App code backup / restore</span></summary>
       <div class="backup-dropdown-content">
         <p class="sub">A separate copy of the app HTML/code. Restoring this file prepares it for replacement in GitHub; it does not publish changes automatically.</p>
