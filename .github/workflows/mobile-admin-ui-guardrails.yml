@@ -1,0 +1,75 @@
+name: Mobile navigation and admin visibility guardrails
+on:
+  push:
+    branches:
+      - qa/mobile-admin-ui-guardrails-20261113
+  pull_request:
+    branches:
+      - main
+jobs:
+  ui-guardrails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check cloud module syntax
+        run: node --input-type=module --check < cloud-auth.js
+      - name: Check inline application scripts
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import subprocess, sys
+          class Scripts(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.active=False; self.parts=[]; self.blocks=[]
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower() == "script":
+                      self.active=True; self.parts=[]
+              def handle_data(self, data):
+                  if self.active: self.parts.append(data)
+              def handle_endtag(self, tag):
+                  if tag.lower() == "script" and self.active:
+                      source="".join(self.parts).strip()
+                      if source: self.blocks.append(source)
+                      self.active=False
+          parser=Scripts()
+          parser.feed(Path("index.html").read_text(encoding="utf-8"))
+          if not parser.blocks: raise SystemExit("No inline application scripts found")
+          for number, source in enumerate(parser.blocks, 1):
+              result=subprocess.run(["node","--input-type=module","--check"],input=source,text=True,capture_output=True)
+              if result.returncode:
+                  print(f"Inline script {number} failed:\\n{result.stderr}",file=sys.stderr)
+                  raise SystemExit(result.returncode)
+          print(f"PASS: {len(parser.blocks)} inline script block(s)")
+          PY
+      - name: Prevent mobile navigation and admin visibility regressions
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          html=Path("index.html").read_text(encoding="utf-8")
+          class NavParser(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.in_nav=False; self.buttons=0
+              def handle_starttag(self, tag, attrs):
+                  attrs=dict(attrs)
+                  if tag=="nav" and "vsp-bottom-nav" in attrs.get("class","").split():
+                      self.in_nav=True
+                  elif self.in_nav and tag=="button":
+                      self.buttons+=1
+              def handle_endtag(self, tag):
+                  if tag=="nav" and self.in_nav: self.in_nav=False
+          nav=NavParser(); nav.feed(html)
+          if nav.buttons != 1:
+              raise SystemExit(f"Expected exactly one bottom navigation button (Home); found {nav.buttons}")
+          if '<details class="home-group" open' in html or "<details class='home-group' open" in html:
+              raise SystemExit("A home menu is forced open in the HTML")
+          if 'body:not(.cloud-admin) #backupAppFunctionality{display:none!important}' not in html:
+              raise SystemExit("App functionality backup/restore is not hidden from non-admin users")
+          if 'id="backupAppFunctionality"' not in html:
+              raise SystemExit("Admin-only app functionality section is missing")
+          print("PASS: Home menus default closed, bottom navigation is Home-only, app functionality is admin-only")
+          PY
