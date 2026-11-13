@@ -219,14 +219,14 @@ async function writeCloudStock(items) {
   // Guard cloud writes as well as the Add Item form: legacy imports or restored
   // local data can bypass the form-level check. Never upload duplicate SKU/location
   // pairs, and never partially update cloud stock when the local list is ambiguous.
-  const normaliseStockKey = value => String(value || "").trim().toLowerCase().replace(/\\s+/g, " ");
+  const normaliseStockKey = value => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
   const seenStockKeys = new Map();
   const duplicateStockKeys = [];
   for (const item of items) {
     const sku = normaliseStockKey(item?.sku);
     if (!sku) continue;
     const location = normaliseStockKey(item?.location);
-    const key = sku + "\\u0000" + location;
+    const key = sku + "\u0000" + location;
     if (seenStockKeys.has(key)) {
       const label = String(item.sku || "").trim() + (String(item.location || "").trim() ? " @ " + String(item.location).trim() : "");
       if (!duplicateStockKeys.includes(label)) duplicateStockKeys.push(label);
