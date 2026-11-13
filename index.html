@@ -138,10 +138,36 @@ body.cloud-authenticated::before{display:none!important;content:none!important}
   }
   nav.vsp-bottom-nav>button>span{display:block!important;text-align:center!important}
 }
+
+/* Final mobile nav sizing: fixed-height four-column bar, never a vertical stack. */
+@media(max-width:850px){
+  body{padding-bottom:88px!important}
+  nav.vsp-bottom-nav{
+    position:fixed!important;z-index:99999!important;
+    left:0!important;right:0!important;bottom:0!important;
+    display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    grid-auto-flow:column!important;grid-auto-rows:1fr!important;
+    align-items:center!important;justify-items:stretch!important;
+    width:100%!important;height:72px!important;min-height:72px!important;max-height:72px!important;
+    margin:0!important;padding:5px 8px!important;gap:4px!important;
+    overflow:hidden!important;box-sizing:border-box!important;
+    background:rgba(10,18,31,.98)!important;border-top:1px solid #34445a!important;
+  }
+  nav.vsp-bottom-nav>button{
+    display:flex!important;flex-direction:column!important;
+    align-items:center!important;justify-content:center!important;
+    width:100%!important;height:60px!important;min-height:60px!important;max-height:60px!important;
+    min-width:0!important;max-width:none!important;flex:none!important;
+    margin:0!important;padding:3px 1px!important;gap:2px!important;
+    white-space:nowrap!important;font-size:10px!important;line-height:1.05!important;
+  }
+  nav.vsp-bottom-nav>button>span{display:block!important;text-align:center!important}
+  nav.vsp-bottom-nav>button>span:first-child{font-size:18px!important}
+}
 </style></head>
 <body><main class="wrap">
 <header class="top"><div class="brand"><img class="logo" src="./van-stock-header-logo.svg?v=1" alt="Van Stock Pro futuristic van logo"><div><div class="eyebrow">Field inventory system</div><h1>Van Stock Pro</h1><div class="title-auth-actions" style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" id="cloudSignInMini" type="button">☁️ Sign in</button><button class="secondary" id="cloudSignOutMini" type="button" aria-label="Sign out of Van Stock Pro" hidden>☁️ Sign out</button></div><div class="sub">Your stock. Your van. Under control.</div></div></div><div class="actions home-actions" aria-label="Main app tools">
-<details class="home-group" open><summary>📦 Stock</summary><div class="home-group-items"><button id="addFocusBtn">＋ Add item</button><button class="secondary" id="addSelectedTop">＋ Add selected</button><button class="secondary" id="receiveStockBtn" type="button">📦 Receive delivery</button><button class="secondary" id="stocktakeBtn" type="button">📋 Stocktake</button><button class="secondary" id="stockAlertsBtn" type="button">🔔 Stock alerts</button><button class="secondary" id="minMaxBtn" type="button">🎯 Min / max levels</button></div></details>
+<details class="home-group"><summary>📦 Stock</summary><div class="home-group-items"><button id="addFocusBtn">＋ Add item</button><button class="secondary" id="addSelectedTop">＋ Add selected</button><button class="secondary" id="receiveStockBtn" type="button">📦 Receive delivery</button><button class="secondary" id="stocktakeBtn" type="button">📋 Stocktake</button><button class="secondary" id="stockAlertsBtn" type="button">🔔 Stock alerts</button><button class="secondary" id="minMaxBtn" type="button">🎯 Min / max levels</button></div></details>
 <details class="home-group"><summary>🛒 Reordering</summary><div class="home-group-items"><button class="secondary" id="reorderPlannerBtn" type="button">Reorder planner</button><button class="secondary" id="emailRestockTop">Email restock</button><button class="secondary" id="exportBtn">Export stock CSV</button></div></details>
 <details class="home-group"><summary>📋 Jobs &amp; history</summary><div class="home-group-items"><button class="secondary" id="jobReportBtn" type="button">📊 Job usage report</button><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open'));">Stock history</button></div></details>
 <details class="home-group"><summary>🏷️ Suppliers &amp; tools</summary><div class="home-group-items"><button class="secondary" id="supplierDirectoryBtn" type="button">Suppliers</button><button class="secondary" id="supplierDetailsBtn" type="button">Supplier contacts</button><button class="secondary" id="supplierImportBtn" type="button">Import contacts</button></div></details>
