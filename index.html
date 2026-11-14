@@ -210,6 +210,8 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 .vsp-quick-categories button{display:flex;align-items:center;justify-content:flex-start;gap:8px;min-width:0;min-height:48px;padding:9px 10px;background:linear-gradient(145deg,#20354d,#17283d);color:var(--text);border:1px solid #344b66;border-radius:12px;text-align:left;font-size:12px;font-weight:750}
 .vsp-quick-categories button:active,.vsp-quick-alerts button:active{transform:scale(.985)}
 .vsp-quick-categories button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vsp-quick-manage{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;margin-top:10px;padding:11px 14px;border:1px solid #2d806c;border-radius:12px;background:linear-gradient(145deg,#1c5549,#173d37);color:#d8fff3;font-size:14px;font-weight:800;box-shadow:inset 0 1px 0 #ffffff12}
+.vsp-quick-manage:active{transform:scale(.99)}
 .vsp-quick-alerts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .vsp-quick-alerts button{min-height:40px;font-size:12px}
 .stats .stat{box-shadow:0 5px 18px #0002;transition:border-color .15s ease,transform .15s ease}
@@ -288,6 +290,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
     <button type="button" data-home-category="Misc Products">📦 <span>Misc products</span></button>
     <button type="button" data-home-category="JD Stock">🏷️ <span>JD Stock</span></button>
   </div>
+  <button type="button" class="vsp-quick-manage" id="homeManageInventory">➕ Add / Edit Inventory</button>
   <div class="vsp-quick-alerts">
     <button type="button" class="secondary" id="homeQuickLow">⚠️ Show low stock</button>
     <button type="button" class="secondary" id="homeQuickOut">⛔ Show out of stock</button>
@@ -484,6 +487,7 @@ $('restoreCodeFile').addEventListener('change',async e=>{const file=e.target.fil
 function vspJumpToStock(){const p=document.querySelector('.layout .panel');if(p)p.scrollIntoView({behavior:'smooth',block:'start'})}
 function vspApplyHomeSearch(){const q=$('homeQuickSearch').value;$('search').value=q;$('statusFilter').value='';$('categoryFilter').value='';render();vspJumpToStock()}
 $('homeQuickSearchGo').addEventListener('click',vspApplyHomeSearch);
+$('homeManageInventory').addEventListener('click',()=>{resetForm();$('entryPanel').scrollIntoView({behavior:'smooth',block:'start'});$('itemName').focus({preventScroll:true})});
 $('homeQuickSearch').addEventListener('keydown',e=>{if(e.key==='Enter')vspApplyHomeSearch()});
 document.querySelectorAll('[data-home-category]').forEach(b=>b.addEventListener('click',()=>{$('search').value='';$('statusFilter').value='';$('categoryFilter').value=b.getAttribute('data-home-category');$('homeQuickSearch').value='';render();vspJumpToStock()}));
 $('homeQuickLow').addEventListener('click',()=>{$('search').value='';$('categoryFilter').value='';$('statusFilter').value='low';$('homeQuickSearch').value='';render();vspJumpToStock()});
