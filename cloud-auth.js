@@ -526,6 +526,38 @@ window.__VSP_JOB_USAGE_STORE = {
   }
 };
 
+window.__VSP_JOB_NOTE_TEMPLATE_STORE = {
+ async getAll(){
+  if(!currentSession?.user?.id)throw new Error("Sign in to load your private templates.");
+  const values=currentSession.user.user_metadata?.vsp_job_note_templates;
+  if(values==null)return [];
+  if(!Array.isArray(values)||values.some(t=>!t||typeof t.id!=="string"||typeof t.name!=="string"||typeof t.body!=="string"))throw new Error("Your saved job note templates are invalid.");
+  return values;
+ },
+ async save(template){
+  if(!currentSession?.user?.id)throw new Error("Sign in to save private templates.");
+  const list=await this.getAll(),id=template.id||("tpl_"+crypto.randomUUID());
+  const name=String(template.name||"").trim().slice(0,50),body=String(template.body||"").trim().slice(0,1000);
+  if(!name||!body)throw new Error("Enter a template name and notes.");
+  const next=list.filter(t=>t.id!==id);
+  if(next.length>=50)throw new Error("You can save up to 50 private templates.");
+  next.push({id,name,body});
+  const userId=currentSession.user.id;
+  const {data,error}=await supabase.auth.updateUser({data:{vsp_job_note_templates:next}});
+  if(error)throw error;
+  if(currentSession?.user?.id!==userId||!data?.user)throw new Error("Your account changed while saving. Sign in again.");
+  currentSession={...currentSession,user:data.user};return id;
+ },
+ async remove(id){
+  if(!currentSession?.user?.id)throw new Error("Sign in to manage private templates.");
+  const list=await this.getAll(),next=list.filter(t=>t.id!==id),userId=currentSession.user.id;
+  const {data,error}=await supabase.auth.updateUser({data:{vsp_job_note_templates:next}});
+  if(error)throw error;
+  if(currentSession?.user?.id!==userId||!data?.user)throw new Error("Your account changed while deleting. Sign in again.");
+  currentSession={...currentSession,user:data.user};return true;
+ }
+};
+
 window.__VSP_CATEGORY_STORE = {
   async get() {
     if (!currentSession?.user) throw new Error("Sign in to load your categories.");
