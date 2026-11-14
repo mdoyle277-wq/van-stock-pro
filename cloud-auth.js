@@ -526,6 +526,53 @@ window.__VSP_JOB_USAGE_STORE = {
   }
 };
 
+
+window.__VSP_JOB_SITE_VISIT_STORE = {
+  isReady() { return !!(currentSession?.user?.id && stockWorkspaceId && stockSyncReady); },
+  async getAll() {
+    if (!this.isReady()) throw new Error("Sign in and wait for cloud stock to finish loading.");
+    const userId=currentSession.user.id, workspaceId=stockWorkspaceId;
+    const {data,error}=await supabase.from("job_site_visits")
+      .select("id,visit_date,job_reference,site_name,engineer_name,system_type,visit_notes,defects,follow_up")
+      .eq("workspace_id",workspaceId).eq("owner_user_id",userId)
+      .order("visit_date",{ascending:false}).limit(5000);
+    if(error)throw error;
+    if(currentSession?.user?.id!==userId||stockWorkspaceId!==workspaceId)throw new Error("The signed-in account changed while loading site history.");
+    return (data||[]).map(row=>({
+      id:row.id,date:row.visit_date,job:row.job_reference,siteName:row.site_name||"",
+      engineer:row.engineer_name||"",systemType:row.system_type||"",
+      notes:row.visit_notes||"",defects:row.defects||"",followUp:row.follow_up||""
+    }));
+  },
+  async add(entry) {
+    if(!this.isReady())throw new Error("Sign in and wait for cloud stock to finish loading before saving a site visit.");
+    const userId=currentSession.user.id,workspaceId=stockWorkspaceId;
+    const row={
+      workspace_id:workspaceId,owner_user_id:userId,
+      visit_date:entry.date||new Date().toISOString(),
+      job_reference:String(entry.job||"").trim().slice(0,120),
+      site_name:String(entry.siteName||"").trim().slice(0,160),
+      engineer_name:String(entry.engineer||"").trim().slice(0,80),
+      system_type:String(entry.systemType||"").trim().slice(0,80),
+      visit_notes:String(entry.notes||"").trim().slice(0,4000),
+      defects:String(entry.defects||"").trim().slice(0,2000),
+      follow_up:String(entry.followUp||"").trim().slice(0,2000)
+    };
+    if(!row.job_reference||!row.visit_notes)throw new Error("Enter a job/site reference and visit notes.");
+    const {data,error}=await supabase.from("job_site_visits")
+      .insert(row).select("id,visit_date,job_reference,site_name,engineer_name,system_type,visit_notes,defects,follow_up").single();
+    if(error)throw error;
+    if(currentSession?.user?.id!==userId||stockWorkspaceId!==workspaceId)throw new Error("The signed-in account changed while saving. Refresh before continuing.");
+    return {id:data.id,date:data.visit_date,job:data.job_reference,siteName:data.site_name||"",engineer:data.engineer_name||"",systemType:data.system_type||"",notes:data.visit_notes||"",defects:data.defects||"",followUp:data.follow_up||""};
+  },
+  async remove(id) {
+    if(!this.isReady())throw new Error("Cloud account is not ready.");
+    const userId=currentSession.user.id,workspaceId=stockWorkspaceId;
+    const {error}=await supabase.from("job_site_visits").delete().eq("id",id).eq("workspace_id",workspaceId).eq("owner_user_id",userId);
+    if(error)throw error;
+  }
+};
+
 window.__VSP_JOB_NOTE_TEMPLATE_STORE = {
  async getAll(){
   if(!currentSession?.user?.id)throw new Error("Sign in to load your private templates.");
