@@ -569,7 +569,7 @@ window.__VSP_JOB_SITE_VISIT_STORE = {
     };
     if(!row.job_reference||!row.visit_notes)throw new Error("Enter a job/site reference and visit notes.");
     const {data,error}=await supabase.from("job_site_visits")
-      .insert(row).select("id,visit_date,job_reference,site_name,engineer_name,system_type,visit_notes,defects,follow_up,battery_type,battery_quantity,battery_installed_date,battery_due_date").single();
+      .insert(row).select("id,visit_date,job_reference,site_name,engineer_name,system_type,visit_notes,defects,follow_up,battery_type,battery_quantity,battery_installed_date,battery_due_date,intruder_battery_type,intruder_battery_other,intruder_battery_quantity,intruder_battery_installed_date,intruder_battery_due_date").single();
     if(error)throw error;
     if(currentSession?.user?.id!==userId||stockWorkspaceId!==workspaceId)throw new Error("The signed-in account changed while saving. Refresh before continuing.");
     return {id:data.id,date:data.visit_date,job:data.job_reference,siteName:data.site_name||"",engineer:data.engineer_name||"",systemType:data.system_type||"",notes:data.visit_notes||"",defects:data.defects||"",followUp:data.follow_up||"",batteryType:data.battery_type||"",batteryQuantity:data.battery_quantity??"",batteryInstalledDate:data.battery_installed_date||"",batteryDueDate:data.battery_due_date||"",intruderBatteryType:data.intruder_battery_type||"",intruderBatteryOther:data.intruder_battery_other||"",intruderBatteryQuantity:data.intruder_battery_quantity??"",intruderBatteryInstalledDate:data.intruder_battery_installed_date||"",intruderBatteryDueDate:data.intruder_battery_due_date||""};
