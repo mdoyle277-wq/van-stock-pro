@@ -605,6 +605,8 @@ async function confirmJobUsage(e){
    throw saveError;
   }
   if(Array.isArray(jobUsageCloudRecords))jobUsageCloudRecords.unshift(cloudEntry);
+  if(Array.isArray(jobSiteUsageRecords))jobSiteUsageRecords.unshift(cloudEntry);
+  if(!$('jobSiteHistoryPanel').hidden){renderJobSiteHistory();$('jobSiteHistoryStatus').textContent='Job parts usage saved.';}
   closeJobUsePanel();
   try{recordMovement(i,-amount,'Used on job: '+job)}catch(err){}
   try{render()}catch(err){}
@@ -667,13 +669,21 @@ let jobSiteUsageRecords=[];
 function siteVisitDate(value){const d=new Date(value||'');if(Number.isNaN(d.getTime()))return String(value||'').slice(0,10);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function renderJobSiteHistory(){
  const q=$('jobSiteHistorySearch').value.trim().toLowerCase();
- const rows=jobSiteVisitRecords.filter(v=>!q||[v.job,v.siteName,v.engineer,v.systemType,v.notes,v.defects,v.followUp].some(x=>String(x||'').toLowerCase().includes(q)));
- $('jobSiteHistoryRows').innerHTML=rows.map(v=>{
-  const used=jobSiteUsageRecords.filter(u=>String(u.job||'').trim().toLowerCase()===String(v.job||'').trim().toLowerCase());
-  const parts=used.length?'<div class="sub" style="margin-top:8px"><strong>Parts recorded against this reference</strong><ul style="margin:5px 0 0;padding-left:20px">'+used.map(u=>'<li>'+esc(u.itemName||'Item')+' · '+Number(u.quantity||0)+' used'+(u.sku?' · '+esc(u.sku):'')+' · '+esc(jobReportDateKey(u))+'</li>').join('')+'</ul></div>':'<div class="sub" style="margin-top:8px">No stock usage recorded against this reference.</div>';
-  return '<article class="panel" style="margin:0;padding:12px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><strong>'+esc(v.siteName||v.job)+'</strong><div class="sub">'+esc(v.job)+' · '+esc(siteVisitDate(v.date))+'</div></div><button type="button" class="smallbtn secondary" data-copy-site-visit="'+esc(v.id)+'">Copy notes to new visit</button><button type="button" class="smallbtn danger" data-delete-site-visit="'+esc(v.id)+'">Delete visit</button></div><div class="sub" style="margin-top:7px">'+esc(v.engineer||'Engineer not recorded')+(v.systemType?' · '+esc(v.systemType):'')+'</div><div style="white-space:pre-wrap;margin-top:8px">'+esc(v.notes)+'</div>'+(v.defects?'<div class="notice" style="margin-top:8px"><strong>Defects</strong><div style="white-space:pre-wrap">'+esc(v.defects)+'</div></div>':'')+(v.followUp?'<div class="notice" style="margin-top:8px"><strong>Follow-up</strong><div style="white-space:pre-wrap">'+esc(v.followUp)+'</div></div>':'')+parts+'</article>';
+ const norm=x=>String(x||'').trim().toLowerCase();
+ const groups=new Map();
+ for(const v of jobSiteVisitRecords){const k=norm(v.job);if(!k)continue;if(!groups.has(k))groups.set(k,{job:v.job,visits:[],usage:[]});groups.get(k).visits.push(v)}
+ for(const u of jobSiteUsageRecords){const k=norm(u.job);if(!k)continue;if(!groups.has(k))groups.set(k,{job:u.job,visits:[],usage:[]});groups.get(k).usage.push(u)}
+ const rows=[...groups.values()].filter(g=>{const text=[g.job,...g.visits.flatMap(v=>[v.siteName,v.engineer,v.systemType,v.notes,v.defects,v.followUp]),...g.usage.flatMap(u=>[u.itemName,u.sku,u.category,u.engineer,u.visitNotes])].join(' ').toLowerCase();return !q||text.includes(q)}).sort((a,b)=>String(b.visits[0]?.date||b.usage[0]?.date||'').localeCompare(String(a.visits[0]?.date||a.usage[0]?.date||'')));
+ $('jobSiteHistoryRows').innerHTML=rows.map(g=>{
+  const visits=g.visits.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const usage=g.usage.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const visitHtml=visits.map(v=>'<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><strong>Visit · '+esc(siteVisitDate(v.date))+'</strong><div class="actions"><button type="button" class="smallbtn secondary" data-copy-site-visit="'+esc(v.id)+'">Copy notes</button><button type="button" class="smallbtn danger" data-delete-site-visit="'+esc(v.id)+'">Delete visit</button></div></div><div class="sub">'+esc(v.engineer||'Engineer not recorded')+(v.systemType?' · '+esc(v.systemType):'')+'</div><div style="white-space:pre-wrap;margin-top:7px">'+esc(v.notes)+'</div>'+(v.defects?'<div class="notice"><strong>Defects</strong><div style="white-space:pre-wrap">'+esc(v.defects)+'</div></div>':'')+(v.followUp?'<div class="notice"><strong>Follow-up</strong><div style="white-space:pre-wrap">'+esc(v.followUp)+'</div></div>':'')+'</div>').join('');
+  const partsHtml=usage.length?'<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><strong>Parts used on this job</strong><ul style="margin:6px 0 0;padding-left:20px">'+usage.map(u=>'<li>'+esc(jobReportDateKey(u))+' · '+esc(u.itemName||'Item')+' × '+Number(u.quantity||0)+(u.sku?' · '+esc(u.sku):'')+(u.engineer?' · '+esc(u.engineer):'')+'</li>').join('')+'</ul></div>':'<div class="sub" style="margin-top:8px">No parts have been recorded against this job yet.</div>';
+  const site=visits.find(v=>v.siteName)?.siteName||'';
+  return '<article class="panel" style="margin:0;padding:13px"><div><strong>'+esc(site||g.job)+'</strong><div class="sub">Job / site reference: '+esc(g.job)+' · '+visits.length+' visit(s) · '+usage.length+' parts record(s)</div></div>'+partsHtml+visitHtml+'</article>';
  }).join('');
  $('jobSiteHistoryEmpty').hidden=rows.length>0;
+ $('jobSiteHistoryEmpty').textContent='No job visits or parts usage found. Use “Use on job” when issuing stock, or add a site visit above.';
 }
 async function loadJobSiteHistory(){
  const store=window.__VSP_JOB_SITE_VISIT_STORE;
@@ -735,7 +745,7 @@ $('jobSiteHistoryRows').addEventListener('click',async e=>{
  const id=button.getAttribute('data-delete-site-visit');
  if(!confirm('Delete this site visit? The separate parts-usage records will be kept.'))return;
  button.disabled=true;
- try{await window.__VSP_JOB_SITE_VISIT_STORE.remove(id);jobSiteVisitRecords=jobSiteVisitRecords.filter(v=>String(v.id)!==String(id));renderJobSiteHistory();$('jobSiteHistoryStatus').textContent='Site visit deleted. Parts-usage records were preserved.';toast('Site visit deleted')}
+ try{await window.__VSP_JOB_SITE_VISIT_STORE.remove(id);jobSiteVisitRecords=jobSiteVisitRecords.filter(v=>String(v.id)!==String(id));await loadJobSiteHistory();$('jobSiteHistoryStatus').textContent='Site visit deleted. Parts-usage records were preserved.';toast('Site visit deleted')}
  catch(error){button.disabled=false;toast('Could not delete visit: '+(error?.message||error))}
 });
 
