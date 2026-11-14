@@ -568,8 +568,9 @@ window.__VSP_JOB_SITE_VISIT_STORE = {
   async remove(id) {
     if(!this.isReady())throw new Error("Cloud account is not ready.");
     const userId=currentSession.user.id,workspaceId=stockWorkspaceId;
-    const {error}=await supabase.from("job_site_visits").delete().eq("id",id).eq("workspace_id",workspaceId).eq("owner_user_id",userId);
+    const {data,error}=await supabase.from("job_site_visits").delete().eq("id",id).eq("workspace_id",workspaceId).eq("owner_user_id",userId).select("id").maybeSingle();
     if(error)throw error;
+    if(!data?.id)throw new Error("No visit was deleted. Check the database delete policy and refresh the page.");
   }
 };
 
