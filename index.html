@@ -249,6 +249,20 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <label class="fieldlabel" for="historyJobNoteTemplateSelect">📝 Quick copy job note</label>
 <select class="field" id="historyJobNoteTemplateSelect"><option value="">Choose a saved template…</option></select>
 <button type="button" class="secondary" id="copyHistoryJobNoteTemplate" style="width:100%;margin-top:7px">Copy selected note</button>
+<div class="entryactions" style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px">
+<button type="button" class="secondary" id="editHistoryJobNoteTemplate">✏️ Edit selected</button>
+<button type="button" class="danger" id="deleteHistoryJobNoteTemplate">🗑 Delete selected</button>
+</div>
+<div id="historyJobNoteTemplateEditor" hidden style="border:1px solid var(--line);border-radius:10px;padding:9px;margin-top:8px">
+<label class="fieldlabel" for="historyJobNoteTemplateName">Template name</label>
+<input class="field" id="historyJobNoteTemplateName" maxlength="50" placeholder="Template name">
+<label class="fieldlabel" for="historyJobNoteTemplateBody" style="margin-top:8px">Job note</label>
+<textarea class="field" id="historyJobNoteTemplateBody" rows="7" maxlength="1000" placeholder="Enter the job note"></textarea>
+<div class="entryactions" style="margin-top:8px">
+<button type="button" id="saveHistoryJobNoteTemplate">Save changes</button>
+<button type="button" class="secondary" id="cancelHistoryJobNoteTemplateEdit">Cancel</button>
+</div>
+</div>
 <div class="sub" id="historyJobNoteTemplateStatus" style="margin-top:6px">Your private templates.</div>
 </div></div></details>
 <details class="home-group" id="supplierToolsMenu"><summary>🏷️ Suppliers &amp; tools</summary><div class="home-group-items"><button class="secondary" id="supplierDirectoryBtn" type="button">Suppliers</button><button class="secondary" id="supplierDetailsBtn" type="button">Supplier contacts</button><button class="secondary" id="supplierImportBtn" type="button">Import contacts</button></div></details>
@@ -455,6 +469,58 @@ $('homeJobNoteDropdown')?.addEventListener('toggle',()=>{if($('homeJobNoteDropdo
   }catch(error){toast('Could not copy note: '+(error?.message||error))}
  });
  $('historyJobNoteTemplateSelect')?.addEventListener('focus',loadPrivateJobNoteTemplates);
+
+$('editHistoryJobNoteTemplate')?.addEventListener('click',async()=>{
+ const id=$('historyJobNoteTemplateSelect')?.value;
+ if(!id)return toast('Choose a template to edit first');
+ try{
+  const list=await window.__VSP_JOB_NOTE_TEMPLATE_STORE.getAll(),item=list.find(t=>t.id===id);
+  if(!item)throw new Error('Template not found. Refresh the template list and try again.');
+  $('historyJobNoteTemplateName').value=item.name;
+  $('historyJobNoteTemplateBody').value=item.body;
+  $('historyJobNoteTemplateEditor').hidden=false;
+  $('historyJobNoteTemplateName').focus();
+ }catch(error){toast('Could not open template: '+(error?.message||error))}
+});
+$('cancelHistoryJobNoteTemplateEdit')?.addEventListener('click',()=>{
+ $('historyJobNoteTemplateEditor').hidden=true;
+ $('historyJobNoteTemplateName').value='';
+ $('historyJobNoteTemplateBody').value='';
+});
+$('saveHistoryJobNoteTemplate')?.addEventListener('click',async()=>{
+ const id=$('historyJobNoteTemplateSelect')?.value;
+ const name=$('historyJobNoteTemplateName').value.trim(),body=$('historyJobNoteTemplateBody').value.trim();
+ if(!id)return toast('Choose a template first');
+ if(!name||!body)return toast('Enter both a template name and job note');
+ const button=$('saveHistoryJobNoteTemplate');button.disabled=true;
+ try{
+  await window.__VSP_JOB_NOTE_TEMPLATE_STORE.save({id,name,body});
+  await loadPrivateJobNoteTemplates();
+  $('historyJobNoteTemplateSelect').value=id;
+  $('historyJobNoteTemplateEditor').hidden=true;
+  $('historyJobNoteTemplateStatus').textContent='Template updated and saved to your account.';
+  $('historyJobNoteTemplateName').value='';$('historyJobNoteTemplateBody').value='';
+  toast('Template updated successfully.');
+ }catch(error){toast('Template was not updated: '+(error?.message||error))}
+ finally{button.disabled=false}
+});
+$('deleteHistoryJobNoteTemplate')?.addEventListener('click',async()=>{
+ const id=$('historyJobNoteTemplateSelect')?.value;
+ if(!id)return toast('Choose a template to delete first');
+ const selected=$('historyJobNoteTemplateSelect').selectedOptions[0]?.textContent||'this template';
+ if(!confirm('Permanently delete "'+selected+'"? This cannot be undone.'))return;
+ const button=$('deleteHistoryJobNoteTemplate');button.disabled=true;
+ try{
+  await window.__VSP_JOB_NOTE_TEMPLATE_STORE.remove(id);
+  await loadPrivateJobNoteTemplates();
+  $('historyJobNoteTemplateEditor').hidden=true;
+  $('historyJobNoteTemplateName').value='';$('historyJobNoteTemplateBody').value='';
+  $('historyJobNoteTemplateStatus').textContent='Template deleted from your account.';
+  toast('Template deleted successfully.');
+ }catch(error){toast('Could not delete template: '+(error?.message||error))}
+ finally{button.disabled=false}
+});
+
 
 $('copyHomeJobNoteTemplate')?.addEventListener('click',async()=>{
  const id=$('homeJobNoteTemplateSelect')?.value;
