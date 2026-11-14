@@ -539,7 +539,7 @@ async function vspSaveCategories(next){
  vspUserCategories=next;vspRenderCategoryTiles();render();
 }
 function vspRenderCategoryManager(){
- $('userCategoryList').innerHTML=vspUserCategories.map((name,index)=>'<div class="vsp-category-row"><strong>'+esc(name)+'</strong><button type="button" class="secondary" data-rename-category="'+index+'">Rename</button><button type="button" class="danger" data-remove-category="'+index+'">Remove</button></div>').join('');
+ $('userCategoryList').innerHTML=vspUserCategories.map((name,index)=>'<div class="vsp-category-row" data-category-row="'+index+'"><strong>'+esc(name)+'</strong><button type="button" class="secondary" data-rename-category="'+index+'">Rename</button><button type="button" class="danger" data-remove-category="'+index+'">Remove</button></div>').join('');
 }
 $('homeManageCategories').addEventListener('click',()=>{$('categoryManager').hidden=false;vspRenderCategoryManager();$('newCategoryName').focus()});
 function vspCloseCategoryManager(){$('categoryManager').hidden=true;$('newCategoryName').value=''}
@@ -555,22 +555,31 @@ $('newCategoryName').addEventListener('keydown',e=>{if(e.key==='Enter')$('addCat
 $('userCategoryList').addEventListener('click',async e=>{
  const rename=e.target.closest('[data-rename-category]'),remove=e.target.closest('[data-remove-category]');
  if(rename){
-  const index=Number(rename.dataset.renameCategory),old=vspUserCategories[index],name=prompt('Rename category:',old);
-  if(name===null)return;const clean=name.trim();
-  if(!clean){toast('Category name cannot be blank');return}
+  const index=Number(rename.dataset.renameCategory),old=vspUserCategories[index],row=rename.closest('[data-category-row]');
+  if(!row||!old)return;
+  row.innerHTML='<input class="field" maxlength="40" aria-label="Category name" value="'+esc(old)+'"><button type="button" data-save-category="'+index+'">Save</button><button type="button" class="secondary" data-cancel-category="'+index+'">Cancel</button>';
+  const input=row.querySelector('input');input.focus();input.select();
+  return;
+ }
+ const saveButton=e.target.closest('[data-save-category]');
+ if(saveButton){
+  const index=Number(saveButton.dataset.saveCategory),old=vspUserCategories[index],row=saveButton.closest('[data-category-row]'),input=row?.querySelector('input'),clean=input?.value.trim();
+  if(!old||!clean){toast('Enter a category name');return}
   if(vspUserCategories.some((x,i)=>i!==index&&x.toLowerCase()===clean.toLowerCase())){toast('That category already exists');return}
   try{
    const updatedItems=items.map(item=>String(item.category||'').toLowerCase()===old.toLowerCase()?{...item,category:clean}:item);
-   if(updatedItems.some((item,i)=>item.category!==items[i].category)){items=updatedItems;if(!save())throw new Error('Stock items could not be saved. The category name was not changed.')}
+   if(updatedItems.some((item,i)=>item.category!==items[i].category)){const previous=items;items=updatedItems;if(!save()){items=previous;throw new Error('Stock items could not be saved. The category name was not changed.')}}
    await vspSaveCategories(vspUserCategories.map((x,i)=>i===index?clean:x));
    vspRenderCategoryManager();toast('Your category was renamed')
-  }catch(error){toast('Rename failed: '+(error?.message||error))}
+  }catch(error){toast('Rename failed: '+(error?.message||error));vspRenderCategoryManager()}
+  return;
  }
+ if(e.target.closest('[data-cancel-category]')){vspRenderCategoryManager();return}
  if(remove){
   const index=Number(remove.dataset.removeCategory),name=vspUserCategories[index];
+  if(!name)return;
   const used=items.filter(i=>String(i.category||'').toLowerCase()===name.toLowerCase()).length;
-  if(used){toast('Move the '+used+' stock item(s) out of this category before removing it');return}
-  if(!confirm('Remove "'+name+'" from your category list? This only affects your account.'))return;
+  if(used){toast('Cannot remove: '+used+' stock item(s) still use this category. Move them first.');return}
   if(vspUserCategories.length===1){toast('Keep at least one category');return}
   try{await vspSaveCategories(vspUserCategories.filter((x,i)=>i!==index));vspRenderCategoryManager();toast('Category removed from your account')}catch(error){toast('Remove failed: '+(error?.message||error))}
  }
