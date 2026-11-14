@@ -671,7 +671,7 @@ function renderJobSiteHistory(){
  $('jobSiteHistoryRows').innerHTML=rows.map(v=>{
   const used=jobSiteUsageRecords.filter(u=>String(u.job||'').trim().toLowerCase()===String(v.job||'').trim().toLowerCase());
   const parts=used.length?'<div class="sub" style="margin-top:8px"><strong>Parts recorded against this reference</strong><ul style="margin:5px 0 0;padding-left:20px">'+used.map(u=>'<li>'+esc(u.itemName||'Item')+' · '+Number(u.quantity||0)+' used'+(u.sku?' · '+esc(u.sku):'')+' · '+esc(jobReportDateKey(u))+'</li>').join('')+'</ul></div>':'<div class="sub" style="margin-top:8px">No stock usage recorded against this reference.</div>';
-  return '<article class="panel" style="margin:0;padding:12px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><strong>'+esc(v.siteName||v.job)+'</strong><div class="sub">'+esc(v.job)+' · '+esc(siteVisitDate(v.date))+'</div></div><button type="button" class="smallbtn danger" data-delete-site-visit="'+esc(v.id)+'">Delete visit</button></div><div class="sub" style="margin-top:7px">'+esc(v.engineer||'Engineer not recorded')+(v.systemType?' · '+esc(v.systemType):'')+'</div><div style="white-space:pre-wrap;margin-top:8px">'+esc(v.notes)+'</div>'+(v.defects?'<div class="notice" style="margin-top:8px"><strong>Defects</strong><div style="white-space:pre-wrap">'+esc(v.defects)+'</div></div>':'')+(v.followUp?'<div class="notice" style="margin-top:8px"><strong>Follow-up</strong><div style="white-space:pre-wrap">'+esc(v.followUp)+'</div></div>':'')+parts+'</article>';
+  return '<article class="panel" style="margin:0;padding:12px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><strong>'+esc(v.siteName||v.job)+'</strong><div class="sub">'+esc(v.job)+' · '+esc(siteVisitDate(v.date))+'</div></div><button type="button" class="smallbtn secondary" data-copy-site-visit="'+esc(v.id)+'">Copy notes to new visit</button><button type="button" class="smallbtn danger" data-delete-site-visit="'+esc(v.id)+'">Delete visit</button></div><div class="sub" style="margin-top:7px">'+esc(v.engineer||'Engineer not recorded')+(v.systemType?' · '+esc(v.systemType):'')+'</div><div style="white-space:pre-wrap;margin-top:8px">'+esc(v.notes)+'</div>'+(v.defects?'<div class="notice" style="margin-top:8px"><strong>Defects</strong><div style="white-space:pre-wrap">'+esc(v.defects)+'</div></div>':'')+(v.followUp?'<div class="notice" style="margin-top:8px"><strong>Follow-up</strong><div style="white-space:pre-wrap">'+esc(v.followUp)+'</div></div>':'')+parts+'</article>';
  }).join('');
  $('jobSiteHistoryEmpty').hidden=rows.length>0;
 }
@@ -714,6 +714,23 @@ $('jobSiteVisitForm').addEventListener('submit',async e=>{
  finally{button.disabled=false;button.textContent='Save site visit'}
 });
 $('jobSiteHistoryRows').addEventListener('click',async e=>{
+ const copyButton=e.target.closest('[data-copy-site-visit]');
+ if(copyButton){
+  const previous=jobSiteVisitRecords.find(v=>String(v.id)===String(copyButton.getAttribute('data-copy-site-visit')));
+  if(!previous){toast('Previous visit could not be found. Refresh site history and try again.');return}
+  $('siteVisitRef').value=previous.job||'';
+  $('siteVisitName').value=previous.siteName||'';
+  $('siteVisitEngineer').value=previous.engineer||'';
+  $('siteVisitSystem').value=previous.systemType||'';
+  $('siteVisitNotes').value=previous.notes||'';
+  $('siteVisitDefects').value=previous.defects||'';
+  $('siteVisitFollowUp').value=previous.followUp||'';
+  $('siteVisitDate').value=new Date().toISOString().slice(0,10);
+  $('jobSiteHistoryPanel').scrollIntoView({behavior:'smooth',block:'start'});
+  $('siteVisitNotes').focus();
+  toast('Previous visit copied into a new draft. Update the details and save as a new visit.');
+  return;
+ }
  const button=e.target.closest('[data-delete-site-visit]');if(!button)return;
  const id=button.getAttribute('data-delete-site-visit');
  if(!confirm('Delete this site visit? The separate parts-usage records will be kept.'))return;
