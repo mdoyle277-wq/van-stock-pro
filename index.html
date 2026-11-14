@@ -395,10 +395,25 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
     <div><label class="fieldlabel" for="siteVisitDate">Visit date *</label><input class="field" id="siteVisitDate" type="date" required></div>
     <div><label class="fieldlabel" for="siteVisitEngineer">Engineer</label><input class="field" id="siteVisitEngineer" maxlength="80" placeholder="Engineer attending"></div>
     <div class="full"><label class="fieldlabel" for="siteVisitSystem">System type</label><select class="field" id="siteVisitSystem"><option value="">Choose system type</option><option>Fire alarm</option><option>Intruder alarm</option><option>Access control</option><option>CCTV</option><option>Multiple systems</option><option>Other</option></select></div>
-    <div><label class="fieldlabel" for="siteVisitBatteryType">Battery type</label><input class="field" id="siteVisitBatteryType" maxlength="100" placeholder="e.g. 12V 7Ah sealed lead acid"></div>
-    <div><label class="fieldlabel" for="siteVisitBatteryQuantity">Battery quantity</label><input class="field" id="siteVisitBatteryQuantity" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 2"></div>
-    <div><label class="fieldlabel" for="siteVisitBatteryInstalled">Battery installation date</label><input class="field" id="siteVisitBatteryInstalled" type="date"></div>
-    <div><label class="fieldlabel" for="siteVisitBatteryDue">Next battery replacement due</label><input class="field" id="siteVisitBatteryDue" type="date"></div>
+    <div class="full" id="fireBatteryFields" style="border:1px solid var(--line);border-radius:12px;padding:12px">
+     <strong>🔥 Fire alarm batteries</strong>
+     <div class="formgrid" style="margin-top:8px">
+      <div><label class="fieldlabel" for="siteVisitBatteryType">Battery type</label><input class="field" id="siteVisitBatteryType" maxlength="100" placeholder="e.g. 12V 7Ah sealed lead acid"></div>
+      <div><label class="fieldlabel" for="siteVisitBatteryQuantity">Battery quantity</label><input class="field" id="siteVisitBatteryQuantity" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 2"></div>
+      <div><label class="fieldlabel" for="siteVisitBatteryInstalled">Battery installation date</label><input class="field" id="siteVisitBatteryInstalled" type="date"></div>
+      <div><label class="fieldlabel" for="siteVisitBatteryDue">Next battery replacement due</label><input class="field" id="siteVisitBatteryDue" type="date"></div>
+     </div>
+    </div>
+    <div class="full" id="intruderBatteryFields" style="border:1px solid var(--line);border-radius:12px;padding:12px">
+     <strong>🔐 Intruder alarm batteries</strong>
+     <div class="formgrid" style="margin-top:8px">
+      <div><label class="fieldlabel" for="siteVisitIntruderBatteryType">Battery type</label><select class="field" id="siteVisitIntruderBatteryType"><option value="">Choose battery type</option><option>CR123</option><option>Delta / Deltabell</option><option>Pyronix Enforcer</option><option>Other</option></select></div>
+      <div><label class="fieldlabel" for="siteVisitIntruderBatteryOther">Other battery details</label><input class="field" id="siteVisitIntruderBatteryOther" maxlength="100" placeholder="Enter type / part number"></div>
+      <div><label class="fieldlabel" for="siteVisitIntruderBatteryQuantity">Battery quantity</label><input class="field" id="siteVisitIntruderBatteryQuantity" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 2"></div>
+      <div><label class="fieldlabel" for="siteVisitIntruderBatteryInstalled">Battery installation date</label><input class="field" id="siteVisitIntruderBatteryInstalled" type="date"></div>
+      <div><label class="fieldlabel" for="siteVisitIntruderBatteryDue">Next battery replacement due</label><input class="field" id="siteVisitIntruderBatteryDue" type="date"></div>
+     </div>
+    </div>
     <div class="full"><label class="fieldlabel" for="siteVisitNotes">Work carried out / visit notes *</label><textarea class="field" id="siteVisitNotes" rows="4" maxlength="4000" required placeholder="Describe work completed, tests carried out and results…"></textarea></div>
     <div class="full"><label class="fieldlabel" for="siteVisitDefects">Defects found</label><textarea class="field" id="siteVisitDefects" rows="2" maxlength="2000" placeholder="Record faults or defects identified"></textarea></div>
     <div class="full"><label class="fieldlabel" for="siteVisitFollowUp">Follow-up required</label><textarea class="field" id="siteVisitFollowUp" rows="2" maxlength="2000" placeholder="Outstanding work, parts required or return visit"></textarea></div>
@@ -682,7 +697,7 @@ function renderJobSiteHistory(){
  $('jobSiteHistoryRows').innerHTML=rows.map(g=>{
   const visits=g.visits.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   const usage=g.usage.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
-  const visitHtml=visits.map(v=>'<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><strong>Visit · '+esc(siteVisitDate(v.date))+'</strong><div class="actions"><button type="button" class="smallbtn secondary" data-copy-site-visit="'+esc(v.id)+'">Copy notes</button><button type="button" class="smallbtn danger" data-delete-site-visit="'+esc(v.id)+'">Delete visit</button></div></div><div class="sub">'+esc(v.engineer||'Engineer not recorded')+(v.systemType?' · '+esc(v.systemType):'')+'</div><div style="white-space:pre-wrap;margin-top:7px">'+esc(v.notes)+'</div>'+(v.defects?'<div class="notice"><strong>Defects</strong><div style="white-space:pre-wrap">'+esc(v.defects)+'</div></div>':'')+(v.followUp?'<div class="notice"><strong>Follow-up</strong><div style="white-space:pre-wrap">'+esc(v.followUp)+'</div></div>':'')+((v.batteryType||v.batteryQuantity||v.batteryInstalledDate||v.batteryDueDate)?'<div class="notice"><strong>On-site batteries</strong><div>'+[v.batteryType?'Type: '+esc(v.batteryType):'',v.batteryQuantity?'Quantity: '+esc(v.batteryQuantity):'',v.batteryInstalledDate?'Installed: '+esc(v.batteryInstalledDate):'',v.batteryDueDate?'Replacement due: '+esc(v.batteryDueDate):''].filter(Boolean).join(' · ')+'</div></div>':'')+'</div>').join('');
+  const visitHtml=visits.map(v=>'<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><strong>Visit · '+esc(siteVisitDate(v.date))+'</strong><div class="actions"><button type="button" class="smallbtn secondary" data-copy-site-visit="'+esc(v.id)+'">Copy notes</button><button type="button" class="smallbtn danger" data-delete-site-visit="'+esc(v.id)+'">Delete visit</button></div></div><div class="sub">'+esc(v.engineer||'Engineer not recorded')+(v.systemType?' · '+esc(v.systemType):'')+'</div><div style="white-space:pre-wrap;margin-top:7px">'+esc(v.notes)+'</div>'+(v.defects?'<div class="notice"><strong>Defects</strong><div style="white-space:pre-wrap">'+esc(v.defects)+'</div></div>':'')+(v.followUp?'<div class="notice"><strong>Follow-up</strong><div style="white-space:pre-wrap">'+esc(v.followUp)+'</div></div>':'')+((v.batteryType||v.batteryQuantity||v.batteryInstalledDate||v.batteryDueDate)?'<div class="notice"><strong>🔥 Fire alarm batteries</strong><div>'+[v.batteryType?'Type: '+esc(v.batteryType):'',v.batteryQuantity?'Quantity: '+esc(v.batteryQuantity):'',v.batteryInstalledDate?'Installed: '+esc(v.batteryInstalledDate):'',v.batteryDueDate?'Replacement due: '+esc(v.batteryDueDate):''].filter(Boolean).join(' · ')+'</div></div>':'')+((v.intruderBatteryType||v.intruderBatteryOther||v.intruderBatteryQuantity||v.intruderBatteryInstalledDate||v.intruderBatteryDueDate)?'<div class="notice"><strong>🔐 Intruder alarm batteries</strong><div>'+[v.intruderBatteryType?'Type: '+esc(v.intruderBatteryType):'',v.intruderBatteryOther?'Details: '+esc(v.intruderBatteryOther):'',v.intruderBatteryQuantity?'Quantity: '+esc(v.intruderBatteryQuantity):'',v.intruderBatteryInstalledDate?'Installed: '+esc(v.intruderBatteryInstalledDate):'',v.intruderBatteryDueDate?'Replacement due: '+esc(v.intruderBatteryDueDate):''].filter(Boolean).join(' · ')+'</div></div>':'')+'</div>').join('');
   const partsHtml=usage.length?'<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><strong>Parts used on this job</strong><ul style="margin:6px 0 0;padding-left:20px">'+usage.map(u=>'<li>'+esc(jobReportDateKey(u))+' · '+esc(u.itemName||'Item')+' × '+Number(u.quantity||0)+(u.sku?' · '+esc(u.sku):'')+(u.engineer?' · '+esc(u.engineer):'')+'</li>').join('')+'</ul></div>':'<div class="sub" style="margin-top:8px">No parts have been recorded against this job yet.</div>';
   const site=visits.find(v=>v.siteName)?.siteName||'';
   return '<article class="panel" style="margin:0;padding:13px"><div><strong>'+esc(site||g.job)+'</strong><div class="sub">Job / site reference: '+esc(g.job)+' · '+visits.length+' visit(s) · '+usage.length+' parts record(s)</div></div>'+partsHtml+visitHtml+'</article>';
@@ -710,23 +725,26 @@ async function openJobSiteHistory(){
 }
 $('jobSiteHistoryPanel').insertBefore($('jobReportPanel'),$('jobSiteHistoryRows'));
 $('showEmbeddedJobReport').addEventListener('click',async()=>{const p=$('jobReportPanel');p.hidden=!p.hidden;if(!p.hidden){await loadJobUsageHistory();p.scrollIntoView({behavior:'smooth',block:'start'})}});
+function updateSiteBatterySections(){const system=$('siteVisitSystem').value;const fire=system==='Fire alarm'||system==='Multiple systems';const intruder=system==='Intruder alarm'||system==='Multiple systems';$('fireBatteryFields').hidden=!fire;$('intruderBatteryFields').hidden=!intruder;}
+$('siteVisitSystem').addEventListener('change',updateSiteBatterySections);
+updateSiteBatterySections();
 $('jobSiteHistoryBtn').addEventListener('click',openJobSiteHistory);
 $('closeJobSiteHistory').addEventListener('click',()=>$('jobSiteHistoryPanel').hidden=true);
 $('jobSiteHistorySearch').addEventListener('input',renderJobSiteHistory);
-$('clearSiteVisitForm').addEventListener('click',()=>{$('jobSiteVisitForm').reset();$('siteVisitDate').value=new Date().toISOString().slice(0,10)});
+$('clearSiteVisitForm').addEventListener('click',()=>{$('jobSiteVisitForm').reset();$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections()});
 $('jobSiteVisitForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const store=window.__VSP_JOB_SITE_VISIT_STORE;
  if(!store?.isReady()){toast('Sign in and wait for cloud stock to finish loading before saving site visits.');return}
- const entry={job:$('siteVisitRef').value.trim(),siteName:$('siteVisitName').value.trim(),date:$('siteVisitDate').value,engineer:$('siteVisitEngineer').value.trim(),systemType:$('siteVisitSystem').value,notes:$('siteVisitNotes').value.trim(),defects:$('siteVisitDefects').value.trim(),followUp:$('siteVisitFollowUp').value.trim(),batteryType:$('siteVisitBatteryType').value.trim(),batteryQuantity:$('siteVisitBatteryQuantity').value===''?'':Number($('siteVisitBatteryQuantity').value),batteryInstalledDate:$('siteVisitBatteryInstalled').value,batteryDueDate:$('siteVisitBatteryDue').value};
- if(entry.batteryQuantity!==''&&(!Number.isInteger(entry.batteryQuantity)||entry.batteryQuantity<0)){toast('Battery quantity must be a whole number of zero or more.');return}
+ const entry={job:$('siteVisitRef').value.trim(),siteName:$('siteVisitName').value.trim(),date:$('siteVisitDate').value,engineer:$('siteVisitEngineer').value.trim(),systemType:$('siteVisitSystem').value,notes:$('siteVisitNotes').value.trim(),defects:$('siteVisitDefects').value.trim(),followUp:$('siteVisitFollowUp').value.trim(),batteryType:$('siteVisitBatteryType').value.trim(),batteryQuantity:$('siteVisitBatteryQuantity').value===''?'':Number($('siteVisitBatteryQuantity').value),batteryInstalledDate:$('siteVisitBatteryInstalled').value,batteryDueDate:$('siteVisitBatteryDue').value,intruderBatteryType:$('siteVisitIntruderBatteryType').value,intruderBatteryOther:$('siteVisitIntruderBatteryOther').value.trim(),intruderBatteryQuantity:$('siteVisitIntruderBatteryQuantity').value===''?'':Number($('siteVisitIntruderBatteryQuantity').value),intruderBatteryInstalledDate:$('siteVisitIntruderBatteryInstalled').value,intruderBatteryDueDate:$('siteVisitIntruderBatteryDue').value};
+ if([entry.batteryQuantity,entry.intruderBatteryQuantity].some(q=>q!==''&&(!Number.isInteger(q)||q<0))){toast('Battery quantities must be whole numbers of zero or more.');return}
  if(!entry.job||!entry.date||!entry.notes){toast('Enter the site reference, visit date and work carried out.');return}
  const button=$('saveSiteVisit');button.disabled=true;button.textContent='Saving…';
  try{
   const saved=await store.add(entry);jobSiteVisitRecords.unshift(saved);
   $('jobSiteHistorySearch').value='';renderJobSiteHistory();
   $('jobSiteHistoryStatus').textContent='Site visit saved to your private account. '+jobSiteVisitRecords.length+' saved visit(s).';
-  const ref=entry.job;$('jobSiteVisitForm').reset();$('siteVisitRef').value=ref;$('siteVisitDate').value=new Date().toISOString().slice(0,10);
+  const ref=entry.job;$('jobSiteVisitForm').reset();$('siteVisitRef').value=ref;$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections();
   toast('Site visit saved for '+ref);
  }catch(error){toast('Site visit was not saved: '+(error?.message||error))}
  finally{button.disabled=false;button.textContent='Save site visit'}
@@ -743,7 +761,7 @@ $('jobSiteHistoryRows').addEventListener('click',async e=>{
   $('siteVisitNotes').value=previous.notes||'';
   $('siteVisitDefects').value=previous.defects||'';
   $('siteVisitFollowUp').value=previous.followUp||'';
-  $('siteVisitBatteryType').value=previous.batteryType||'';$('siteVisitBatteryQuantity').value=previous.batteryQuantity||'';$('siteVisitBatteryInstalled').value=previous.batteryInstalledDate||'';$('siteVisitBatteryDue').value=previous.batteryDueDate||'';
+  $('siteVisitBatteryType').value=previous.batteryType||'';$('siteVisitBatteryQuantity').value=previous.batteryQuantity||'';$('siteVisitBatteryInstalled').value=previous.batteryInstalledDate||'';$('siteVisitBatteryDue').value=previous.batteryDueDate||'';$('siteVisitIntruderBatteryType').value=previous.intruderBatteryType||'';$('siteVisitIntruderBatteryOther').value=previous.intruderBatteryOther||'';$('siteVisitIntruderBatteryQuantity').value=previous.intruderBatteryQuantity??'';$('siteVisitIntruderBatteryInstalled').value=previous.intruderBatteryInstalledDate||'';$('siteVisitIntruderBatteryDue').value=previous.intruderBatteryDueDate||'';updateSiteBatterySections();
   $('siteVisitDate').value=new Date().toISOString().slice(0,10);
   $('jobSiteHistoryPanel').scrollIntoView({behavior:'smooth',block:'start'});
   $('siteVisitNotes').focus();
