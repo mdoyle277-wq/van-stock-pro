@@ -476,7 +476,7 @@ window.__VSP_JOB_USAGE_STORE = {
     if (!this.isReady()) throw new Error("Sign in and wait for your private cloud stock to finish loading.");
     const userId = currentSession.user.id, workspaceId = stockWorkspaceId;
     const { data, error } = await supabase.from("job_usage_records")
-      .select("id,usage_date,job_reference,item_id,item_name,sku,category,quantity")
+      .select("id,usage_date,job_reference,item_id,item_name,sku,category,quantity,engineer_name,visit_notes")
       .eq("workspace_id", workspaceId).eq("owner_user_id", userId)
       .order("usage_date", { ascending: false }).limit(5000);
     if (error) throw error;
@@ -485,6 +485,7 @@ window.__VSP_JOB_USAGE_STORE = {
     return (data || []).map(row => ({
       id: row.id, date: row.usage_date, usageDate: String(row.usage_date || "").slice(0,10),
       job: row.job_reference, itemId: row.item_id, itemName: row.item_name,
+      engineer: row.engineer_name || "", visitNotes: row.visit_notes || "",
       sku: row.sku || "", category: row.category || "", quantity: Number(row.quantity || 0)
     }));
   },
@@ -498,18 +499,21 @@ window.__VSP_JOB_USAGE_STORE = {
       item_id: String(entry.itemId ?? ""),
       item_name: String(entry.itemName || "Unnamed item"),
       sku: String(entry.sku || ""), category: String(entry.category || ""),
+      engineer_name: String(entry.engineer || "").trim().slice(0,80),
+      visit_notes: String(entry.visitNotes || "").trim().slice(0,1000),
       quantity: Number(entry.quantity)
     };
     if (!row.job_reference || !Number.isInteger(row.quantity) || row.quantity < 1)
       throw new Error("The job reference or quantity is invalid.");
     const { data, error } = await supabase.from("job_usage_records")
-      .insert(row).select("id,usage_date,job_reference,item_id,item_name,sku,category,quantity").single();
+      .insert(row).select("id,usage_date,job_reference,item_id,item_name,sku,category,quantity,engineer_name,visit_notes").single();
     if (error) throw error;
     if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId)
       throw new Error("The signed-in account changed while saving job usage. Refresh before continuing.");
     return {
       id: data.id, date: data.usage_date, usageDate: String(data.usage_date || "").slice(0,10),
       job: data.job_reference, itemId: data.item_id, itemName: data.item_name,
+      engineer: data.engineer_name || "", visitNotes: data.visit_notes || "",
       sku: data.sku || "", category: data.category || "", quantity: Number(data.quantity || 0)
     };
   },
