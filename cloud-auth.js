@@ -533,7 +533,7 @@ window.__VSP_JOB_SITE_VISIT_STORE = {
     if (!this.isReady()) throw new Error("Sign in and wait for cloud stock to finish loading.");
     const userId=currentSession.user.id, workspaceId=stockWorkspaceId;
     const {data,error}=await supabase.from("job_site_visits")
-      .select("id,visit_date,job_reference,site_name,engineer_name,system_type,visit_notes,defects,follow_up")
+      .select("id,visit_date,job_reference,site_name,engineer_name,system_type,visit_notes,defects,follow_up,battery_type,battery_quantity,battery_installed_date,battery_due_date")
       .eq("workspace_id",workspaceId).eq("owner_user_id",userId)
       .order("visit_date",{ascending:false}).limit(5000);
     if(error)throw error;
@@ -541,7 +541,7 @@ window.__VSP_JOB_SITE_VISIT_STORE = {
     return (data||[]).map(row=>({
       id:row.id,date:row.visit_date,job:row.job_reference,siteName:row.site_name||"",
       engineer:row.engineer_name||"",systemType:row.system_type||"",
-      notes:row.visit_notes||"",defects:row.defects||"",followUp:row.follow_up||""
+      notes:row.visit_notes||"",defects:row.defects||"",followUp:row.follow_up||"",batteryType:row.battery_type||"",batteryQuantity:row.battery_quantity??"",batteryInstalledDate:row.battery_installed_date||"",batteryDueDate:row.battery_due_date||""
     }));
   },
   async add(entry) {
@@ -556,14 +556,18 @@ window.__VSP_JOB_SITE_VISIT_STORE = {
       system_type:String(entry.systemType||"").trim().slice(0,80),
       visit_notes:String(entry.notes||"").trim().slice(0,4000),
       defects:String(entry.defects||"").trim().slice(0,2000),
-      follow_up:String(entry.followUp||"").trim().slice(0,2000)
+      follow_up:String(entry.followUp||"").trim().slice(0,2000),
+      battery_type:String(entry.batteryType||"").trim().slice(0,100),
+      battery_quantity:entry.batteryQuantity===""||entry.batteryQuantity==null?null:Number(entry.batteryQuantity),
+      battery_installed_date:entry.batteryInstalledDate||null,
+      battery_due_date:entry.batteryDueDate||null
     };
     if(!row.job_reference||!row.visit_notes)throw new Error("Enter a job/site reference and visit notes.");
     const {data,error}=await supabase.from("job_site_visits")
-      .insert(row).select("id,visit_date,job_reference,site_name,engineer_name,system_type,visit_notes,defects,follow_up").single();
+      .insert(row).select("id,visit_date,job_reference,site_name,engineer_name,system_type,visit_notes,defects,follow_up,battery_type,battery_quantity,battery_installed_date,battery_due_date").single();
     if(error)throw error;
     if(currentSession?.user?.id!==userId||stockWorkspaceId!==workspaceId)throw new Error("The signed-in account changed while saving. Refresh before continuing.");
-    return {id:data.id,date:data.visit_date,job:data.job_reference,siteName:data.site_name||"",engineer:data.engineer_name||"",systemType:data.system_type||"",notes:data.visit_notes||"",defects:data.defects||"",followUp:data.follow_up||""};
+    return {id:data.id,date:data.visit_date,job:data.job_reference,siteName:data.site_name||"",engineer:data.engineer_name||"",systemType:data.system_type||"",notes:data.visit_notes||"",defects:data.defects||"",followUp:data.follow_up||"",batteryType:data.battery_type||"",batteryQuantity:data.battery_quantity??"",batteryInstalledDate:data.battery_installed_date||"",batteryDueDate:data.battery_due_date||""};
   },
   async remove(id) {
     if(!this.isReady())throw new Error("Cloud account is not ready.");
