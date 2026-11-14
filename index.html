@@ -82,6 +82,13 @@ body.cloud-authenticated::before{display:none!important;content:none!important}
 .stock-tablewrap .rowactions{gap:7px}
 .stock-tablewrap .rowactions .smallbtn{flex:1 1 0;min-width:0;padding:10px 7px;font-size:12px;min-height:44px}
 }
+
+.vsp-home-note-dropdown{margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:#0b1524;overflow:hidden}
+.vsp-home-note-dropdown>summary{padding:12px 14px;cursor:pointer;font-weight:800;color:var(--mint);list-style:none}
+.vsp-home-note-dropdown>summary::-webkit-details-marker{display:none}
+.vsp-home-note-dropdown>summary:after{content:"＋";float:right;color:var(--muted)}
+.vsp-home-note-dropdown[open]>summary:after{content:"−"}
+.vsp-home-note-content{padding:0 12px 12px}
 </style>
 <style id="signed-out-content-visibility">body:not(.cloud-authenticated) main.wrap>:not(header):not(#cloudStatus){display:none!important}body.cloud-authenticated main.wrap>:not(#cloudStatus):not([hidden]){display:revert!important}body.cloud-loading main.wrap>:not(header):not(#cloudStatus){visibility:hidden!important;pointer-events:none!important}</style>
 <style id="vsp-mobile-flow-redesign">
@@ -285,6 +292,15 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 </section>
 <section class="panel vsp-home-quick" aria-label="Quick stock access">
   <div class="panelhead"><div><h2>Quick stock access</h2><div class="sub">Search your van stock or jump straight to a category.</div></div></div>
+  <details class="vsp-home-note-dropdown" id="homeJobNoteDropdown">
+    <summary>📝 Quick job note templates</summary>
+    <div class="vsp-home-note-content">
+      <label class="fieldlabel" for="homeJobNoteTemplateSelect">Choose one of your private saved templates</label>
+      <select class="field" id="homeJobNoteTemplateSelect"><option value="">Choose a saved template…</option></select>
+      <button type="button" class="secondary" id="copyHomeJobNoteTemplate" style="width:100%;margin-top:8px">Copy note to clipboard</button>
+      <div class="sub" id="homeJobNoteTemplateStatus" style="margin-top:7px">Open this menu to load your saved templates.</div>
+    </div>
+  </details>
   <div class="vsp-quick-search">
     <span aria-hidden="true">⌕</span>
     <input class="field" id="homeQuickSearch" type="search" placeholder="Find an item, SKU or barcode…" aria-label="Quick search stock">
@@ -404,12 +420,34 @@ $('scanBtn').addEventListener('click',startScanner);$('stopScanBtn').addEventLis
 
 let pendingUsageItemId=null;$('stockRows').addEventListener('click',function handleUseOnJob(e){const b=e.target.closest('button[data-usejob]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();const item=items.find(x=>String(x.id)===String(b.getAttribute('data-usejob')));if(!item){toast('Could not find this stock item.');return}pendingUsageItemId=item.id;$('jobUseItemName').textContent=item.name+' · '+item.qty+' in stock';$('jobUseRef').value='';$('jobUseQty').value='1';$('jobUseEngineer').value='';$('jobUseVisitNotes').value='';loadPrivateJobNoteTemplates();const panel=$('jobUsePanel');panel.hidden=false;panel.style.display='flex';panel.style.position='fixed';panel.style.inset='0';panel.style.zIndex='100000';panel.style.background='rgba(3,8,18,.9)';panel.style.alignItems='center';panel.style.justifyContent='center';panel.style.padding='16px';const card=panel.querySelector('.job-use-card');card.style.display='block';card.style.background='#101b2d';card.style.color='#fff';card.style.padding='20px';card.style.borderRadius='16px';card.style.maxWidth='480px';card.style.width='100%';card.style.maxHeight='85vh';card.style.overflow='auto';setTimeout(()=>$('jobUseRef').focus(),50)});function closeJobUsePanel(){const panel=$('jobUsePanel');panel.hidden=true;panel.style.display='none';pendingUsageItemId=null}
 async function loadPrivateJobNoteTemplates(){
- const select=$('jobNoteTemplateSelect');if(!select)return;
- select.replaceChildren(new Option('Choose a saved template…',''));
- try{const templates=await window.__VSP_JOB_NOTE_TEMPLATE_STORE.getAll();for(const t of templates)select.add(new Option(t.name,t.id));$('jobNoteTemplateStatus').textContent=templates.length+' private template(s) saved to your account.'}
- catch(error){$('jobNoteTemplateStatus').textContent='Could not load templates: '+(error?.message||error)}
+ const select=$('jobNoteTemplateSelect'),homeSelect=$('homeJobNoteTemplateSelect');
+ if(select)select.replaceChildren(new Option('Choose a saved template…',''));
+ if(homeSelect)homeSelect.replaceChildren(new Option('Choose a saved template…',''));
+ try{
+  const templates=await window.__VSP_JOB_NOTE_TEMPLATE_STORE.getAll();
+  for(const t of templates){if(select)select.add(new Option(t.name,t.id));if(homeSelect)homeSelect.add(new Option(t.name,t.id))}
+  const status=templates.length+' private template(s) saved to your account.';
+  if($('jobNoteTemplateStatus'))$('jobNoteTemplateStatus').textContent=status;
+  if($('homeJobNoteTemplateStatus'))$('homeJobNoteTemplateStatus').textContent=status;
+ }catch(error){
+  const message='Could not load templates: '+(error?.message||error);
+  if($('jobNoteTemplateStatus'))$('jobNoteTemplateStatus').textContent=message;
+  if($('homeJobNoteTemplateStatus'))$('homeJobNoteTemplateStatus').textContent=message;
+ }
 }
 $('jobNoteTemplateSelect')?.addEventListener('change',()=>{const selected=$('jobNoteTemplateSelect').selectedOptions[0];$('jobNoteTemplateName').value=selected?.value?selected.textContent:''});
+$('homeJobNoteDropdown')?.addEventListener('toggle',()=>{if($('homeJobNoteDropdown').open)loadPrivateJobNoteTemplates()});
+$('copyHomeJobNoteTemplate')?.addEventListener('click',async()=>{
+ const id=$('homeJobNoteTemplateSelect')?.value;
+ if(!id)return toast('Choose a template first');
+ try{
+  const list=await window.__VSP_JOB_NOTE_TEMPLATE_STORE.getAll(),item=list.find(t=>t.id===id);
+  if(!item)throw new Error('Template not found. Open the menu again to refresh your templates.');
+  if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(item.body)}
+  else{const temp=document.createElement('textarea');temp.value=item.body;temp.style.position='fixed';temp.style.opacity='0';document.body.appendChild(temp);temp.select();const copied=document.execCommand('copy');temp.remove();if(!copied)throw new Error('Clipboard access is unavailable on this device.')}
+  toast('Job note copied. Paste it into your job notes.');
+ }catch(error){toast('Could not copy note: '+(error?.message||error))}
+});
 $('applyJobNoteTemplate')?.addEventListener('click',async()=>{
  const id=$('jobNoteTemplateSelect').value;if(!id)return toast('Choose a template first');
  try{const list=await window.__VSP_JOB_NOTE_TEMPLATE_STORE.getAll(),item=list.find(t=>t.id===id);if(!item)throw new Error('Template not found.');$('jobUseVisitNotes').value=item.body;$('jobNoteTemplateName').value=item.name;toast('Template copied into visit notes. Edit it before saving the job if needed.')}
