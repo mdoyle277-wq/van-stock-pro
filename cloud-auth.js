@@ -82,6 +82,7 @@ function setSession(session) {
   previewButton.hidden = !user;
   email.disabled = !!user;
   password.disabled = !!user;
+  window.dispatchEvent(new Event("vsp-category-session"));
 }
 async function checkSchema() {
   const { error: workspaceError } = await supabase.from("workspaces").select("id").limit(1);
@@ -464,6 +465,38 @@ setupButton.addEventListener("click", async () => {
     setupButton.disabled = false;
   }
 });
+// Category preferences live in each user's own Supabase auth metadata.
+// updateUser can only update the currently authenticated account, so another
+// workspace member cannot edit the administrator's category list (or vice versa).
+window.__VSP_CATEGORY_STORE = {
+  async get() {
+    if (!currentSession?.user) throw new Error("Sign in to load your categories.");
+    const values = currentSession.user.user_metadata?.vsp_categories;
+    if (values == null) return null;
+    if (!Array.isArray(values) || values.some(value => typeof value !== "string")) {
+      throw new Error("Your saved category list is invalid. No categories were changed.");
+    }
+    return values;
+  },
+  async save(categories) {
+    if (!currentSession?.user) throw new Error("Sign in to save your categories.");
+    if (!Array.isArray(categories) || !categories.length || categories.length > 50 ||
+        categories.some(value => typeof value !== "string" || !value.trim() || value.length > 40)) {
+      throw new Error("Use between 1 and 50 category names, each up to 40 characters.");
+    }
+    const userId = currentSession.user.id;
+    const { data, error } = await supabase.auth.updateUser({
+      data: { vsp_categories: categories.map(value => value.trim()) }
+    });
+    if (error) throw error;
+    if (currentSession?.user?.id !== userId || !data?.user) {
+      throw new Error("The signed-in account changed. Please sign in again before saving categories.");
+    }
+    currentSession = { ...currentSession, user: data.user };
+    return true;
+  }
+};
+
 supabase.auth.onAuthStateChange((event, session) => {
   setSession(session);
   // Supabase restores an existing login on page refresh using INITIAL_SESSION.
