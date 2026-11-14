@@ -468,6 +468,60 @@ setupButton.addEventListener("click", async () => {
 // Category preferences live in each user's own Supabase auth metadata.
 // updateUser can only update the currently authenticated account, so another
 // workspace member cannot edit the administrator's category list (or vice versa).
+// Private job usage history. RLS and explicit owner filters ensure that
+// even workspace admins can see only their own records in this first release.
+window.__VSP_JOB_USAGE_STORE = {
+  isReady() { return !!(currentSession?.user?.id && stockWorkspaceId && stockSyncReady); },
+  async getAll() {
+    if (!this.isReady()) throw new Error("Sign in and wait for your private cloud stock to finish loading.");
+    const userId = currentSession.user.id, workspaceId = stockWorkspaceId;
+    const { data, error } = await supabase.from("job_usage_records")
+      .select("id,usage_date,job_reference,item_id,item_name,sku,category,quantity")
+      .eq("workspace_id", workspaceId).eq("owner_user_id", userId)
+      .order("usage_date", { ascending: false }).limit(5000);
+    if (error) throw error;
+    if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId)
+      throw new Error("The signed-in account changed while loading job history.");
+    return (data || []).map(row => ({
+      id: row.id, date: row.usage_date, usageDate: String(row.usage_date || "").slice(0,10),
+      job: row.job_reference, itemId: row.item_id, itemName: row.item_name,
+      sku: row.sku || "", category: row.category || "", quantity: Number(row.quantity || 0)
+    }));
+  },
+  async add(entry) {
+    if (!this.isReady()) throw new Error("Sign in and wait for your private cloud stock to finish loading before recording job usage.");
+    const userId = currentSession.user.id, workspaceId = stockWorkspaceId;
+    const row = {
+      workspace_id: workspaceId, owner_user_id: userId,
+      usage_date: entry.date || new Date().toISOString(),
+      job_reference: String(entry.job || "").trim(),
+      item_id: String(entry.itemId ?? ""),
+      item_name: String(entry.itemName || "Unnamed item"),
+      sku: String(entry.sku || ""), category: String(entry.category || ""),
+      quantity: Number(entry.quantity)
+    };
+    if (!row.job_reference || !Number.isInteger(row.quantity) || row.quantity < 1)
+      throw new Error("The job reference or quantity is invalid.");
+    const { data, error } = await supabase.from("job_usage_records")
+      .insert(row).select("id,usage_date,job_reference,item_id,item_name,sku,category,quantity").single();
+    if (error) throw error;
+    if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId)
+      throw new Error("The signed-in account changed while saving job usage. Refresh before continuing.");
+    return {
+      id: data.id, date: data.usage_date, usageDate: String(data.usage_date || "").slice(0,10),
+      job: data.job_reference, itemId: data.item_id, itemName: data.item_name,
+      sku: data.sku || "", category: data.category || "", quantity: Number(data.quantity || 0)
+    };
+  },
+  async remove(id) {
+    if (!this.isReady()) throw new Error("Cloud account is not ready.");
+    const userId = currentSession.user.id, workspaceId = stockWorkspaceId;
+    const { error } = await supabase.from("job_usage_records").delete()
+      .eq("id", id).eq("workspace_id", workspaceId).eq("owner_user_id", userId);
+    if (error) throw error;
+  }
+};
+
 window.__VSP_CATEGORY_STORE = {
   async get() {
     if (!currentSession?.user) throw new Error("Sign in to load your categories.");
