@@ -245,27 +245,30 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <header class="top"><div class="brand"><img class="logo" src="./van-stock-header-logo.svg?v=1" alt="Van Stock Pro futuristic van logo"><span class="app-version" aria-label="Build number 0001">Build 0001</span><div><h1>Van Stock Pro</h1><div class="title-auth-actions" style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" id="cloudSignInMini" type="button">☁️ Sign in</button><button class="secondary" id="cloudSignOutMini" type="button" aria-label="Sign out of Van Stock Pro" hidden>☁️ Sign out</button></div><div class="sub">Your stock. Your van. Under control.</div></div></div><div class="actions home-actions" aria-label="Main app tools">
 <details class="home-group"><summary>📦 Stock</summary><div class="home-group-items"><button id="addFocusBtn">＋ Add item</button><button class="secondary" id="addSelectedTop">＋ Add selected</button><button class="secondary" id="receiveStockBtn" type="button">📦 Receive delivery</button><button class="secondary" id="stocktakeBtn" type="button">📋 Stocktake</button><button class="secondary" id="stockAlertsBtn" type="button">🔔 Stock alerts</button><button class="secondary" id="minMaxBtn" type="button">🎯 Min / max levels</button></div></details>
 <details class="home-group"><summary>🛒 Reordering</summary><div class="home-group-items"><button class="secondary" id="reorderPlannerBtn" type="button">Reorder planner</button><button class="secondary" id="emailRestockTop">Email restock</button><button class="secondary" id="exportBtn">Export stock CSV</button></div></details>
-<details class="home-group"><summary>📋 Jobs &amp; history</summary><div class="home-group-items"><button class="secondary" id="jobReportBtn" type="button">📊 Job usage report</button><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open'));">Stock history</button><div class="home-history-note-tools" style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px">
-<label class="fieldlabel" for="historyJobNoteTemplateSelect">📝 Quick copy job note</label>
+<details class="home-group"><summary>📋 Jobs &amp; history</summary><div class="home-group-items"><button class="secondary" id="jobReportBtn" type="button">📊 Job usage report</button><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open')); ">Stock history</button></div></details>
+<details class="home-group" id="supplierToolsMenu"><summary>🏷️ Suppliers &amp; tools</summary><div class="home-group-items"><button class="secondary" id="supplierDirectoryBtn" type="button">Suppliers</button><button class="secondary" id="supplierDetailsBtn" type="button">Supplier contacts</button><button class="secondary" id="supplierImportBtn" type="button">Import contacts</button></div></details>
+<details class="home-group home-template-manager" id="jobNoteTemplatesMenu" style="grid-column:1/-1;width:100%;margin-top:2px">
+<summary>📝 Job note templates</summary>
+<div class="home-group-items" style="padding:10px 12px 12px;gap:9px">
+<label class="fieldlabel" for="historyJobNoteTemplateSelect">Choose a saved private template</label>
 <select class="field" id="historyJobNoteTemplateSelect"><option value="">Choose a saved template…</option></select>
-<button type="button" class="secondary" id="copyHistoryJobNoteTemplate" style="width:100%;margin-top:7px">Copy selected note</button>
-<div class="entryactions" style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px">
+<button type="button" class="secondary" id="copyHistoryJobNoteTemplate" style="width:100%;margin-top:0">Copy selected note</button>
+<div class="entryactions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%">
 <button type="button" class="secondary" id="editHistoryJobNoteTemplate">✏️ Edit selected</button>
 <button type="button" class="danger" id="deleteHistoryJobNoteTemplate">🗑 Delete selected</button>
 </div>
-<div id="historyJobNoteTemplateEditor" hidden style="border:1px solid var(--line);border-radius:10px;padding:9px;margin-top:8px">
+<div id="historyJobNoteTemplateEditor" hidden style="border:1px solid var(--line);border-radius:10px;padding:10px;width:100%;box-sizing:border-box">
 <label class="fieldlabel" for="historyJobNoteTemplateName">Template name</label>
 <input class="field" id="historyJobNoteTemplateName" maxlength="50" placeholder="Template name">
 <label class="fieldlabel" for="historyJobNoteTemplateBody" style="margin-top:8px">Job note</label>
 <textarea class="field" id="historyJobNoteTemplateBody" rows="7" maxlength="1000" placeholder="Enter the job note"></textarea>
-<div class="entryactions" style="margin-top:8px">
+<div class="entryactions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
 <button type="button" id="saveHistoryJobNoteTemplate">Save changes</button>
 <button type="button" class="secondary" id="cancelHistoryJobNoteTemplateEdit">Cancel</button>
 </div>
 </div>
-<div class="sub" id="historyJobNoteTemplateStatus" style="margin-top:6px">Your private templates.</div>
-</div></div></details>
-<details class="home-group" id="supplierToolsMenu"><summary>🏷️ Suppliers &amp; tools</summary><div class="home-group-items"><button class="secondary" id="supplierDirectoryBtn" type="button">Suppliers</button><button class="secondary" id="supplierDetailsBtn" type="button">Supplier contacts</button><button class="secondary" id="supplierImportBtn" type="button">Import contacts</button></div></details>
+<div class="sub" id="historyJobNoteTemplateStatus" style="margin-top:2px">Your private templates.</div>
+</div></details>
 </div></header>
 <section class="panel" id="cloudStatus" style="margin:0 0 16px">
   <div class="panelhead"><div><h2>☁️ Multi-device cloud setup</h2><div class="sub">Sign in to access your Van Stock Pro account. Your existing browser stock stays on this device until you review and confirm a cloud import.</div></div><span class="pill" style="white-space:nowrap">Account sign-in</span></div>
@@ -469,6 +472,7 @@ $('homeJobNoteDropdown')?.addEventListener('toggle',()=>{if($('homeJobNoteDropdo
   }catch(error){toast('Could not copy note: '+(error?.message||error))}
  });
  $('historyJobNoteTemplateSelect')?.addEventListener('focus',loadPrivateJobNoteTemplates);
+$('jobNoteTemplatesMenu')?.addEventListener('toggle',()=>{if($('jobNoteTemplatesMenu').open)loadPrivateJobNoteTemplates()});
 
 $('editHistoryJobNoteTemplate')?.addEventListener('click',async()=>{
  const id=$('historyJobNoteTemplateSelect')?.value;
