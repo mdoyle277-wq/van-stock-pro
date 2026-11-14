@@ -568,9 +568,11 @@ window.__VSP_JOB_SITE_VISIT_STORE = {
   async remove(id) {
     if(!this.isReady())throw new Error("Cloud account is not ready.");
     const userId=currentSession.user.id,workspaceId=stockWorkspaceId;
-    const {data,error}=await supabase.from("job_site_visits").delete().eq("id",id).eq("workspace_id",workspaceId).eq("owner_user_id",userId).select("id").maybeSingle();
+    const {error}=await supabase.from("job_site_visits").delete().eq("id",id).eq("workspace_id",workspaceId).eq("owner_user_id",userId);
     if(error)throw error;
-    if(!data?.id)throw new Error("No visit was deleted. Check the database delete policy and refresh the page.");
+    const {data:remaining,error:verifyError}=await supabase.from("job_site_visits").select("id").eq("id",id).eq("workspace_id",workspaceId).eq("owner_user_id",userId).maybeSingle();
+    if(verifyError)throw verifyError;
+    if(remaining?.id)throw new Error("Supabase did not remove this visit. Check the delete policy.");
   }
 };
 
