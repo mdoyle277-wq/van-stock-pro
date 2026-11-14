@@ -523,6 +523,9 @@ function vspRenderCategoryTiles(){
 async function vspLoadCategories(){
  const store=window.__VSP_CATEGORY_STORE;
  if(!store)return;
+ vspCategoriesReady=false;
+ $('homeCategoryTiles').innerHTML='';
+ $('categoryManagerNote').textContent='Loading your private category list…';
  try{
   const saved=await store.get();
   vspUserCategories=Array.isArray(saved)&&saved.length?saved:VSP_DEFAULT_CATEGORIES.slice();
