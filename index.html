@@ -191,7 +191,32 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 .access-summary-note{font-size:11px;font-weight:600;color:var(--muted);flex:1 1 100%;padding-left:29px}
 .access-dropdown-content{display:grid;gap:10px;padding:0 13px 14px}
 @media(max-width:600px){.access-dropdown>summary{align-items:flex-start;flex-direction:column;gap:4px;padding:13px 12px}.access-dropdown>summary:after{position:absolute;right:28px}.access-dropdown{position:relative}.access-summary-note{padding-left:29px}.access-dropdown-content{padding:0 12px 12px}.access-dropdown-content #accessAddUser{width:100%;min-height:44px}}
-</style></head>
+</style>
+<style id="vsp-polished-home-combined">
+/* Polished home improvements: retain existing layout and app behavior. */
+.vsp-home-quick{margin:0 0 16px;padding:16px}
+.vsp-home-quick .panelhead{margin-bottom:12px}
+.vsp-quick-search{display:flex;align-items:center;gap:8px;padding:6px;background:#0b1524;border:1px solid var(--line);border-radius:13px}
+.vsp-quick-search>span{padding-left:8px;color:var(--mint);font-size:22px}
+.vsp-quick-search .field{border:0;background:transparent;box-shadow:none;min-width:0}
+.vsp-quick-search button{min-height:42px;white-space:nowrap}
+.vsp-quick-categories{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.vsp-quick-categories button{display:flex;align-items:center;justify-content:flex-start;gap:8px;min-width:0;min-height:48px;padding:9px 10px;background:linear-gradient(145deg,#20354d,#17283d);color:var(--text);border:1px solid #344b66;border-radius:12px;text-align:left;font-size:12px;font-weight:750}
+.vsp-quick-categories button:active,.vsp-quick-alerts button:active{transform:scale(.985)}
+.vsp-quick-categories button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vsp-quick-alerts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.vsp-quick-alerts button{min-height:40px;font-size:12px}
+.stats .stat{box-shadow:0 5px 18px #0002;transition:border-color .15s ease,transform .15s ease}
+.stats .stat:not(.selected-photo-card){padding:14px}
+.stats .stat .label{letter-spacing:.07em}
+.home-group{box-shadow:0 4px 14px #0002}
+.home-group>summary{transition:background .15s ease}
+.home-group>summary:active{background:#ffffff08}
+.home-group-items button{border-radius:10px}
+@media(max-width:850px){.vsp-quick-categories{grid-template-columns:repeat(2,minmax(0,1fr))}.vsp-home-quick{padding:14px}}
+@media(max-width:480px){.vsp-quick-search{flex-wrap:wrap}.vsp-quick-search .field{flex:1 1 calc(100% - 44px)}.vsp-quick-search button{width:100%}.vsp-quick-categories{gap:7px}.vsp-quick-categories button{min-height:46px;padding:8px;font-size:11px}.vsp-quick-alerts{display:grid;grid-template-columns:1fr 1fr}.vsp-quick-alerts button:last-child{grid-column:1/-1}}
+</style>
+</head>
 <body><main class="wrap">
 <header class="top"><div class="brand"><img class="logo" src="./van-stock-header-logo.svg?v=1" alt="Van Stock Pro futuristic van logo"><span class="app-version" aria-label="Build number 0001">Build 0001</span><div><div class="eyebrow">Field inventory system</div><h1>Van Stock Pro</h1><div class="title-auth-actions" style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" id="cloudSignInMini" type="button">☁️ Sign in</button><button class="secondary" id="cloudSignOutMini" type="button" aria-label="Sign out of Van Stock Pro" hidden>☁️ Sign out</button></div><div class="sub">Your stock. Your van. Under control.</div></div></div><div class="actions home-actions" aria-label="Main app tools">
 <details class="home-group"><summary>📦 Stock</summary><div class="home-group-items"><button id="addFocusBtn">＋ Add item</button><button class="secondary" id="addSelectedTop">＋ Add selected</button><button class="secondary" id="receiveStockBtn" type="button">📦 Receive delivery</button><button class="secondary" id="stocktakeBtn" type="button">📋 Stocktake</button><button class="secondary" id="stockAlertsBtn" type="button">🔔 Stock alerts</button><button class="secondary" id="minMaxBtn" type="button">🎯 Min / max levels</button></div></details>
@@ -240,6 +265,28 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <div class="stat"><div class="label">SKU COUNT</div><div class="num" id="skuCount">0</div><div class="hint">Unique stock lines</div></div>
 <div class="stat amber"><div class="label">REORDER NEEDED</div><div class="num" id="lowCount">0</div><div class="hint">At or below minimum level</div></div>
 <div class="stat red"><div class="label">OUT OF STOCK</div><div class="num" id="outCount">0</div><div class="hint">Items needing replenishment</div></div>
+</section>
+<section class="panel vsp-home-quick" aria-label="Quick stock access">
+  <div class="panelhead"><div><h2>Quick stock access</h2><div class="sub">Search your van stock or jump straight to a category.</div></div></div>
+  <div class="vsp-quick-search">
+    <span aria-hidden="true">⌕</span>
+    <input class="field" id="homeQuickSearch" type="search" placeholder="Find an item, SKU or barcode…" aria-label="Quick search stock">
+    <button type="button" class="secondary" id="homeQuickSearchGo">Search</button>
+  </div>
+  <div class="vsp-quick-categories" aria-label="Stock categories">
+    <button type="button" data-home-category="Fire Alarm">🔥 <span>Fire alarm</span></button>
+    <button type="button" data-home-category="Intruder Alarm">🛡️ <span>Intruder</span></button>
+    <button type="button" data-home-category="Access Control">🔐 <span>Access control</span></button>
+    <button type="button" data-home-category="CCTV">📹 <span>CCTV</span></button>
+    <button type="button" data-home-category="Extinguishers">🧯 <span>Extinguishers</span></button>
+    <button type="button" data-home-category="Misc Products">📦 <span>Misc products</span></button>
+    <button type="button" data-home-category="JD Stock">🏷️ <span>JD Stock</span></button>
+  </div>
+  <div class="vsp-quick-alerts">
+    <button type="button" class="secondary" id="homeQuickLow">⚠️ Show low stock</button>
+    <button type="button" class="secondary" id="homeQuickOut">⛔ Show out of stock</button>
+    <button type="button" class="secondary" id="homeQuickClear">Clear filters</button>
+  </div>
 </section>
 <section class="panel backup-panel" id="backupToolsPanel" style="margin:0 0 16px">
   <div class="panelhead"><div><h2>💾 Backup &amp; Restore</h2><div class="sub">Choose what you want to back up or restore.</div></div></div>
@@ -427,5 +474,15 @@ $('backupDataBtn').addEventListener('click',()=>{try{const saved={};for(let i=0;
 $('backupCodeBtn').addEventListener('click',()=>{try{downloadVanFile('van-stock-pro-functionality-'+new Date().toISOString().slice(0,10)+'.html','<!doctype html>\\n'+document.documentElement.outerHTML,'text/html;charset=utf-8');$('backupStatus').textContent='App functionality HTML downloaded. Keep this separate from the JSON data backup.';toast('App functionality backup downloaded')}catch(e){$('backupStatus').textContent='Could not create app backup: '+e.message;toast('App backup failed')}});
 $('restoreCodeBtn').addEventListener('click',()=>$('restoreCodeFile').click());
 $('restoreCodeFile').addEventListener('change',async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{const html=await file.text();if(!/Van Stock Pro/i.test(html)||!/<html[\\s>]/i.test(html)||!/<script[\\s>]/i.test(html))throw new Error('Choose a valid Van Stock Pro HTML functionality backup.');if(!confirm('Prepare this app functionality backup as index.html? This downloads a replacement file but does not change the live website automatically. To publish it, replace index.html in your GitHub repository.'))return;downloadVanFile('index.html',html,'text/html;charset=utf-8');$('backupStatus').textContent='Replacement index.html prepared. To restore the live app, upload this file to the repository and commit the change.';toast('Replacement app file prepared')}catch(err){$('backupStatus').textContent='App restore failed: '+err.message;toast('App restore failed')}finally{e.target.value=''}});
+
+function vspJumpToStock(){const p=document.querySelector('.layout .panel');if(p)p.scrollIntoView({behavior:'smooth',block:'start'})}
+function vspApplyHomeSearch(){const q=$('homeQuickSearch').value;$('search').value=q;$('statusFilter').value='';$('categoryFilter').value='';render();vspJumpToStock()}
+$('homeQuickSearchGo').addEventListener('click',vspApplyHomeSearch);
+$('homeQuickSearch').addEventListener('keydown',e=>{if(e.key==='Enter')vspApplyHomeSearch()});
+document.querySelectorAll('[data-home-category]').forEach(b=>b.addEventListener('click',()=>{$('search').value='';$('statusFilter').value='';$('categoryFilter').value=b.getAttribute('data-home-category');$('homeQuickSearch').value='';render();vspJumpToStock()}));
+$('homeQuickLow').addEventListener('click',()=>{$('search').value='';$('categoryFilter').value='';$('statusFilter').value='low';$('homeQuickSearch').value='';render();vspJumpToStock()});
+$('homeQuickOut').addEventListener('click',()=>{$('search').value='';$('categoryFilter').value='';$('statusFilter').value='out';$('homeQuickSearch').value='';render();vspJumpToStock()});
+$('homeQuickClear').addEventListener('click',()=>{$('search').value='';$('categoryFilter').value='';$('statusFilter').value='';$('homeQuickSearch').value='';render()});
+
 render();if(items.length){const savedWithPhoto=items.find(i=>i.photo);showSelectedItem(savedWithPhoto||items[0])}
 </script><script type="module" src="./cloud-auth.js?v=20261113-admin-backup-visibility"></script></body></html>
