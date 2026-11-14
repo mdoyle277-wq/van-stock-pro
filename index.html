@@ -178,6 +178,9 @@ body.cloud-authenticated::before{display:none!important;content:none!important}
 .backup-panel .notice{margin-top:10px}
 @media(max-width:600px){.backup-dropdown>summary{align-items:flex-start;flex-direction:column;gap:3px;padding:13px 12px}.backup-dropdown>summary:after{position:absolute;right:28px;margin-top:0}.backup-dropdown{position:relative}.backup-summary-note{text-align:left}.backup-dropdown-content{padding:0 12px 12px}.backup-dropdown-content button{width:100%;min-height:44px}.backup-dropdown-content .entryactions{display:grid;grid-template-columns:1fr}}
 
+/* Supplier directory, contacts and import tools are admin-only. */
+body:not(.cloud-admin) #supplierToolsMenu{display:none!important}
+
 /* App code backup/restore is reserved for workspace owners and admins. */
 body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 
@@ -222,7 +225,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <details class="home-group"><summary>📦 Stock</summary><div class="home-group-items"><button id="addFocusBtn">＋ Add item</button><button class="secondary" id="addSelectedTop">＋ Add selected</button><button class="secondary" id="receiveStockBtn" type="button">📦 Receive delivery</button><button class="secondary" id="stocktakeBtn" type="button">📋 Stocktake</button><button class="secondary" id="stockAlertsBtn" type="button">🔔 Stock alerts</button><button class="secondary" id="minMaxBtn" type="button">🎯 Min / max levels</button></div></details>
 <details class="home-group"><summary>🛒 Reordering</summary><div class="home-group-items"><button class="secondary" id="reorderPlannerBtn" type="button">Reorder planner</button><button class="secondary" id="emailRestockTop">Email restock</button><button class="secondary" id="exportBtn">Export stock CSV</button></div></details>
 <details class="home-group"><summary>📋 Jobs &amp; history</summary><div class="home-group-items"><button class="secondary" id="jobReportBtn" type="button">📊 Job usage report</button><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open'));">Stock history</button></div></details>
-<details class="home-group"><summary>🏷️ Suppliers &amp; tools</summary><div class="home-group-items"><button class="secondary" id="supplierDirectoryBtn" type="button">Suppliers</button><button class="secondary" id="supplierDetailsBtn" type="button">Supplier contacts</button><button class="secondary" id="supplierImportBtn" type="button">Import contacts</button></div></details>
+<details class="home-group" id="supplierToolsMenu"><summary>🏷️ Suppliers &amp; tools</summary><div class="home-group-items"><button class="secondary" id="supplierDirectoryBtn" type="button">Suppliers</button><button class="secondary" id="supplierDetailsBtn" type="button">Supplier contacts</button><button class="secondary" id="supplierImportBtn" type="button">Import contacts</button></div></details>
 </div></header>
 <section class="panel" id="cloudStatus" style="margin:0 0 16px">
   <div class="panelhead"><div><h2>☁️ Multi-device cloud setup</h2><div class="sub">Sign in to access your Van Stock Pro account. Your existing browser stock stays on this device until you review and confirm a cloud import.</div></div><span class="pill" style="white-space:nowrap">Account sign-in</span></div>
