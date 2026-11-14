@@ -179,7 +179,10 @@ body.cloud-authenticated::before{display:none!important;content:none!important}
 @media(max-width:600px){.backup-dropdown>summary{align-items:flex-start;flex-direction:column;gap:3px;padding:13px 12px}.backup-dropdown>summary:after{position:absolute;right:28px;margin-top:0}.backup-dropdown{position:relative}.backup-summary-note{text-align:left}.backup-dropdown-content{padding:0 12px 12px}.backup-dropdown-content button{width:100%;min-height:44px}.backup-dropdown-content .entryactions{display:grid;grid-template-columns:1fr}}
 
 /* Supplier directory, contacts and import tools are admin-only. */
-body:not(.cloud-admin) #supplierToolsMenu{display:none!important}
+body:not(.cloud-admin) #supplierToolsMenu,
+body:not(.cloud-admin) #supplierPanel,
+body:not(.cloud-admin) #supplierEditorPanel,
+body:not(.cloud-admin) #supplierImportPanel{display:none!important}
 
 /* App code backup/restore is reserved for workspace owners and admins. */
 body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
