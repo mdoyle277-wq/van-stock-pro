@@ -725,7 +725,7 @@ async function openJobSiteHistory(){
 }
 $('jobSiteHistoryPanel').insertBefore($('jobReportPanel'),$('jobSiteHistoryPanel').children[3]);
 // Keep the stock-use form inside Job Site History instead of displaying it as a full-screen popup.
-$('jobSiteHistoryPanel').insertBefore($('jobUsePanel'),$('jobSiteVisitForm').parentElement.parentElement);
+$('jobSiteHistoryPanel').insertBefore($('jobUsePanel'),$('jobSiteVisitForm').parentElement);
 $('showEmbeddedJobReport').addEventListener('click',async()=>{const p=$('jobReportPanel');p.hidden=!p.hidden;if(!p.hidden){await loadJobUsageHistory();p.scrollIntoView({behavior:'smooth',block:'start'})}});
 function updateSiteBatterySections(){const system=$('siteVisitSystem').value;const fire=system==='Fire alarm'||system==='Multiple systems';const intruder=system==='Intruder alarm'||system==='Multiple systems';$('fireBatteryFields').hidden=!fire;$('intruderBatteryFields').hidden=!intruder;}
 $('siteVisitSystem').addEventListener('change',updateSiteBatterySections);
