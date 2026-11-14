@@ -245,7 +245,12 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <header class="top"><div class="brand"><img class="logo" src="./van-stock-header-logo.svg?v=1" alt="Van Stock Pro futuristic van logo"><span class="app-version" aria-label="Build number 0001">Build 0001</span><div><h1>Van Stock Pro</h1><div class="title-auth-actions" style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" id="cloudSignInMini" type="button">☁️ Sign in</button><button class="secondary" id="cloudSignOutMini" type="button" aria-label="Sign out of Van Stock Pro" hidden>☁️ Sign out</button></div><div class="sub">Your stock. Your van. Under control.</div></div></div><div class="actions home-actions" aria-label="Main app tools">
 <details class="home-group"><summary>📦 Stock</summary><div class="home-group-items"><button id="addFocusBtn">＋ Add item</button><button class="secondary" id="addSelectedTop">＋ Add selected</button><button class="secondary" id="receiveStockBtn" type="button">📦 Receive delivery</button><button class="secondary" id="stocktakeBtn" type="button">📋 Stocktake</button><button class="secondary" id="stockAlertsBtn" type="button">🔔 Stock alerts</button><button class="secondary" id="minMaxBtn" type="button">🎯 Min / max levels</button></div></details>
 <details class="home-group"><summary>🛒 Reordering</summary><div class="home-group-items"><button class="secondary" id="reorderPlannerBtn" type="button">Reorder planner</button><button class="secondary" id="emailRestockTop">Email restock</button><button class="secondary" id="exportBtn">Export stock CSV</button></div></details>
-<details class="home-group"><summary>📋 Jobs &amp; history</summary><div class="home-group-items"><button class="secondary" id="jobReportBtn" type="button">📊 Job usage report</button><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open'));">Stock history</button></div></details>
+<details class="home-group"><summary>📋 Jobs &amp; history</summary><div class="home-group-items"><button class="secondary" id="jobReportBtn" type="button">📊 Job usage report</button><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open'));">Stock history</button><div class="home-history-note-tools" style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px">
+<label class="fieldlabel" for="historyJobNoteTemplateSelect">📝 Quick copy job note</label>
+<select class="field" id="historyJobNoteTemplateSelect"><option value="">Choose a saved template…</option></select>
+<button type="button" class="secondary" id="copyHistoryJobNoteTemplate" style="width:100%;margin-top:7px">Copy selected note</button>
+<div class="sub" id="historyJobNoteTemplateStatus" style="margin-top:6px">Your private templates.</div>
+</div></div></details>
 <details class="home-group" id="supplierToolsMenu"><summary>🏷️ Suppliers &amp; tools</summary><div class="home-group-items"><button class="secondary" id="supplierDirectoryBtn" type="button">Suppliers</button><button class="secondary" id="supplierDetailsBtn" type="button">Supplier contacts</button><button class="secondary" id="supplierImportBtn" type="button">Import contacts</button></div></details>
 </div></header>
 <section class="panel" id="cloudStatus" style="margin:0 0 16px">
@@ -420,23 +425,37 @@ $('scanBtn').addEventListener('click',startScanner);$('stopScanBtn').addEventLis
 
 let pendingUsageItemId=null;$('stockRows').addEventListener('click',function handleUseOnJob(e){const b=e.target.closest('button[data-usejob]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();const item=items.find(x=>String(x.id)===String(b.getAttribute('data-usejob')));if(!item){toast('Could not find this stock item.');return}pendingUsageItemId=item.id;$('jobUseItemName').textContent=item.name+' · '+item.qty+' in stock';$('jobUseRef').value='';$('jobUseQty').value='1';$('jobUseEngineer').value='';$('jobUseVisitNotes').value='';loadPrivateJobNoteTemplates();const panel=$('jobUsePanel');panel.hidden=false;panel.style.display='flex';panel.style.position='fixed';panel.style.inset='0';panel.style.zIndex='100000';panel.style.background='rgba(3,8,18,.9)';panel.style.alignItems='center';panel.style.justifyContent='center';panel.style.padding='16px';const card=panel.querySelector('.job-use-card');card.style.display='block';card.style.background='#101b2d';card.style.color='#fff';card.style.padding='20px';card.style.borderRadius='16px';card.style.maxWidth='480px';card.style.width='100%';card.style.maxHeight='85vh';card.style.overflow='auto';setTimeout(()=>$('jobUseRef').focus(),50)});function closeJobUsePanel(){const panel=$('jobUsePanel');panel.hidden=true;panel.style.display='none';pendingUsageItemId=null}
 async function loadPrivateJobNoteTemplates(){
- const select=$('jobNoteTemplateSelect'),homeSelect=$('homeJobNoteTemplateSelect');
- if(select)select.replaceChildren(new Option('Choose a saved template…',''));
- if(homeSelect)homeSelect.replaceChildren(new Option('Choose a saved template…',''));
+ const select=$('jobNoteTemplateSelect'),homeSelect=$('homeJobNoteTemplateSelect'),historySelect=$('historyJobNoteTemplateSelect');
+ [select,homeSelect,historySelect].filter(Boolean).forEach(s=>s.replaceChildren(new Option('Choose a saved template…','')));
  try{
   const templates=await window.__VSP_JOB_NOTE_TEMPLATE_STORE.getAll();
-  for(const t of templates){if(select)select.add(new Option(t.name,t.id));if(homeSelect)homeSelect.add(new Option(t.name,t.id))}
+  for(const t of templates){if(select)select.add(new Option(t.name,t.id));if(homeSelect)homeSelect.add(new Option(t.name,t.id));if(historySelect)historySelect.add(new Option(t.name,t.id))}
   const status=templates.length+' private template(s) saved to your account.';
   if($('jobNoteTemplateStatus'))$('jobNoteTemplateStatus').textContent=status;
   if($('homeJobNoteTemplateStatus'))$('homeJobNoteTemplateStatus').textContent=status;
+  if($('historyJobNoteTemplateStatus'))$('historyJobNoteTemplateStatus').textContent=status;
  }catch(error){
   const message='Could not load templates: '+(error?.message||error);
   if($('jobNoteTemplateStatus'))$('jobNoteTemplateStatus').textContent=message;
   if($('homeJobNoteTemplateStatus'))$('homeJobNoteTemplateStatus').textContent=message;
+  if($('historyJobNoteTemplateStatus'))$('historyJobNoteTemplateStatus').textContent=message;
  }
 }
 $('jobNoteTemplateSelect')?.addEventListener('change',()=>{const selected=$('jobNoteTemplateSelect').selectedOptions[0];$('jobNoteTemplateName').value=selected?.value?selected.textContent:''});
 $('homeJobNoteDropdown')?.addEventListener('toggle',()=>{if($('homeJobNoteDropdown').open)loadPrivateJobNoteTemplates()});
+ $('copyHistoryJobNoteTemplate')?.addEventListener('click',async()=>{
+  const id=$('historyJobNoteTemplateSelect')?.value;
+  if(!id)return toast('Choose a template first');
+  try{
+   const list=await window.__VSP_JOB_NOTE_TEMPLATE_STORE.getAll(),item=list.find(t=>t.id===id);
+   if(!item)throw new Error('Template not found. Open the Jobs & history menu again to refresh.');
+   if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(item.body)}
+   else{const temp=document.createElement('textarea');temp.value=item.body;temp.style.position='fixed';temp.style.opacity='0';document.body.appendChild(temp);temp.select();const copied=document.execCommand('copy');temp.remove();if(!copied)throw new Error('Clipboard access is unavailable on this device.')}
+   toast('Job note copied. Paste it into your job notes.');
+  }catch(error){toast('Could not copy note: '+(error?.message||error))}
+ });
+ $('historyJobNoteTemplateSelect')?.addEventListener('focus',loadPrivateJobNoteTemplates);
+
 $('copyHomeJobNoteTemplate')?.addEventListener('click',async()=>{
  const id=$('homeJobNoteTemplateSelect')?.value;
  if(!id)return toast('Choose a template first');
