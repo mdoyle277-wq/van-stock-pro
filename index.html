@@ -743,10 +743,10 @@ $('jobSiteHistoryRows').addEventListener('click',async e=>{
  }
  const button=e.target.closest('[data-delete-site-visit]');if(!button)return;
  const id=button.getAttribute('data-delete-site-visit');
- if(!confirm('Delete this site visit? The separate parts-usage records will be kept.'))return;
- button.disabled=true;
+ button.disabled=true;button.textContent='Deleting…';
+ $('jobSiteHistoryStatus').textContent='Deleting visit…';
  try{await window.__VSP_JOB_SITE_VISIT_STORE.remove(id);jobSiteVisitRecords=jobSiteVisitRecords.filter(v=>String(v.id)!==String(id));await loadJobSiteHistory();$('jobSiteHistoryStatus').textContent='Site visit deleted. Parts-usage records were preserved.';toast('Site visit deleted')}
- catch(error){button.disabled=false;toast('Could not delete visit: '+(error?.message||error))}
+ catch(error){button.disabled=false;button.textContent='Delete visit';$('jobSiteHistoryStatus').textContent='Delete failed: '+(error?.message||error);toast('Could not delete visit: '+(error?.message||error))}
 });
 
 
