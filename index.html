@@ -556,7 +556,12 @@ $('userCategoryList').addEventListener('click',async e=>{
   if(name===null)return;const clean=name.trim();
   if(!clean){toast('Category name cannot be blank');return}
   if(vspUserCategories.some((x,i)=>i!==index&&x.toLowerCase()===clean.toLowerCase())){toast('That category already exists');return}
-  try{await vspSaveCategories(vspUserCategories.map((x,i)=>i===index?clean:x));vspRenderCategoryManager();toast('Your category was renamed')}catch(error){toast('Rename failed: '+(error?.message||error))}
+  try{
+   const updatedItems=items.map(item=>String(item.category||'').toLowerCase()===old.toLowerCase()?{...item,category:clean}:item);
+   if(updatedItems.some((item,i)=>item.category!==items[i].category)){items=updatedItems;if(!save())throw new Error('Stock items could not be saved. The category name was not changed.')}
+   await vspSaveCategories(vspUserCategories.map((x,i)=>i===index?clean:x));
+   vspRenderCategoryManager();toast('Your category was renamed')
+  }catch(error){toast('Rename failed: '+(error?.message||error))}
  }
  if(remove){
   const index=Number(remove.dataset.removeCategory),name=vspUserCategories[index];
