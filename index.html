@@ -212,6 +212,15 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 .vsp-quick-categories button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vsp-quick-manage{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;margin-top:10px;padding:11px 14px;border:1px solid #2d806c;border-radius:12px;background:linear-gradient(145deg,#1c5549,#173d37);color:#d8fff3;font-size:14px;font-weight:800;box-shadow:inset 0 1px 0 #ffffff12}
 .vsp-quick-manage:active{transform:scale(.99)}
+.vsp-category-overlay{position:fixed;inset:0;z-index:100002;background:#030812d9;display:flex;align-items:center;justify-content:center;padding:14px}
+.vsp-category-overlay[hidden]{display:none!important}
+.vsp-category-card{width:min(520px,100%);max-height:85dvh;overflow:auto;background:#142238;border:1px solid #3a506d;border-radius:18px;padding:18px;box-shadow:0 20px 70px #000a}
+.vsp-category-list{display:grid;gap:8px;margin:14px 0}
+.vsp-category-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:7px;padding:8px;background:#0b1524;border:1px solid #2c3c54;border-radius:11px}
+.vsp-category-row strong{overflow-wrap:anywhere;font-size:13px}
+.vsp-category-add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.vsp-category-row button{padding:8px 10px;font-size:12px}
+.vsp-category-note{font-size:12px;color:var(--muted);margin-top:8px}
 .vsp-quick-alerts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .vsp-quick-alerts button{min-height:40px;font-size:12px}
 .stats .stat{box-shadow:0 5px 18px #0002;transition:border-color .15s ease,transform .15s ease}
@@ -281,7 +290,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
     <input class="field" id="homeQuickSearch" type="search" placeholder="Find an item, SKU or barcode…" aria-label="Quick search stock">
     <button type="button" class="secondary" id="homeQuickSearchGo">Search</button>
   </div>
-  <div class="vsp-quick-categories" aria-label="Stock categories">
+  <div class="vsp-quick-categories" id="homeCategoryTiles" aria-label="Your stock categories">
     <button type="button" data-home-category="Fire Alarm">🔥 <span>Fire alarm</span></button>
     <button type="button" data-home-category="Intruder Alarm">🛡️ <span>Intruder</span></button>
     <button type="button" data-home-category="Access Control">🔐 <span>Access control</span></button>
@@ -290,7 +299,15 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
     <button type="button" data-home-category="Misc Products">📦 <span>Misc products</span></button>
     <button type="button" data-home-category="JD Stock">🏷️ <span>JD Stock</span></button>
   </div>
-  <button type="button" class="vsp-quick-manage" id="homeManageInventory">➕ Add / Edit Inventory</button>
+  <button type="button" class="vsp-quick-manage" id="homeManageCategories">🗂️ Add / Edit Categories</button>
+  <div class="vsp-category-overlay" id="categoryManager" hidden>
+    <section class="vsp-category-card" role="dialog" aria-modal="true" aria-labelledby="categoryManagerTitle">
+      <div class="panelhead"><div><h2 id="categoryManagerTitle">Manage your categories</h2><div class="sub">Only your account's category list is changed.</div></div><button type="button" class="secondary" id="closeCategoryManager">✕</button></div>
+      <div class="vsp-category-add"><input class="field" id="newCategoryName" maxlength="40" placeholder="New category name"><button type="button" id="addCategoryBtn">Add</button></div>
+      <div class="vsp-category-list" id="userCategoryList"></div>
+      <div class="vsp-category-note" id="categoryManagerNote">Your categories are private to your sign-in and sync with your account.</div>
+    </section>
+  </div>
   <div class="vsp-quick-alerts">
     <button type="button" class="secondary" id="homeQuickLow">⚠️ Show low stock</button>
     <button type="button" class="secondary" id="homeQuickOut">⛔ Show out of stock</button>
@@ -486,13 +503,77 @@ $('restoreCodeFile').addEventListener('change',async e=>{const file=e.target.fil
 
 function vspJumpToStock(){const p=document.querySelector('.layout .panel');if(p)p.scrollIntoView({behavior:'smooth',block:'start'})}
 function vspApplyHomeSearch(){const q=$('homeQuickSearch').value;$('search').value=q;$('statusFilter').value='';$('categoryFilter').value='';render();vspJumpToStock()}
+const VSP_DEFAULT_CATEGORIES=['Fire Alarm','Intruder Alarm','Access Control','CCTV','Extinguishers','Misc Products','JD Stock'];
+const VSP_CATEGORY_ICONS={'Fire Alarm':'🔥','Intruder Alarm':'🛡️','Access Control':'🔐','CCTV':'📹','Extinguishers':'🧯','Misc Products':'📦','JD Stock':'🏷️'};
+let vspUserCategories=VSP_DEFAULT_CATEGORIES.slice();
+let vspCategoriesReady=false;
+function vspCategoryLabel(name){return name==='Fire Alarm'?'Fire alarm':name==='Intruder Alarm'?'Intruder':name==='Access Control'?'Access control':name==='Misc Products'?'Misc products':name}
+function vspCategoryOptions(){
+ const selected=$('category').value, filter=$('categoryFilter').value;
+ const legacy=[...new Set(items.map(i=>String(i.category||'').trim()).filter(Boolean))].filter(x=>!vspUserCategories.includes(x));
+ $('category').innerHTML=vspUserCategories.concat(legacy).map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');
+ if(selected && [...vspUserCategories,...legacy].includes(selected))$('category').value=selected;
+ $('categoryFilter').innerHTML='<option value="">All categories</option>'+vspUserCategories.concat(legacy).map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');
+ if(filter && [...vspUserCategories,...legacy].includes(filter))$('categoryFilter').value=filter;
+}
+function vspRenderCategoryTiles(){
+ $('homeCategoryTiles').innerHTML=vspUserCategories.map(name=>'<button type="button" data-home-category="'+esc(name)+'">'+(VSP_CATEGORY_ICONS[name]||'🗂️')+' <span>'+esc(vspCategoryLabel(name))+'</span></button>').join('');
+ vspCategoryOptions();
+}
+async function vspLoadCategories(){
+ const store=window.__VSP_CATEGORY_STORE;
+ if(!store)return;
+ try{
+  const saved=await store.get();
+  vspUserCategories=Array.isArray(saved)&&saved.length?saved:VSP_DEFAULT_CATEGORIES.slice();
+  vspCategoriesReady=true;
+  vspRenderCategoryTiles();
+ }catch(error){$('categoryManagerNote').textContent='Could not load your private categories: '+(error?.message||error);vspCategoriesReady=false}
+}
+async function vspSaveCategories(next){
+ if(!vspCategoriesReady||!window.__VSP_CATEGORY_STORE)throw new Error('Your account categories are still loading. Please try again.');
+ await window.__VSP_CATEGORY_STORE.save(next);
+ vspUserCategories=next;vspRenderCategoryTiles();render();
+}
+function vspRenderCategoryManager(){
+ $('userCategoryList').innerHTML=vspUserCategories.map((name,index)=>'<div class="vsp-category-row"><strong>'+esc(name)+'</strong><button type="button" class="secondary" data-rename-category="'+index+'">Rename</button><button type="button" class="danger" data-remove-category="'+index+'">Remove</button></div>').join('');
+}
+$('homeManageCategories').addEventListener('click',()=>{$('categoryManager').hidden=false;vspRenderCategoryManager();$('newCategoryName').focus()});
+function vspCloseCategoryManager(){$('categoryManager').hidden=true;$('newCategoryName').value=''}
+$('closeCategoryManager').addEventListener('click',vspCloseCategoryManager);
+$('categoryManager').addEventListener('click',e=>{if(e.target===$('categoryManager'))vspCloseCategoryManager()});
+$('addCategoryBtn').addEventListener('click',async()=>{
+ const name=$('newCategoryName').value.trim();
+ if(!name){toast('Enter a category name');return}
+ if(vspUserCategories.some(x=>x.toLowerCase()===name.toLowerCase())){toast('That category already exists');return}
+ try{await vspSaveCategories([...vspUserCategories,name]);$('newCategoryName').value='';vspRenderCategoryManager();toast('Category added to your account')}catch(error){toast('Category was not saved: '+(error?.message||error))}
+});
+$('newCategoryName').addEventListener('keydown',e=>{if(e.key==='Enter')$('addCategoryBtn').click()});
+$('userCategoryList').addEventListener('click',async e=>{
+ const rename=e.target.closest('[data-rename-category]'),remove=e.target.closest('[data-remove-category]');
+ if(rename){
+  const index=Number(rename.dataset.renameCategory),old=vspUserCategories[index],name=prompt('Rename category:',old);
+  if(name===null)return;const clean=name.trim();
+  if(!clean){toast('Category name cannot be blank');return}
+  if(vspUserCategories.some((x,i)=>i!==index&&x.toLowerCase()===clean.toLowerCase())){toast('That category already exists');return}
+  try{await vspSaveCategories(vspUserCategories.map((x,i)=>i===index?clean:x));vspRenderCategoryManager();toast('Your category was renamed')}catch(error){toast('Rename failed: '+(error?.message||error))}
+ }
+ if(remove){
+  const index=Number(remove.dataset.removeCategory),name=vspUserCategories[index];
+  const used=items.filter(i=>String(i.category||'').toLowerCase()===name.toLowerCase()).length;
+  if(used){toast('Move the '+used+' stock item(s) out of this category before removing it');return}
+  if(!confirm('Remove "'+name+'" from your category list? This only affects your account.'))return;
+  if(vspUserCategories.length===1){toast('Keep at least one category');return}
+  try{await vspSaveCategories(vspUserCategories.filter((x,i)=>i!==index));vspRenderCategoryManager();toast('Category removed from your account')}catch(error){toast('Remove failed: '+(error?.message||error))}
+ }
+});
+window.addEventListener('vsp-category-session',vspLoadCategories);
 $('homeQuickSearchGo').addEventListener('click',vspApplyHomeSearch);
-$('homeManageInventory').addEventListener('click',()=>{resetForm();$('entryPanel').scrollIntoView({behavior:'smooth',block:'start'});$('itemName').focus({preventScroll:true})});
 $('homeQuickSearch').addEventListener('keydown',e=>{if(e.key==='Enter')vspApplyHomeSearch()});
-document.querySelectorAll('[data-home-category]').forEach(b=>b.addEventListener('click',()=>{$('search').value='';$('statusFilter').value='';$('categoryFilter').value=b.getAttribute('data-home-category');$('homeQuickSearch').value='';render();vspJumpToStock()}));
+$('homeCategoryTiles').addEventListener('click',e=>{const b=e.target.closest('[data-home-category]');if(!b)return;$('search').value='';$('statusFilter').value='';$('categoryFilter').value=b.getAttribute('data-home-category');$('homeQuickSearch').value='';render();vspJumpToStock()});
 $('homeQuickLow').addEventListener('click',()=>{$('search').value='';$('categoryFilter').value='';$('statusFilter').value='low';$('homeQuickSearch').value='';render();vspJumpToStock()});
 $('homeQuickOut').addEventListener('click',()=>{$('search').value='';$('categoryFilter').value='';$('statusFilter').value='out';$('homeQuickSearch').value='';render();vspJumpToStock()});
 $('homeQuickClear').addEventListener('click',()=>{$('search').value='';$('categoryFilter').value='';$('statusFilter').value='';$('homeQuickSearch').value='';render()});
 
-render();if(items.length){const savedWithPhoto=items.find(i=>i.photo);showSelectedItem(savedWithPhoto||items[0])}
+vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();render();if(items.length){const savedWithPhoto=items.find(i=>i.photo);showSelectedItem(savedWithPhoto||items[0])}
 </script><script type="module" src="./cloud-auth.js?v=20261113-admin-backup-visibility"></script></body></html>
