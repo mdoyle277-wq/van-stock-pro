@@ -763,6 +763,7 @@ $('jobSiteHistoryBtn').addEventListener('click',openJobSiteHistory);
 $('closeJobSiteHistory').addEventListener('click',()=>$('jobSiteHistoryPanel').hidden=true);
 $('jobSiteHistorySearch').addEventListener('input',renderJobSiteHistory);
 $('siteBatteryFitted').value=new Date().toISOString().slice(0,10);
+$('siteVisitRef').addEventListener('input',()=>{$('siteBatteryJobRef').value=$('siteVisitRef').value});
 $('siteBatteryJobRef').addEventListener('input',()=>{if(!$('siteVisitRef').value.trim())$('siteVisitRef').value=$('siteBatteryJobRef').value.trim()});
 $('saveSiteBattery').addEventListener('click',async()=>{
  const job=$('siteBatteryJobRef').value.trim(),type=$('siteBatteryType').value.trim(),qty=Number($('siteBatteryQty').value),fitted=$('siteBatteryFitted').value,due=$('siteBatteryDue').value,system=$('siteBatterySystem').value;
