@@ -706,7 +706,7 @@ $('exportFilteredJobReport').addEventListener('click',()=>{const rows=jobReportF
 
 let jobSiteVisitRecords=[];
 let jobSiteUsageRecords=[];
-function siteVisitDate(value){const raw=String(value||'').slice(0,10);const m=raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);if(m)return m[3]+'/'+m[2]+'/'+m[1];const d=new Date(value||'');if(Number.isNaN(d.getTime()))return raw;return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()}
+function siteVisitDate(value){const raw=String(value||'').slice(0,10);const m=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(m)return m[3]+'/'+m[2]+'/'+m[1];const d=new Date(value||'');if(Number.isNaN(d.getTime()))return raw;return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()}
 function renderJobSiteHistory(){
  const q=$('jobSiteHistorySearch').value.trim().toLowerCase();
  const norm=x=>String(x||'').trim().toLowerCase();
