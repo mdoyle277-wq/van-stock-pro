@@ -717,10 +717,11 @@ function renderJobSiteHistory(){
  const batteryEntries=jobSiteVisitRecords.flatMap(v=>{
   const entries=[];
   if(v.batteryType||v.batteryQuantity||v.batteryInstalledDate||v.batteryDueDate)entries.push({id:v.id,systemKey:'fire',job:v.job,site:v.siteName||v.job,system:'🔥 Fire alarm',type:v.batteryType,qty:v.batteryQuantity,installed:v.batteryInstalledDate,due:v.batteryDueDate,date:v.date});
-  if(v.intruderBatteryType||v.intruderBatteryOther||v.intruderBatteryQuantity||v.intruderBatteryInstalledDate||v.intruderBatteryDueDate)entries.push({id:v.id,systemKey:'intruder',job:v.job,site:v.siteName||v.job,system:'🔐 Intruder alarm',type:(v.intruderBatteryType==='Other'?v.intruderBatteryOther:v.intruderBatteryType)||v.intruderBatteryOther,qty:v.intruderBatteryQuantity,installed:v.intruderBatteryInstalledDate,due:v.intruderBatteryDueDate,date:v.date});
+  const hasIntruderBattery=Boolean(v.intruderBatteryOther||(v.intruderBatteryType&&v.intruderBatteryType!=='Other')||(v.intruderBatteryQuantity!==''&&v.intruderBatteryQuantity!=null)||v.intruderBatteryInstalledDate||v.intruderBatteryDueDate);
+  if(hasIntruderBattery)entries.push({id:v.id,systemKey:'intruder',job:v.job,site:v.siteName||v.job,system:'🔐 Intruder alarm',type:(v.intruderBatteryType==='Other'?v.intruderBatteryOther:v.intruderBatteryType)||v.intruderBatteryOther,qty:v.intruderBatteryQuantity,installed:v.intruderBatteryInstalledDate,due:v.intruderBatteryDueDate,date:v.date});
   return entries;
  }).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
- $('jobSiteBatterySummary').innerHTML=batteryEntries.map(x=>'<article class="panel" style="padding:10px"><strong>'+esc(x.site)+'</strong><div class="sub">Job reference: '+esc(x.job)+' · '+x.system+'</div><div class="notice" style="margin:6px 0 0"><strong>'+esc(x.type||'Battery type not recorded')+'</strong><div>'+[x.qty!==''&&x.qty!=null?'Quantity: '+esc(x.qty):'Quantity not recorded',x.installed?'Fitted: '+esc(siteVisitDate(x.installed)):'Fitted date not recorded',x.due?'Replacement due: '+esc(siteVisitDate(x.due)):'Replacement date not recorded'].join(' · ')+'</div><button type="button" class="smallbtn danger" style="margin-top:9px" data-delete-site-battery="'+esc(x.id)+'" data-battery-system="'+x.systemKey+'">Delete battery record</button></div></article>').join('');
+ $('jobSiteBatterySummary').innerHTML=batteryEntries.map(x=>'<article class="panel" style="padding:10px"><strong>'+esc(x.site)+'</strong><div class="sub">Job reference: '+esc(x.job)+' · '+x.system+'</div><div class="notice" style="margin:6px 0 0"><strong>'+esc(x.type||'Battery type not recorded')+'</strong><div>'+[x.qty!==''&&x.qty!=null?'Quantity: '+esc(x.qty):'Quantity not recorded',x.installed?'Fitted: '+esc(siteVisitDate(x.installed)):'Fitted date not recorded',x.due?'Replacement due: '+esc(siteVisitDate(x.due)):'Replacement date not recorded'].join(' · ')+'</div></div></article>').join('');
  $('jobSiteBatteryEmpty').hidden=batteryEntries.length>0;
  $('jobSiteHistoryRows').innerHTML=rows.map(g=>{
   const visits=g.visits.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
@@ -762,21 +763,7 @@ updateSiteBatterySections();
 $('jobSiteHistoryBtn').addEventListener('click',openJobSiteHistory);
 $('closeJobSiteHistory').addEventListener('click',()=>$('jobSiteHistoryPanel').hidden=true);
 $('jobSiteHistorySearch').addEventListener('input',renderJobSiteHistory);
-$('jobSiteBatterySummary').addEventListener('click',async e=>{
- const button=e.target.closest('[data-delete-site-battery]');if(!button)return;
- const id=button.getAttribute('data-delete-site-battery'),system=button.getAttribute('data-battery-system');
- if(!confirm('Delete this '+(system==='fire'?'fire alarm':'intruder alarm')+' battery record? The site visit and any other battery system record will be kept.'))return;
- button.disabled=true;button.textContent='Deleting…';
- try{
-  await window.__VSP_JOB_SITE_VISIT_STORE.removeBatteryRecord(id,system);
-  const visit=jobSiteVisitRecords.find(v=>String(v.id)===String(id));
-  if(visit){
-   if(system==='fire'){visit.batteryType='';visit.batteryQuantity='';visit.batteryInstalledDate='';visit.batteryDueDate=''}
-   else{visit.intruderBatteryType='';visit.intruderBatteryOther='';visit.intruderBatteryQuantity='';visit.intruderBatteryInstalledDate='';visit.intruderBatteryDueDate=''}
-  }
-  renderJobSiteHistory();$('jobSiteHistoryStatus').textContent='Battery record deleted. Site visit and other records were preserved.';toast('Battery record deleted');
- }catch(error){button.disabled=false;button.textContent='Delete battery record';toast('Could not delete battery record: '+(error?.message||error))}
-});
+// Battery records are managed from the site visit record; no delete control is shown in this summary.
 
 $('siteBatteryFitted').value=new Date().toISOString().slice(0,10);
 $('siteVisitRef').addEventListener('input',()=>{$('siteBatteryJobRef').value=$('siteVisitRef').value});
@@ -791,7 +778,7 @@ $('saveSiteBattery').addEventListener('click',async()=>{
  const button=$('saveSiteBattery');button.disabled=true;button.textContent='Saving…';
  try{
   const fire=system==='Fire alarm';
-  const entry={job,siteName:$('siteBatterySiteName').value.trim(),date:fitted,engineer:'',systemType:system,notes:'Battery register entry: '+type+' × '+qty+'. Fitted '+fitted+'. Replacement due '+due+'.',defects:'',followUp:'',batteryType:fire?type:'',batteryQuantity:fire?qty:'',batteryInstalledDate:fire?fitted:'',batteryDueDate:fire?due:'',intruderBatteryType:fire?'Other':type,intruderBatteryOther:fire?'':type,intruderBatteryQuantity:fire?'':qty,intruderBatteryInstalledDate:fire?'':fitted,intruderBatteryDueDate:fire?'':due};
+  const entry={job,siteName:$('siteBatterySiteName').value.trim(),date:fitted,engineer:'',systemType:system,notes:'Battery register entry: '+type+' × '+qty+'. Fitted '+fitted+'. Replacement due '+due+'.',defects:'',followUp:'',batteryType:fire?type:'',batteryQuantity:fire?qty:'',batteryInstalledDate:fire?fitted:'',batteryDueDate:fire?due:'',intruderBatteryType:fire?'':type,intruderBatteryOther:fire?'':type,intruderBatteryQuantity:fire?'':qty,intruderBatteryInstalledDate:fire?'':fitted,intruderBatteryDueDate:fire?'':due};
   const saved=await store.add(entry);jobSiteVisitRecords.unshift(saved);renderJobSiteHistory();
   $('siteBatterySaveStatus').textContent='Battery record saved for '+job+'. Add another type if required.';
   $('siteBatteryType').value='';$('siteBatteryQty').value='1';$('siteBatteryDue').value='';$('siteBatteryType').focus();
