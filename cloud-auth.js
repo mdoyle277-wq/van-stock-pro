@@ -519,10 +519,18 @@ window.__VSP_JOB_USAGE_STORE = {
   },
   async remove(id) {
     if (!this.isReady()) throw new Error("Cloud account is not ready.");
+    if (!id) throw new Error("The parts-used record ID is missing.");
     const userId = currentSession.user.id, workspaceId = stockWorkspaceId;
-    const { error } = await supabase.from("job_usage_records").delete()
-      .eq("id", id).eq("workspace_id", workspaceId).eq("owner_user_id", userId);
+    const { data, error } = await supabase.from("job_usage_records").delete()
+      .eq("id", id).eq("workspace_id", workspaceId).eq("owner_user_id", userId)
+      .select("id");
     if (error) throw error;
+    if (!data || data.length !== 1) {
+      throw new Error("Supabase did not confirm deletion. Check the job_usage_records DELETE permission for this signed-in user.");
+    }
+    if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId)
+      throw new Error("The signed-in account changed while deleting the record. Refresh and check the job history.");
+    return true;
   }
 };
 
