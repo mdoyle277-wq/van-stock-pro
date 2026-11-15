@@ -714,17 +714,14 @@ function renderJobSiteHistory(){
  for(const v of jobSiteVisitRecords){const k=norm(v.job);if(!k)continue;if(!groups.has(k))groups.set(k,{job:v.job,visits:[],usage:[]});groups.get(k).visits.push(v)}
  for(const u of jobSiteUsageRecords){const k=norm(u.job);if(!k)continue;if(!groups.has(k))groups.set(k,{job:u.job,visits:[],usage:[]});groups.get(k).usage.push(u)}
  const rows=[...groups.values()].filter(g=>{const text=[g.job,...g.visits.flatMap(v=>[v.siteName,v.engineer,v.systemType,v.notes,v.defects,v.followUp]),...g.usage.flatMap(u=>[u.itemName,u.sku,u.category,u.engineer,u.visitNotes])].join(' ').toLowerCase();return !q||text.includes(q)}).sort((a,b)=>String(b.visits[0]?.date||b.usage[0]?.date||'').localeCompare(String(a.visits[0]?.date||a.usage[0]?.date||'')));
- const batteryGroups=[...groups.values()].map(g=>{
-  const ordered=g.visits.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
-  const fire=ordered.find(v=>v.batteryType||v.batteryQuantity||v.batteryInstalledDate||v.batteryDueDate);
-  const intruder=ordered.find(v=>v.intruderBatteryType||v.intruderBatteryOther||v.intruderBatteryQuantity||v.intruderBatteryInstalledDate||v.intruderBatteryDueDate);
-  return {job:g.job,site:ordered.find(v=>v.siteName)?.siteName||g.job,fire,intruder};
- }).filter(x=>x.fire||x.intruder);
- $('jobSiteBatterySummary').innerHTML=batteryGroups.map(x=>{
-  const line=(label,v,type,qty,installed,due)=>v?'<div class="notice" style="margin:6px 0 0"><strong>'+label+'</strong><div>'+[type?'Type: '+esc(type):'',qty!==''&&qty!=null?'Qty: '+esc(qty):'',installed?'Fitted: '+esc(siteVisitDate(installed)):'Fitted date not recorded',due?'Due: '+esc(siteVisitDate(due)):'Replacement date not recorded'].join(' · ')+'</div></div>':'';
-  return '<article class="panel" style="padding:10px"><strong>'+esc(x.site)+'</strong><div class="sub">Job reference: '+esc(x.job)+'</div>'+line('🔥 Fire alarm batteries',x.fire,x.fire?.batteryType,x.fire?.batteryQuantity,x.fire?.batteryInstalledDate,x.fire?.batteryDueDate)+line('🔐 Intruder alarm batteries',x.intruder,(x.intruder?.intruderBatteryType==='Other'?x.intruder?.intruderBatteryOther:x.intruder?.intruderBatteryType)||x.intruder?.intruderBatteryOther,x.intruder?.intruderBatteryQuantity,x.intruder?.intruderBatteryInstalledDate,x.intruder?.intruderBatteryDueDate)+'</article>';
- }).join('');
- $('jobSiteBatteryEmpty').hidden=batteryGroups.length>0;
+ const batteryEntries=jobSiteVisitRecords.flatMap(v=>{
+  const entries=[];
+  if(v.batteryType||v.batteryQuantity||v.batteryInstalledDate||v.batteryDueDate)entries.push({job:v.job,site:v.siteName||v.job,system:'🔥 Fire alarm',type:v.batteryType,qty:v.batteryQuantity,installed:v.batteryInstalledDate,due:v.batteryDueDate,date:v.date});
+  if(v.intruderBatteryType||v.intruderBatteryOther||v.intruderBatteryQuantity||v.intruderBatteryInstalledDate||v.intruderBatteryDueDate)entries.push({job:v.job,site:v.siteName||v.job,system:'🔐 Intruder alarm',type:(v.intruderBatteryType==='Other'?v.intruderBatteryOther:v.intruderBatteryType)||v.intruderBatteryOther,qty:v.intruderBatteryQuantity,installed:v.intruderBatteryInstalledDate,due:v.intruderBatteryDueDate,date:v.date});
+  return entries;
+ }).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+ $('jobSiteBatterySummary').innerHTML=batteryEntries.map(x=>'<article class="panel" style="padding:10px"><strong>'+esc(x.site)+'</strong><div class="sub">Job reference: '+esc(x.job)+' · '+x.system+'</div><div class="notice" style="margin:6px 0 0"><strong>'+esc(x.type||'Battery type not recorded')+'</strong><div>'+[x.qty!==''&&x.qty!=null?'Quantity: '+esc(x.qty):'Quantity not recorded',x.installed?'Fitted: '+esc(siteVisitDate(x.installed)):'Fitted date not recorded',x.due?'Replacement due: '+esc(siteVisitDate(x.due)):'Replacement date not recorded'].join(' · ')+'</div></div></article>').join('');
+ $('jobSiteBatteryEmpty').hidden=batteryEntries.length>0;
  $('jobSiteHistoryRows').innerHTML=rows.map(g=>{
   const visits=g.visits.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   const usage=g.usage.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
