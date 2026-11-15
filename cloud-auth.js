@@ -617,6 +617,53 @@ window.__VSP_JOB_NOTE_TEMPLATE_STORE = {
  }
 };
 
+window.__VSP_JOB_STORE = {
+  async getAll() {
+    if (!currentSession?.user?.id) throw new Error("Sign in to load your private jobs.");
+    const values = currentSession.user.user_metadata?.vsp_jobs;
+    if (values == null) return [];
+    if (!Array.isArray(values) || values.some(j => !j || typeof j.id !== "string" || typeof j.reference !== "string")) {
+      throw new Error("Your saved job list is invalid. No jobs were changed.");
+    }
+    return values;
+  },
+  async save(job) {
+    if (!currentSession?.user?.id) throw new Error("Sign in to create a private job.");
+    const userId = currentSession.user.id;
+    const list = await this.getAll();
+    const reference = String(job.reference || "").trim().slice(0,120);
+    if (!reference) throw new Error("Enter a job reference.");
+    if (list.some(j => j.reference.toLowerCase() === reference.toLowerCase())) throw new Error("A job with this reference already exists.");
+    if (list.length >= 500) throw new Error("You can save up to 500 jobs.");
+    const record = {
+      id: "job_" + crypto.randomUUID(),
+      reference,
+      siteName: String(job.siteName || "").trim().slice(0,160),
+      engineer: String(job.engineer || "").trim().slice(0,80),
+      createdAt: new Date().toISOString(),
+      status: "Open",
+      notes: String(job.notes || "").trim().slice(0,1000)
+    };
+    const next = [record, ...list];
+    const { data, error } = await supabase.auth.updateUser({ data: { vsp_jobs: next } });
+    if (error) throw error;
+    if (currentSession?.user?.id !== userId || !data?.user) throw new Error("Your account changed while saving the job. Sign in again.");
+    currentSession = { ...currentSession, user: data.user };
+    return record;
+  },
+  async update(job) {
+    if (!currentSession?.user?.id) throw new Error("Sign in to update your private jobs.");
+    const userId = currentSession.user.id, list = await this.getAll();
+    const next = list.map(j => j.id === job.id ? { ...j, ...job } : j);
+    if (!next.some(j => j.id === job.id)) throw new Error("Job not found.");
+    const { data, error } = await supabase.auth.updateUser({ data: { vsp_jobs: next } });
+    if (error) throw error;
+    if (currentSession?.user?.id !== userId || !data?.user) throw new Error("Your account changed while updating the job.");
+    currentSession = { ...currentSession, user: data.user };
+    return next.find(j => j.id === job.id);
+  }
+};
+
 window.__VSP_CATEGORY_STORE = {
   async get() {
     if (!currentSession?.user) throw new Error("Sign in to load your categories.");
