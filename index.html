@@ -246,7 +246,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <header class="top"><div class="brand"><img class="logo" src="./van-stock-header-logo.svg?v=1" alt="Van Stock Pro futuristic van logo"><span class="app-version" aria-label="Build number 0001">Build 0001</span><div><h1>Van Stock Pro</h1><div class="title-auth-actions" style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" id="cloudSignInMini" type="button">☁️ Sign in</button><button class="secondary" id="cloudSignOutMini" type="button" aria-label="Sign out of Van Stock Pro" hidden>☁️ Sign out</button></div><div class="sub">Your stock. Your van. Under control.</div></div></div><div class="actions home-actions" aria-label="Main app tools">
 <details class="home-group"><summary>📦 Stock</summary><div class="home-group-items"><button id="addFocusBtn">＋ Add item</button><button class="secondary" id="addSelectedTop">＋ Add selected</button><button class="secondary" id="receiveStockBtn" type="button">📦 Receive delivery</button><button class="secondary" id="stocktakeBtn" type="button">📋 Stocktake</button><button class="secondary" id="stockAlertsBtn" type="button">🔔 Stock alerts</button><button class="secondary" id="minMaxBtn" type="button">🎯 Min / max levels</button></div></details>
 <details class="home-group"><summary>🛒 Reordering</summary><div class="home-group-items"><button class="secondary" id="reorderPlannerBtn" type="button">Reorder planner</button><button class="secondary" id="emailRestockTop">Email restock</button><button class="secondary" id="exportBtn">Export stock CSV</button></div></details>
-<details class="home-group"><summary>📋 Jobs &amp; history</summary><div class="home-group-items"><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open')); ">Stock history</button><button class="secondary" id="jobSiteHistoryBtn" type="button">🏢 Job site history</button></div></details>
+<details class="home-group"><summary>📋 Jobs &amp; history</summary><div class="home-group-items"><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open')); ">Stock history</button><button class="secondary" id="jobSiteHistoryBtn" type="button" onclick="window.openJobSiteHistory()">🏢 Job site history</button></div></details>
 <details class="home-group" id="supplierToolsMenu"><summary>🏷️ Suppliers &amp; tools</summary><div class="home-group-items"><button class="secondary" id="supplierDirectoryBtn" type="button">Suppliers</button><button class="secondary" id="supplierDetailsBtn" type="button">Supplier contacts</button><button class="secondary" id="supplierImportBtn" type="button">Import contacts</button></div></details>
 <details class="home-group home-template-manager" id="jobNoteTemplatesMenu" style="grid-column:1/-1;width:100%;margin-top:2px">
 <summary>📝 Job note templates</summary>
@@ -709,12 +709,12 @@ async function loadJobSiteHistory(){
   return true;
  }catch(error){$('jobSiteHistoryStatus').textContent='Could not load site history: '+(error?.message||error);return false}
 }
-async function openJobSiteHistory(){
+window.openJobSiteHistory=async function openJobSiteHistory(){
  $('jobSiteHistoryPanel').hidden=false;
  $('siteVisitDate').value=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0')+'-'+String(new Date().getDate()).padStart(2,'0');
  await loadJobSiteHistory();
  $('jobSiteHistoryPanel').scrollIntoView({behavior:'smooth',block:'start'});
-}
+};
 $('jobSiteHistoryPanel').insertBefore($('jobReportPanel'),$('jobSiteHistoryPanel').children[3]);
 // Keep the stock-use form inside Job Site History instead of displaying it as a full-screen popup.
 $('jobSiteHistoryPanel').insertBefore($('jobUsePanel'),$('jobSiteVisitForm').parentElement);
