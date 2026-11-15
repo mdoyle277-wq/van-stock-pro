@@ -425,9 +425,21 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
  </div>
  <div class="panel" style="margin:0 0 14px;padding:12px">
   <h3 style="margin-top:0">🔋 Batteries recorded on site</h3>
-  <div class="sub">Latest recorded fire and intruder alarm battery details for each site, including fitted and replacement dates.</div>
+  <div class="sub">Add each battery type separately. You can record multiple fire and intruder alarm battery entries for the same site.</div>
+  <div class="formgrid" style="margin-top:10px">
+   <div><label class="fieldlabel" for="siteBatteryJobRef">Job / site reference *</label><input class="field" id="siteBatteryJobRef" maxlength="120" placeholder="e.g. SITE-001"></div>
+   <div><label class="fieldlabel" for="siteBatterySiteName">Site / customer name</label><input class="field" id="siteBatterySiteName" maxlength="160" placeholder="Site name"></div>
+   <div><label class="fieldlabel" for="siteBatterySystem">System</label><select class="field" id="siteBatterySystem"><option value="Fire alarm">Fire alarm</option><option value="Intruder alarm">Intruder alarm</option></select></div>
+   <div><label class="fieldlabel" for="siteBatteryType">Battery type / part number *</label><input class="field" id="siteBatteryType" maxlength="100" placeholder="e.g. 12V 7Ah, CR123, Delta"></div>
+   <div><label class="fieldlabel" for="siteBatteryQty">Quantity *</label><input class="field" id="siteBatteryQty" type="number" min="1" step="1" value="1"></div>
+   <div><label class="fieldlabel" for="siteBatteryFitted">Date fitted *</label><input class="field" id="siteBatteryFitted" type="date"></div>
+   <div><label class="fieldlabel" for="siteBatteryDue">Replacement due date *</label><input class="field" id="siteBatteryDue" type="date"></div>
+  </div>
+  <div class="entryactions" style="margin-top:10px"><button type="button" id="saveSiteBattery">＋ Add battery record</button><button type="button" class="secondary" id="clearSiteBattery">Clear</button></div>
+  <div id="siteBatterySaveStatus" class="notice" role="status">Enter the site and battery details, then add the record.</div>
+  <h4 style="margin:16px 0 6px">Saved onsite batteries</h4>
   <div id="jobSiteBatterySummary" style="display:grid;gap:8px;margin-top:10px"></div>
-  <div class="empty" id="jobSiteBatteryEmpty" hidden>No onsite battery details recorded yet. Add them when recording a site visit.</div>
+  <div class="empty" id="jobSiteBatteryEmpty" hidden>No onsite battery details recorded yet.</div>
  </div>
  <div class="tools"><input class="field search" id="jobSiteHistorySearch" placeholder="Search site name or job reference"></div>
  <div id="jobSiteHistoryRows" style="display:grid;gap:10px"></div>
@@ -753,6 +765,27 @@ updateSiteBatterySections();
 $('jobSiteHistoryBtn').addEventListener('click',openJobSiteHistory);
 $('closeJobSiteHistory').addEventListener('click',()=>$('jobSiteHistoryPanel').hidden=true);
 $('jobSiteHistorySearch').addEventListener('input',renderJobSiteHistory);
+$('siteBatteryFitted').value=new Date().toISOString().slice(0,10);
+$('siteBatteryJobRef').addEventListener('input',()=>{if(!$('siteVisitRef').value.trim())$('siteVisitRef').value=$('siteBatteryJobRef').value.trim()});
+$('saveSiteBattery').addEventListener('click',async()=>{
+ const job=$('siteBatteryJobRef').value.trim(),type=$('siteBatteryType').value.trim(),qty=Number($('siteBatteryQty').value),fitted=$('siteBatteryFitted').value,due=$('siteBatteryDue').value,system=$('siteBatterySystem').value;
+ if(!job||!type||!fitted||!due){$('siteBatterySaveStatus').textContent='Enter the job/site reference, battery type, fitted date and replacement due date.';return}
+ if(!Number.isInteger(qty)||qty<1){$('siteBatterySaveStatus').textContent='Quantity must be a whole number of at least 1.';return}
+ if(due<fitted){$('siteBatterySaveStatus').textContent='Replacement due date cannot be earlier than the fitted date.';return}
+ const store=window.__VSP_JOB_SITE_VISIT_STORE;
+ if(!store?.isReady()){$('siteBatterySaveStatus').textContent='Sign in and wait for cloud stock to finish loading before saving.';return}
+ const button=$('saveSiteBattery');button.disabled=true;button.textContent='Saving…';
+ try{
+  const fire=system==='Fire alarm';
+  const entry={job,siteName:$('siteBatterySiteName').value.trim(),date:fitted,engineer:'',systemType:system,notes:'Battery register entry: '+type+' × '+qty+'. Fitted '+fitted+'. Replacement due '+due+'.',defects:'',followUp:'',batteryType:fire?type:'',batteryQuantity:fire?qty:'',batteryInstalledDate:fire?fitted:'',batteryDueDate:fire?due:'',intruderBatteryType:fire?'Other':type,intruderBatteryOther:fire?'':type,intruderBatteryQuantity:fire?'':qty,intruderBatteryInstalledDate:fire?'':fitted,intruderBatteryDueDate:fire?'':due};
+  const saved=await store.add(entry);jobSiteVisitRecords.unshift(saved);renderJobSiteHistory();
+  $('siteBatterySaveStatus').textContent='Battery record saved for '+job+'. Add another type if required.';
+  $('siteBatteryType').value='';$('siteBatteryQty').value='1';$('siteBatteryDue').value='';$('siteBatteryType').focus();
+ }catch(error){$('siteBatterySaveStatus').textContent='Could not save battery record: '+(error?.message||error)}
+ finally{button.disabled=false;button.textContent='＋ Add battery record'}
+});
+$('clearSiteBattery').addEventListener('click',()=>{$('siteBatteryJobRef').value='';$('siteBatterySiteName').value='';$('siteBatterySystem').value='Fire alarm';$('siteBatteryType').value='';$('siteBatteryQty').value='1';$('siteBatteryFitted').value=new Date().toISOString().slice(0,10);$('siteBatteryDue').value='';$('siteBatterySaveStatus').textContent='Enter the site and battery details, then add the record.'});
+
 function refreshSiteUsageItems(){
  const select=$('siteUsageItem'),keep=select.value;
  select.innerHTML='<option value="">Choose stock item…</option>'+items.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(i=>'<option value="'+esc(i.id)+'">'+esc(i.name)+' · '+Number(i.qty||0)+' in stock'+(i.sku?' · '+esc(i.sku):'')+'</option>').join('');
