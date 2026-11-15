@@ -574,6 +574,25 @@ window.__VSP_JOB_SITE_VISIT_STORE = {
     if(currentSession?.user?.id!==userId||stockWorkspaceId!==workspaceId)throw new Error("The signed-in account changed while saving. Refresh before continuing.");
     return {id:data.id,date:data.visit_date,job:data.job_reference,siteName:data.site_name||"",engineer:data.engineer_name||"",systemType:data.system_type||"",notes:data.visit_notes||"",defects:data.defects||"",followUp:data.follow_up||"",batteryType:data.battery_type||"",batteryQuantity:data.battery_quantity??"",batteryInstalledDate:data.battery_installed_date||"",batteryDueDate:data.battery_due_date||"",intruderBatteryType:data.intruder_battery_type||"",intruderBatteryOther:data.intruder_battery_other||"",intruderBatteryQuantity:data.intruder_battery_quantity??"",intruderBatteryInstalledDate:data.intruder_battery_installed_date||"",intruderBatteryDueDate:data.intruder_battery_due_date||""};
   },
+  async removeBatteryRecord(id,system) {
+    if(!this.isReady())throw new Error("Cloud account is not ready.");
+    if(!id||!["fire","intruder"].includes(system))throw new Error("Invalid battery record.");
+    const userId=currentSession.user.id,workspaceId=stockWorkspaceId;
+    const fields=system==="fire"
+      ?{battery_type:"",battery_quantity:null,battery_installed_date:null,battery_due_date:null}
+      :{intruder_battery_type:"",intruder_battery_other:"",intruder_battery_quantity:null,intruder_battery_installed_date:null,intruder_battery_due_date:null};
+    const {error}=await supabase.from("job_site_visits").update(fields)
+      .eq("id",id).eq("workspace_id",workspaceId).eq("owner_user_id",userId);
+    if(error)throw error;
+    const {data,error:verifyError}=await supabase.from("job_site_visits")
+      .select("id,battery_type,intruder_battery_type,intruder_battery_other")
+      .eq("id",id).eq("workspace_id",workspaceId).eq("owner_user_id",userId).maybeSingle();
+    if(verifyError)throw verifyError;
+    if(!data)throw new Error("The site visit could not be verified after updating.");
+    if(system==="fire"&&data.battery_type)throw new Error("The fire battery record was not cleared.");
+    if(system==="intruder"&&(data.intruder_battery_type||data.intruder_battery_other))throw new Error("The intruder battery record was not cleared.");
+    return true;
+  },
   async remove(id) {
     if(!this.isReady())throw new Error("Cloud account is not ready.");
     const userId=currentSession.user.id,workspaceId=stockWorkspaceId;
