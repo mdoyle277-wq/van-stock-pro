@@ -385,6 +385,21 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <section id="jobSiteHistoryPanel" class="panel" hidden style="margin:0 0 20px">
  <div class="panelhead"><div><h2>🏢 Job Site History</h2><div class="sub">Save site visits even when no stock is used. Search a reference to see previous visits and parts recorded against that job.</div></div><button type="button" class="secondary" id="closeJobSiteHistory">Close</button></div>
  <div class="notice" id="jobSiteHistoryStatus">Loading your private site history…</div>
+ <div class="panel" style="margin:12px 0;padding:14px">
+  <div class="panelhead"><div><h3 style="margin:0">🧰 Jobs</h3><div class="sub">Create the job first, then add products from your van stock.</div></div><span class="pill">JOB FIRST</span></div>
+  <form id="createJobForm" class="entryform">
+   <div class="formgrid">
+    <div><label class="fieldlabel" for="newJobReference">Job reference *</label><input class="field" id="newJobReference" maxlength="120" required placeholder="e.g. Q-41113"></div>
+    <div><label class="fieldlabel" for="newJobSite">Site / customer</label><input class="field" id="newJobSite" maxlength="160" placeholder="Customer or site name"></div>
+    <div><label class="fieldlabel" for="newJobEngineer">Engineer</label><input class="field" id="newJobEngineer" maxlength="80" placeholder="Engineer attending"></div>
+    <div><label class="fieldlabel" for="newJobNotes">Job notes</label><input class="field" id="newJobNotes" maxlength="1000" placeholder="Optional job details"></div>
+   </div>
+   <div class="entryactions"><button type="submit" id="createJobButton">＋ Create job</button></div>
+  </form>
+  <div class="notice" id="jobsStatus">Your jobs are private to your signed-in account.</div>
+  <div id="jobCards" style="display:grid;gap:10px;margin-top:10px"></div>
+  <div class="empty" id="jobsEmpty">No jobs created yet. Create a job above to get started.</div>
+ </div>
  <div class="entryactions" style="margin:0 0 12px"><button type="button" class="secondary" id="showEmbeddedJobReport">📊 Job usage report</button></div>
  <div class="panel" style="margin:0 0 14px;padding:12px">
   <h3 style="margin-top:0">Record a site visit</h3>
@@ -484,7 +499,7 @@ function stopScanner(){scanActive=false;if(scanStream){scanStream.getTracks().fo
 $('scanBtn').addEventListener('click',startScanner);$('stopScanBtn').addEventListener('click',stopScanner);
 
 
-let pendingUsageItemId=null;$('stockRows').addEventListener('click',async function handleUseOnJob(e){const b=e.target.closest('button[data-usejob]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();const item=items.find(x=>String(x.id)===String(b.getAttribute('data-usejob')));if(!item){toast('Could not find this stock item.');return}pendingUsageItemId=item.id;$('jobUseItemName').textContent=item.name+' · '+item.qty+' in stock';$('jobUseRef').value='';$('jobUseQty').value='1';$('jobUseEngineer').value='';$('jobUseVisitNotes').value='';await openJobSiteHistory();loadPrivateJobNoteTemplates();const panel=$('jobUsePanel');panel.hidden=false;panel.style.display='block';panel.style.position='static';panel.style.inset='auto';panel.style.zIndex='auto';panel.style.background='transparent';panel.style.alignItems='stretch';panel.style.justifyContent='initial';panel.style.padding='0';panel.style.margin='0 0 14px';const card=panel.querySelector('.job-use-card');card.style.display='block';card.style.background='linear-gradient(145deg,rgba(25,38,58,.96),rgba(17,28,44,.96))';card.style.color='var(--text)';card.style.padding='16px';card.style.border='1px solid var(--line)';card.style.borderRadius='14px';card.style.maxWidth='none';card.style.width='100%';card.style.maxHeight='none';card.style.overflow='visible';setTimeout(()=>$('jobUseRef').focus(),50)});function closeJobUsePanel(){const panel=$('jobUsePanel');panel.hidden=true;panel.style.display='none';panel.style.position='';panel.style.inset='';panel.style.zIndex='';panel.style.background='';panel.style.padding='';panel.style.margin='';pendingUsageItemId=null}
+let pendingUsageItemId=null;let activeJobForStock=null;$('stockRows').addEventListener('click',async function handleUseOnJob(e){const b=e.target.closest('button[data-usejob]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();const item=items.find(x=>String(x.id)===String(b.getAttribute('data-usejob')));if(!item){toast('Could not find this stock item.');return}pendingUsageItemId=item.id;$('jobUseItemName').textContent=item.name+' · '+item.qty+' in stock';$('jobUseRef').value=activeJobForStock?.reference||'';$('jobUseQty').value='1';$('jobUseEngineer').value=activeJobForStock?.engineer||'';$('jobUseVisitNotes').value='';await openJobSiteHistory();loadPrivateJobNoteTemplates();const panel=$('jobUsePanel');panel.hidden=false;panel.style.display='block';panel.style.position='static';panel.style.inset='auto';panel.style.zIndex='auto';panel.style.background='transparent';panel.style.alignItems='stretch';panel.style.justifyContent='initial';panel.style.padding='0';panel.style.margin='0 0 14px';const card=panel.querySelector('.job-use-card');card.style.display='block';card.style.background='linear-gradient(145deg,rgba(25,38,58,.96),rgba(17,28,44,.96))';card.style.color='var(--text)';card.style.padding='16px';card.style.border='1px solid var(--line)';card.style.borderRadius='14px';card.style.maxWidth='none';card.style.width='100%';card.style.maxHeight='none';card.style.overflow='visible';setTimeout(()=>$('jobUseRef').focus(),50)});function closeJobUsePanel(){const panel=$('jobUsePanel');panel.hidden=true;panel.style.display='none';panel.style.position='';panel.style.inset='';panel.style.zIndex='';panel.style.background='';panel.style.padding='';panel.style.margin='';pendingUsageItemId=null}
 async function loadPrivateJobNoteTemplates(){
  const select=$('jobNoteTemplateSelect'),homeSelect=$('homeJobNoteTemplateSelect'),historySelect=$('historyJobNoteTemplateSelect');
  [select,homeSelect,historySelect].filter(Boolean).forEach(s=>s.replaceChildren(new Option('Choose a saved template…','')));
@@ -626,6 +641,7 @@ async function confirmJobUsage(e){
   }
   if(Array.isArray(jobUsageCloudRecords))jobUsageCloudRecords.unshift(cloudEntry);
   if(Array.isArray(jobSiteUsageRecords))jobSiteUsageRecords.unshift(cloudEntry);
+  if(typeof renderJobCards==='function')renderJobCards();
   if(!$('jobSiteHistoryPanel').hidden){renderJobSiteHistory();$('jobSiteHistoryStatus').textContent='Job parts usage saved.';}
   closeJobUsePanel();
   try{recordMovement(i,-amount,'Used on job: '+job)}catch(err){}
@@ -717,10 +733,45 @@ async function loadJobSiteHistory(){
   return true;
  }catch(error){$('jobSiteHistoryStatus').textContent='Could not load site history: '+(error?.message||error);return false}
 }
+let savedJobRecords=[];
+async function loadJobRecords(){
+ const store=window.__VSP_JOB_STORE;
+ if(!store){$('jobsStatus').textContent='Job storage is not available. Refresh the app and sign in again.';return}
+ try{savedJobRecords=await store.getAll();renderJobCards();$('jobsStatus').textContent=savedJobRecords.length+' private job(s) saved to your account.'}
+ catch(error){$('jobsStatus').textContent='Could not load jobs: '+(error?.message||error)}
+}
+function renderJobCards(){
+ const usage=jobSiteUsageRecords||[];
+ $('jobCards').innerHTML=savedJobRecords.map(job=>{
+  const parts=usage.filter(u=>String(u.job||'').trim().toLowerCase()===job.reference.trim().toLowerCase());
+  const units=parts.reduce((n,u)=>n+Number(u.quantity||0),0);
+  return '<article class="panel" style="margin:0;padding:12px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap"><div><strong>'+esc(job.siteName||job.reference)+'</strong><div class="sub">Ref: '+esc(job.reference)+' · '+esc(job.status||'Open')+'</div><div class="sub">'+esc(job.engineer||'Engineer not set')+' · '+parts.length+' part line(s) · '+units+' unit(s) used</div></div><button type="button" data-add-products-to-job="'+esc(job.id)+'">＋ Add products</button></div>'+(job.notes?'<div class="notice">'+esc(job.notes)+'</div>':'')+'</article>';
+ }).join('');
+ $('jobsEmpty').hidden=savedJobRecords.length>0;
+}
+$('createJobForm').addEventListener('submit',async e=>{
+ e.preventDefault();const store=window.__VSP_JOB_STORE;
+ if(!store){toast('Job storage is not available. Refresh and sign in again.');return}
+ const button=$('createJobButton'),entry={reference:$('newJobReference').value.trim(),siteName:$('newJobSite').value.trim(),engineer:$('newJobEngineer').value.trim(),notes:$('newJobNotes').value.trim()};
+ if(!entry.reference){$('newJobReference').focus();return}
+ button.disabled=true;button.textContent='Creating…';
+ try{const job=await store.save(entry);savedJobRecords.unshift(job);renderJobCards();$('createJobForm').reset();$('jobsStatus').textContent='Job '+job.reference+' created and saved privately. Add products when ready.';toast('Job '+job.reference+' created')}
+ catch(error){toast('Job was not created: '+(error?.message||error));$('jobsStatus').textContent=error?.message||'Could not create job'}
+ finally{button.disabled=false;button.textContent='＋ Create job'}
+});
+$('jobCards').addEventListener('click',e=>{
+ const b=e.target.closest('[data-add-products-to-job]');if(!b)return;
+ const job=savedJobRecords.find(j=>j.id===b.getAttribute('data-add-products-to-job'));if(!job)return;
+ activeJobForStock=job;$('search').value='';$('categoryFilter').value='';$('statusFilter').value='';render();
+ const inventory=$('stockRows').closest('.layout');inventory?.scrollIntoView({behavior:'smooth',block:'start'});
+ $('jobsStatus').textContent='Adding products to '+job.reference+'. Choose stock below and tap Use on job; the job reference is filled in automatically.';
+ toast('Choose stock to add to '+job.reference);
+});
 async function openJobSiteHistory(){
  $('jobSiteHistoryPanel').hidden=false;
  $('siteVisitDate').value=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0')+'-'+String(new Date().getDate()).padStart(2,'0');
  await loadJobSiteHistory();
+ await loadJobRecords();
  $('jobSiteHistoryPanel').scrollIntoView({behavior:'smooth',block:'start'});
 }
 $('jobSiteHistoryPanel').insertBefore($('jobReportPanel'),$('jobSiteHistoryPanel').children[3]);
