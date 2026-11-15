@@ -413,6 +413,22 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
    <div class="entryactions" style="margin-top:10px"><button type="submit" id="saveSiteVisit">Save site visit</button><button type="button" class="secondary" id="clearSiteVisitForm">Clear form</button></div>
   </form>
  </div>
+ <div class="panel" style="margin:0 0 14px;padding:12px">
+  <h3 style="margin-top:0">📦 Add stock used to this job</h3>
+  <div class="sub" style="margin-bottom:9px">Choose a van stock item and record it against a job or site reference.</div>
+  <div class="formgrid">
+   <div class="full"><label class="fieldlabel" for="siteUsageItem">Stock item</label><select class="field" id="siteUsageItem"><option value="">Choose stock item…</option></select></div>
+   <div><label class="fieldlabel" for="siteUsageRef">Job / site reference *</label><input class="field" id="siteUsageRef" maxlength="120" placeholder="e.g. SITE-001"></div>
+   <div><label class="fieldlabel" for="siteUsageQty">Quantity used</label><input class="field" id="siteUsageQty" class="field" type="number" min="1" step="1" value="1"></div>
+  </div>
+  <div class="entryactions" style="margin-top:10px"><button type="button" id="siteUsageAddBtn">＋ Record stock used</button></div>
+ </div>
+ <div class="panel" style="margin:0 0 14px;padding:12px">
+  <h3 style="margin-top:0">🔋 Batteries recorded on site</h3>
+  <div class="sub">Latest recorded fire and intruder alarm battery details for each site, including fitted and replacement dates.</div>
+  <div id="jobSiteBatterySummary" style="display:grid;gap:8px;margin-top:10px"></div>
+  <div class="empty" id="jobSiteBatteryEmpty" hidden>No onsite battery details recorded yet. Add them when recording a site visit.</div>
+ </div>
  <div class="tools"><input class="field search" id="jobSiteHistorySearch" placeholder="Search site name or job reference"></div>
  <div id="jobSiteHistoryRows" style="display:grid;gap:10px"></div>
  <div class="empty" id="jobSiteHistoryEmpty" hidden>No site visits found. Record a visit above or change your search.</div>
@@ -686,6 +702,17 @@ function renderJobSiteHistory(){
  for(const v of jobSiteVisitRecords){const k=norm(v.job);if(!k)continue;if(!groups.has(k))groups.set(k,{job:v.job,visits:[],usage:[]});groups.get(k).visits.push(v)}
  for(const u of jobSiteUsageRecords){const k=norm(u.job);if(!k)continue;if(!groups.has(k))groups.set(k,{job:u.job,visits:[],usage:[]});groups.get(k).usage.push(u)}
  const rows=[...groups.values()].filter(g=>{const text=[g.job,...g.visits.flatMap(v=>[v.siteName,v.engineer,v.systemType,v.notes,v.defects,v.followUp]),...g.usage.flatMap(u=>[u.itemName,u.sku,u.category,u.engineer,u.visitNotes])].join(' ').toLowerCase();return !q||text.includes(q)}).sort((a,b)=>String(b.visits[0]?.date||b.usage[0]?.date||'').localeCompare(String(a.visits[0]?.date||a.usage[0]?.date||'')));
+ const batteryGroups=[...groups.values()].map(g=>{
+  const ordered=g.visits.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const fire=ordered.find(v=>v.batteryType||v.batteryQuantity||v.batteryInstalledDate||v.batteryDueDate);
+  const intruder=ordered.find(v=>v.intruderBatteryType||v.intruderBatteryOther||v.intruderBatteryQuantity||v.intruderBatteryInstalledDate||v.intruderBatteryDueDate);
+  return {job:g.job,site:ordered.find(v=>v.siteName)?.siteName||g.job,fire,intruder};
+ }).filter(x=>x.fire||x.intruder);
+ $('jobSiteBatterySummary').innerHTML=batteryGroups.map(x=>{
+  const line=(label,v,type,qty,installed,due)=>v?'<div class="notice" style="margin:6px 0 0"><strong>'+label+'</strong><div>'+[type?'Type: '+esc(type):'',qty!==''&&qty!=null?'Qty: '+esc(qty):'',installed?'Fitted: '+esc(siteVisitDate(installed)):'Fitted date not recorded',due?'Due: '+esc(siteVisitDate(due)):'Replacement date not recorded'].join(' · ')+'</div></div>':'';
+  return '<article class="panel" style="padding:10px"><strong>'+esc(x.site)+'</strong><div class="sub">Job reference: '+esc(x.job)+'</div>'+line('🔥 Fire alarm batteries',x.fire,x.fire?.batteryType,x.fire?.batteryQuantity,x.fire?.batteryInstalledDate,x.fire?.batteryDueDate)+line('🔐 Intruder alarm batteries',x.intruder,(x.intruder?.intruderBatteryType==='Other'?x.intruder?.intruderBatteryOther:x.intruder?.intruderBatteryType)||x.intruder?.intruderBatteryOther,x.intruder?.intruderBatteryQuantity,x.intruder?.intruderBatteryInstalledDate,x.intruder?.intruderBatteryDueDate)+'</article>';
+ }).join('');
+ $('jobSiteBatteryEmpty').hidden=batteryGroups.length>0;
  $('jobSiteHistoryRows').innerHTML=rows.map(g=>{
   const visits=g.visits.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   const usage=g.usage.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
@@ -704,6 +731,7 @@ async function loadJobSiteHistory(){
  try{
   const [visits,usage]=await Promise.all([store.getAll(),window.__VSP_JOB_USAGE_STORE.getAll()]);
   jobSiteVisitRecords=visits;jobSiteUsageRecords=usage;
+  refreshSiteUsageItems();
   renderJobSiteHistory();
   $('jobSiteHistoryStatus').textContent=visits.length+' saved site visit(s) · '+usage.length+' parts-usage record(s). This history is private to your account.';
   return true;
@@ -725,6 +753,32 @@ updateSiteBatterySections();
 $('jobSiteHistoryBtn').addEventListener('click',openJobSiteHistory);
 $('closeJobSiteHistory').addEventListener('click',()=>$('jobSiteHistoryPanel').hidden=true);
 $('jobSiteHistorySearch').addEventListener('input',renderJobSiteHistory);
+function refreshSiteUsageItems(){
+ const select=$('siteUsageItem'),keep=select.value;
+ select.innerHTML='<option value="">Choose stock item…</option>'+items.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(i=>'<option value="'+esc(i.id)+'">'+esc(i.name)+' · '+Number(i.qty||0)+' in stock'+(i.sku?' · '+esc(i.sku):'')+'</option>').join('');
+ if(items.some(i=>String(i.id)===String(keep)))select.value=keep;
+}
+$('siteVisitRef').addEventListener('input',()=>{if(!$('siteUsageRef').value.trim())$('siteUsageRef').value=$('siteVisitRef').value.trim()});
+$('siteUsageAddBtn').addEventListener('click',async()=>{
+ const item=items.find(i=>String(i.id)===String($('siteUsageItem').value));
+ const job=$('siteUsageRef').value.trim()||$('siteVisitRef').value.trim();
+ const qty=Number($('siteUsageQty').value);
+ if(!item){toast('Choose a stock item first.');return}
+ if(!job){toast('Enter a job or site reference first.');$('siteUsageRef').focus();return}
+ if(!Number.isInteger(qty)||qty<1){toast('Enter a whole quantity of at least 1.');return}
+ if(qty>Number(item.qty||0)){toast('Not enough stock available.');return}
+ pendingUsageItemId=item.id;
+ $('jobUseItemName').textContent=item.name+' · '+item.qty+' in stock';
+ $('jobUseRef').value=job;
+ $('jobUseQty').value=qty;
+ $('jobUseEngineer').value=$('siteVisitEngineer').value.trim();
+ $('jobUseVisitNotes').value='';
+ loadPrivateJobNoteTemplates();
+ const panel=$('jobUsePanel');panel.hidden=false;panel.style.display='block';panel.style.position='static';panel.style.inset='auto';panel.style.zIndex='auto';panel.style.background='transparent';panel.style.alignItems='stretch';panel.style.justifyContent='initial';panel.style.padding='0';panel.style.margin='0 0 14px';
+ const card=panel.querySelector('.job-use-card');card.style.display='block';card.style.background='linear-gradient(145deg,rgba(25,38,58,.96),rgba(17,28,44,.96))';card.style.color='var(--text)';card.style.padding='16px';card.style.border='1px solid var(--line)';card.style.borderRadius='14px';card.style.maxWidth='none';card.style.width='100%';card.style.maxHeight='none';card.style.overflow='visible';
+ panel.scrollIntoView({behavior:'smooth',block:'center'});
+});
+
 $('clearSiteVisitForm').addEventListener('click',()=>{$('jobSiteVisitForm').reset();$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections()});
 $('jobSiteVisitForm').addEventListener('submit',async e=>{
  e.preventDefault();
