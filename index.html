@@ -739,7 +739,7 @@ $('jobSiteHistoryRows').addEventListener('click',async e=>{
  const stock=e.target.closest('[data-add-job-stock]');
  if(stock){await openJobStockUse(stock.getAttribute('data-add-job-stock'));return}
  const visit=e.target.closest('[data-add-job-visit]');
- if(visit){$('siteVisitRef').value=visit.getAttribute('data-add-job-visit');$('siteVisitName').value=jobSiteVisitRecords.find(v=>String(v.job).toLowerCase()===visit.getAttribute('data-add-job-visit').toLowerCase())?.siteName||'';$('siteVisitNotes').focus();$('siteVisitForm')?.scrollIntoView?.({behavior:'smooth',block:'nearest'});return}
+ if(visit){$('siteVisitRef').value=visit.getAttribute('data-add-job-visit');$('siteVisitName').value=jobSiteVisitRecords.find(v=>String(v.job).toLowerCase()===visit.getAttribute('data-add-job-visit').toLowerCase())?.siteName||'';$('siteVisitNotes').focus();$('jobSiteVisitForm')?.scrollIntoView?.({behavior:'smooth',block:'nearest'});return}
 });
 async function loadJobSiteHistory(){
  const store=window.__VSP_JOB_SITE_VISIT_STORE;
