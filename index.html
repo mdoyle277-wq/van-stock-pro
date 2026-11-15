@@ -641,6 +641,7 @@ async function confirmJobUsage(e){
   }
   if(Array.isArray(jobUsageCloudRecords))jobUsageCloudRecords.unshift(cloudEntry);
   if(Array.isArray(jobSiteUsageRecords))jobSiteUsageRecords.unshift(cloudEntry);
+  if(typeof renderJobCards==='function')renderJobCards();
   if(!$('jobSiteHistoryPanel').hidden){renderJobSiteHistory();$('jobSiteHistoryStatus').textContent='Job parts usage saved.';}
   closeJobUsePanel();
   try{recordMovement(i,-amount,'Used on job: '+job)}catch(err){}
