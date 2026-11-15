@@ -764,11 +764,12 @@ updateSiteBatterySections();
 $('jobSiteHistoryBtn').addEventListener('click',openJobSiteHistory);
 $('closeJobSiteHistory').addEventListener('click',()=>$('jobSiteHistoryPanel').hidden=true);
 $('jobSiteHistorySearch').addEventListener('input',renderJobSiteHistory);
-$('jobSiteHistoryRows').addEventListener('click',async e=>{
- const button=e.target.closest('[data-delete-job-usage]');if(!button)return;
+document.addEventListener('click',async e=>{
+ const button=e.target.closest?.('[data-delete-job-usage]');if(!button)return;
+ e.preventDefault();
  const id=button.getAttribute('data-delete-job-usage');
  const record=jobSiteUsageRecords.find(x=>String(x.id)===String(id));
- if(!record)return;
+ if(!record){toast('Could not find this parts-used record in the loaded job history. Refresh and try again.');return}
  if(!confirm('Delete this parts-used record for '+(record.job||'this job')+'? Stock quantities will not be changed.'))return;
  button.disabled=true;button.textContent='Deleting…';
  try{
