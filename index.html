@@ -243,11 +243,11 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 </style>
 
 <style id="vsp-sync-status-styles">
-.sync-status{position:relative;flex:0 0 auto;z-index:20}
-.sync-status>summary{display:flex;align-items:center;gap:6px;list-style:none;cursor:pointer;min-height:34px;padding:4px 8px;border:1px solid var(--line);border-radius:10px;background:#101b2b;color:var(--text)}
+.sync-status{position:relative;display:block;width:max-content;max-width:100%;flex:0 0 auto;align-self:flex-start;z-index:20}
+.sync-status>summary{display:inline-flex;align-items:center;gap:6px;list-style:none;cursor:pointer;min-height:30px;width:max-content;max-width:100%;padding:3px 8px;border:1px solid var(--line);border-radius:10px;background:#101b2b;color:var(--text);white-space:nowrap}
 .sync-status>summary::-webkit-details-marker{display:none}
-.sync-status>summary strong{display:block;font-size:11px}
-.sync-status>summary small{display:block;color:var(--muted);font-size:9px;white-space:nowrap}
+.sync-status>summary strong{display:inline;font-size:11px}
+.sync-status>summary small{display:inline;color:var(--muted);font-size:10px;white-space:nowrap}
 .sync-dot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 2px #ffbf6920}
 .sync-status[data-state="synced"] .sync-dot{background:var(--mint);box-shadow:0 0 0 2px #49e0b020}
 .sync-status[data-state="offline"] .sync-dot,.sync-status[data-state="error"] .sync-dot{background:var(--red);box-shadow:0 0 0 2px #ff6b7820}
@@ -258,7 +258,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 .sync-status-line span{color:var(--muted)}
 .sync-status-line strong{text-align:right;overflow-wrap:anywhere}
 .sync-status-help{font-size:10px;color:var(--muted);margin-top:8px;line-height:1.35}
-@media(max-width:600px){.sync-status{order:2;margin-left:auto}.sync-status>summary{min-height:32px;padding:3px 7px}.sync-status-popover{right:0}}
+@media(max-width:600px){.sync-status{order:2;margin-left:auto;width:max-content;max-width:100%}.sync-status>summary{min-height:30px;width:max-content;padding:3px 8px}.sync-status-popover{right:0}}
 </style>
 
 </head>
