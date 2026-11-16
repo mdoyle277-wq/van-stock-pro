@@ -816,10 +816,17 @@ function refreshSiteUsageItems(){
  select.innerHTML='<option value="">Choose stock item…</option>'+items.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(i=>'<option value="'+esc(i.id)+'">'+esc(i.name)+' · '+Number(i.qty||0)+' in stock'+(i.sku?' · '+esc(i.sku):'')+'</option>').join('');
  if(items.some(i=>String(i.id)===String(keep)))select.value=keep;
 }
-function syncSiteUsageReference(){ $('siteUsageRef').value=$('siteVisitRef').value.trim(); }
+function syncSiteUsageReference(){
+ const ref=$('siteVisitRef').value.trim();
+ if(ref)$('siteUsageRef').value=ref;
+}
 $('siteVisitRef').addEventListener('input',syncSiteUsageReference);
+$('siteVisitRef').addEventListener('change',syncSiteUsageReference);
+$('siteVisitRef').addEventListener('keyup',syncSiteUsageReference);
+$('siteUsageRef').addEventListener('focus',syncSiteUsageReference);
 syncSiteUsageReference();
 $('siteUsageAddBtn').addEventListener('click',async()=>{
+ syncSiteUsageReference();
  const item=items.find(i=>String(i.id)===String($('siteUsageItem').value));
  const job=$('siteUsageRef').value.trim()||$('siteVisitRef').value.trim();
  const qty=Number($('siteUsageQty').value);
