@@ -162,7 +162,7 @@ function updateSyncStatus(state, detail) {
   const help = $("syncStatusHelp");
   let label = state || "checking";
   if (!userId) label = "signed-out";
-  else if (!online && label !== "syncing") label = "offline";
+  else if (!online) label = "offline";
   else if (queued && label === "synced") label = "pending";
   panel.dataset.state = label === "signed-out" ? "offline" : label;
   if (badge) badge.textContent = ({
