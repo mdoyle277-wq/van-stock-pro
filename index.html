@@ -874,10 +874,13 @@ $('saveSiteBattery').addEventListener('click',async()=>{
 $('clearSiteBattery').addEventListener('click',()=>{$('siteBatteryJobRef').value='';$('siteBatterySiteName').value='';$('siteBatterySystem').value='Fire alarm';$('siteBatteryType').value='';$('siteBatteryQty').value='1';$('siteBatteryFitted').value=new Date().toISOString().slice(0,10);$('siteBatteryDue').value='';$('siteBatterySaveStatus').textContent='Enter the site and battery details, then add the record.'});
 
 let stagedJobUsage=[];
+// Keep the queued parts list on the site-visit sheet, directly above its Save button.
+const siteUsagePendingBox=$('siteUsagePending'),siteVisitActions=$('jobSiteVisitForm').querySelector('.entryactions');
+if(siteUsagePendingBox&&siteVisitActions){siteUsagePendingBox.style.cssText='padding:12px;background:#0b1524;border:1px solid var(--line);border-radius:12px;margin:12px 0';siteVisitActions.parentElement.insertBefore(siteUsagePendingBox,siteVisitActions)}
 function renderStagedJobUsage(){
  const box=$('siteUsagePending');if(!box)return;
- if(!stagedJobUsage.length){box.innerHTML='No stock items added to this job yet.';return}
- box.innerHTML='<strong>Items queued for this job</strong><div style="display:grid;gap:7px;margin-top:8px">'+stagedJobUsage.map((line,index)=>'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px;background:#0b1524;border:1px solid var(--line);border-radius:10px"><div style="min-width:0"><strong>'+esc(line.itemName)+'</strong><div class="sub">'+esc(line.sku||line.category||'')+' · Qty '+Number(line.quantity)+'</div></div><button type="button" class="smallbtn danger" data-remove-staged-usage="'+index+'">Remove</button></div>').join('')+'</div><div class="sub" style="margin-top:8px">Stock is deducted only when you save the site visit.</div>';
+ if(!stagedJobUsage.length){box.innerHTML='<strong>Stock added to this job sheet</strong><div class="sub" style="margin-top:5px">No stock items added yet.</div>';return}
+ box.innerHTML='<strong>Stock added to this job sheet</strong><div style="display:grid;gap:7px;margin-top:8px">'+stagedJobUsage.map((line,index)=>'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px;background:#0b1524;border:1px solid var(--line);border-radius:10px"><div style="min-width:0"><strong>'+esc(line.itemName)+'</strong><div class="sub">'+esc(line.sku||line.category||'')+' · Qty '+Number(line.quantity)+'</div></div><button type="button" class="smallbtn danger" data-remove-staged-usage="'+index+'">Remove</button></div>').join('')+'</div><div class="sub" style="margin-top:8px">Stock is deducted only when you save the site visit.</div>';
 }
 $('siteUsagePending').addEventListener('click',e=>{
  const b=e.target.closest('[data-remove-staged-usage]');if(!b)return;
