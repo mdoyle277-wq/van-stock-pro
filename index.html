@@ -830,23 +830,37 @@ $('jobSiteHistoryRows').addEventListener('click',async e=>{const button=e.target
 window.deleteJobUsageRecord=async function(id,button){
  const record=jobSiteUsageRecords.find(x=>String(x.id)===String(id));
  if(!record){$('jobSiteHistoryStatus').textContent='Could not find this parts-used record. Refresh the history and try again.';return}
- // User explicitly tapped Delete record; avoid native confirm dialogs that can be suppressed in mobile app browsers.
- button.disabled=true;button.textContent='Deleting…';
- $('jobSiteHistoryStatus').textContent='Deleting parts-used record from your private cloud history…';
+ const item=items.find(x=>String(x.id)===String(record.itemId));
+ const qty=Number(record.quantity);
+ if(!item){$('jobSiteHistoryStatus').textContent='Cannot return this stock: the original item is no longer in your main stock list. The usage record has been kept.';toast('Original stock item not found. Nothing was deleted.');return}
+ if(!Number.isInteger(qty)||qty<1){$('jobSiteHistoryStatus').textContent='Cannot return stock because this usage record has an invalid quantity. The record has been kept.';return}
+ // Restore the exact quantity to this account's stock before removing the usage record.
+ // If the cloud deletion fails, roll the stock quantity back so the two records stay consistent.
+ button.disabled=true;button.textContent='Returning stock…';
+ $('jobSiteHistoryStatus').textContent='Returning '+qty+' × '+(record.itemName||item.name)+' to main stock…';
+ const previousQty=Number(item.qty)||0;
  try{
   const store=window.__VSP_JOB_USAGE_STORE;
   if(!store?.isReady())throw new Error('Cloud account is not ready. Wait for stock sync to finish.');
+  item.qty=previousQty+qty;
+  const payload=JSON.stringify(items);
+  localStorage.setItem(KEY,payload);
+  if(localStorage.getItem(KEY)!==payload)throw new Error('The restored stock quantity could not be verified on this device.');
   await store.remove(id);
   jobSiteUsageRecords=jobSiteUsageRecords.filter(x=>String(x.id)!==String(id));
   if(Array.isArray(jobUsageCloudRecords))jobUsageCloudRecords=jobUsageCloudRecords.filter(x=>String(x.id)!==String(id));
-  renderJobSiteHistory();
+  try{recordMovement(item,qty,'Returned from deleted job usage: '+(record.job||''))}catch(error){}
+  render();refreshSiteUsageItems();renderJobSiteHistory();
   if(typeof renderJobReport==='function')renderJobReport();
-  $('jobSiteHistoryStatus').textContent='Parts-used record deleted. Stock quantities were not changed.';
-  toast('Parts-used record deleted.');
+  $('jobSiteHistoryStatus').textContent='Parts-used record deleted and '+qty+' unit(s) returned to main stock.';
+  toast(qty+' × '+item.name+' returned to main stock.');
  }catch(error){
+  item.qty=previousQty;
+  try{localStorage.setItem(KEY,JSON.stringify(items))}catch(rollbackError){}
+  render();refreshSiteUsageItems();
   button.disabled=false;button.textContent='Delete record';
-  $('jobSiteHistoryStatus').textContent='Delete failed: '+(error?.message||String(error));
-  toast('Delete failed: '+(error?.message||String(error)));
+  $('jobSiteHistoryStatus').textContent='Delete failed: '+(error?.message||String(error))+'. Stock quantity was restored to its previous balance and the usage record was kept.';
+  toast('Delete failed. Stock was not changed.');
  }
 };
 // Battery records are managed from the site visit record; no delete control is shown in this summary.
