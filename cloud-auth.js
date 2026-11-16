@@ -82,6 +82,7 @@ function setSession(session) {
   previewButton.hidden = !user;
   email.disabled = !!user;
   password.disabled = !!user;
+  updateSyncStatus(session?.user ? "connecting" : "signed-out");
   window.dispatchEvent(new Event("vsp-category-session"));
 }
 async function checkSchema() {
@@ -145,6 +146,41 @@ let stockSyncTimer = null;
 let stockSyncBusy = false;
 let stockSyncAgain = false;
 let stockSyncReady = false;
+
+function updateSyncStatus(state, detail) {
+  const panel = $("syncStatusPanel");
+  if (!panel) return;
+  const userId = currentSession?.user?.id || null;
+  let queued = 0;
+  try { if (userId) queued = readOfflineQueue(userId).length; } catch { queued = "Check"; }
+  const online = typeof navigator === "undefined" || navigator.onLine !== false;
+  const badge = $("syncStatusBadge");
+  const connection = $("syncStatusConnection");
+  const cloud = $("syncStatusCloud");
+  const queue = $("syncStatusQueue");
+  const last = $("syncStatusLast");
+  const help = $("syncStatusHelp");
+  let label = state || "checking";
+  if (!userId) label = "signed-out";
+  else if (!online && label !== "syncing") label = "offline";
+  else if (queued && label === "synced") label = "pending";
+  panel.dataset.state = label === "signed-out" ? "offline" : label;
+  if (badge) badge.textContent = ({
+    "signed-out":"Not signed in", checking:"Checking…", connecting:"Connecting…",
+    syncing:"Syncing…", synced:"Up to date", pending:"Waiting to upload",
+    offline:"Offline — saved here", error:"Sync problem", ready:"Connected"
+  })[label] || label;
+  if (connection) connection.textContent = !userId ? "Not signed in" : online ? "Online" : "Offline";
+  if (cloud) cloud.textContent = !userId ? "Sign in required" : !stockSyncReady ? "Connecting / unavailable" : online ? "Connected" : "Offline mode";
+  if (queue) queue.textContent = String(queued);
+  if (last) {
+    let stamp = null;
+    try { stamp = userId && localStorage.getItem("van-stock-pro-last-sync-" + userId); } catch {}
+    last.textContent = stamp ? new Date(stamp).toLocaleString() : "Not yet synced";
+  }
+  if (help) help.textContent = detail || (queued ? queued + " saved record(s) will upload when a connection is available." : !online ? "Changes remain on this device and will upload when signal returns." : "Your stock and job records are checked automatically.");
+}
+
 
 function stockRowsToItems(rows) {
   return (rows || []).map(row => {
@@ -318,6 +354,7 @@ async function initialiseCloudStock() {
     if (currentSession?.user?.id === userId) {
       stockSyncReady = true;
       document.body.classList.remove("cloud-loading");
+      updateSyncStatus(navigator.onLine === false ? "offline" : "ready");
       await syncOfflineQueue();
     }
   } catch (error) {
@@ -327,8 +364,10 @@ async function initialiseCloudStock() {
         stockWorkspaceId=cachedWorkspace;stockSyncReady=true;
         document.body.classList.remove("cloud-loading");
         message("OFFLINE MODE — your existing local stock is available. New job and battery records will be saved on this device and uploaded when signal returns.","warning");
+        updateSyncStatus("offline");
       }else{
         stockSyncReady=false;clearCloudLoadingWithEmptyStock();
+        updateSyncStatus("error", error?.message || "Cloud connection could not be established.");
         message("CLOUD STOCK NOT READY — connect to the internet once on this device before offline use. "+cloudStockErrorDetail(error),"error");
       }
     }
@@ -338,6 +377,7 @@ async function runStockSync() {
   if (!stockSyncReady || !currentSession?.user || !stockWorkspaceId) return;
   if (stockSyncBusy) { stockSyncAgain = true; return; }
   stockSyncBusy = true;
+  updateSyncStatus("syncing");
   const userId = currentSession.user.id;
   const workspaceId = stockWorkspaceId;
   try {
@@ -348,9 +388,12 @@ async function runStockSync() {
     await writeCloudStock(items);
     if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId) return;
     await syncOfflineQueue();
+    try { localStorage.setItem("van-stock-pro-last-sync-" + userId, new Date().toISOString()); } catch {}
+    updateSyncStatus(readOfflineQueue(userId).length ? "pending" : "synced");
     message("Cloud stock saved and verified: " + items.length + " item(s).", "success");
   } catch (error) {
     if (currentSession?.user?.id === userId) {
+      updateSyncStatus(isNetworkFailure(error) ? "offline" : "error", error?.message || "Cloud save failed.");
       message("CLOUD SAVE FAILED — your local stock is still on this device. " + cloudStockErrorDetail(error), "error");
     }
   } finally {
@@ -359,11 +402,13 @@ async function runStockSync() {
     else stockSyncAgain = false;
   }
 }
-window.addEventListener("online",()=>{if(stockSyncReady){runStockSync();syncOfflineQueue()}else if(currentSession?.user?.id){initialiseCloudStock()}});
+window.addEventListener("online",()=>{updateSyncStatus("connecting");if(stockSyncReady){runStockSync();syncOfflineQueue()}else if(currentSession?.user?.id){initialiseCloudStock()}});
+window.addEventListener("offline",()=>updateSyncStatus("offline","No internet connection. Changes are kept on this device until signal returns."));
 window.addEventListener("focus",()=>{if(stockSyncReady&&navigator.onLine!==false){runStockSync();syncOfflineQueue()}});
 window.addEventListener("vsp:stock-changed", () => {
   if (!stockSyncReady) return;
   if (stockSyncTimer) window.clearTimeout(stockSyncTimer);
+  updateSyncStatus("syncing");
   message("Saving stock to the cloud…", "info");
   stockSyncTimer = window.setTimeout(() => {
     stockSyncTimer = null;
@@ -504,6 +549,7 @@ function queueOfflineRecord(kind,row){
   const queue=readOfflineQueue(userId);
   if(!queue.some(x=>x.id===row.id&&x.kind===kind))queue.push({kind,id:row.id,row,queued_at:new Date().toISOString()});
   writeOfflineQueue(userId,queue);
+  updateSyncStatus("pending", queue.length + " record(s) saved on this device and waiting to upload.");
   message("Saved on this device · waiting to upload "+queue.length+" record(s) when signal returns.","warning");
 }
 function queuedRows(kind,workspaceId){
@@ -545,12 +591,14 @@ async function syncOfflineQueue(){
     if(uploaded){
       message("Synced "+uploaded+" offline record(s) to Supabase. "+queue.length+" still waiting.","success");
       window.dispatchEvent(new Event("vsp:offline-sync-complete"));
+      try { localStorage.setItem("van-stock-pro-last-sync-" + userId, new Date().toISOString()); } catch {}
     }else if(queue.length){
       message(queue.length+" record(s) saved on this device · waiting to upload.","warning");
     }
+    updateSyncStatus(queue.length ? "pending" : (uploaded ? "synced" : "ready"));
   }catch(error){
     message("Offline sync paused · "+queue.length+" record(s) remain safely on this device. "+(error?.message||"Check your connection."),"warning");
-  }finally{offlineQueueSyncBusy=false;}
+  }finally{offlineQueueSyncBusy=false;updateSyncStatus(navigator.onLine===false?"offline":(readOfflineQueue(userId).length?"pending":"ready"));}
 }
 
 // Private job usage history. RLS and explicit owner filters ensure that
