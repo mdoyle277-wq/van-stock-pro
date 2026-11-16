@@ -888,9 +888,9 @@ $('saveSiteBattery').addEventListener('click',async()=>{
 $('clearSiteBattery').addEventListener('click',()=>{$('siteBatteryJobRef').value='';$('siteBatterySiteName').value='';$('siteBatterySystem').value='Fire alarm';$('siteBatteryType').value='';$('siteBatteryQty').value='1';$('siteBatteryFitted').value=new Date().toISOString().slice(0,10);$('siteBatteryDue').value='';$('siteBatterySaveStatus').textContent='Enter the site and battery details, then add the record.'});
 
 let stagedJobUsage=[];
-// Keep the queued parts list on the site-visit sheet, directly above its Save button.
-const siteUsagePendingBox=$('siteUsagePending'),siteVisitActions=$('jobSiteVisitForm').querySelector('.entryactions');
-if(siteUsagePendingBox&&siteVisitActions){siteUsagePendingBox.style.cssText='padding:12px;background:#0b1524;border:1px solid var(--line);border-radius:12px;margin:12px 0';siteVisitActions.parentElement.insertBefore(siteUsagePendingBox,siteVisitActions)}
+// Keep the queued parts list directly underneath the Add item to job sheet button.
+const siteUsagePendingBox=$('siteUsagePending');
+if(siteUsagePendingBox){siteUsagePendingBox.style.cssText='padding:12px;background:#0b1524;border:1px solid var(--line);border-radius:12px;margin:12px 0'}
 function renderStagedJobUsage(){
  const box=$('siteUsagePending');if(!box)return;
  if(!stagedJobUsage.length){box.innerHTML='<strong>Stock added to this job sheet</strong><div class="sub" style="margin-top:5px">No stock items added yet.</div>';return}
