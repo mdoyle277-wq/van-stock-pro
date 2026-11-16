@@ -646,11 +646,11 @@ async function confirmJobUsage(e){
   }
   if(Array.isArray(jobUsageCloudRecords))jobUsageCloudRecords.unshift(cloudEntry);
   if(Array.isArray(jobSiteUsageRecords))jobSiteUsageRecords.unshift(cloudEntry);
-  if(!$('jobSiteHistoryPanel').hidden){renderJobSiteHistory();$('jobSiteHistoryStatus').textContent='Job parts usage saved.';}
+  if(!$('jobSiteHistoryPanel').hidden){renderJobSiteHistory();$('jobSiteHistoryStatus').textContent=cloudEntry._syncPending?'Parts usage saved on this device · waiting for signal.':'Job parts usage saved.';}
   closeJobUsePanel();
   try{recordMovement(i,-amount,'Used on job: '+job)}catch(err){}
   try{render()}catch(err){}
-  toast(amount+' used on '+job+' · saved to your private job history');
+  toast(cloudEntry._syncPending?amount+' used on '+job+' · saved on this device, waiting to sync':amount+' used on '+job+' · saved to your private job history');
  }catch(error){toast('Job usage was not completed: '+(error?.message||error))}
  finally{button.disabled=false;button.textContent='Confirm usage'}
 }
@@ -747,10 +747,12 @@ async function loadJobSiteHistory(){
   jobSiteVisitRecords=visits;jobSiteUsageRecords=usage;
   refreshSiteUsageItems();
   renderJobSiteHistory();
-  $('jobSiteHistoryStatus').textContent=visits.length+' saved site visit(s) · '+usage.length+' parts-usage record(s). This history is private to your account.';
+  const pendingCount=[...visits,...usage].filter(x=>x._syncPending).length;
+  $('jobSiteHistoryStatus').textContent=visits.length+' site visit(s) · '+usage.length+' parts-usage record(s). '+(pendingCount?pendingCount+' waiting to sync from this device.':'All records loaded from your private account.');
   return true;
  }catch(error){$('jobSiteHistoryStatus').textContent='Could not load site history: '+(error?.message||error);return false}
 }
+window.addEventListener('vsp:offline-sync-complete',()=>{if($('jobSiteHistoryPanel')&&!$('jobSiteHistoryPanel').hidden)loadJobSiteHistory()});
 window.openJobSiteHistory=async function openJobSiteHistory(){
  $('jobSiteHistoryPanel').hidden=false;
  $('siteVisitDate').value=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0')+'-'+String(new Date().getDate()).padStart(2,'0');
@@ -868,9 +870,9 @@ $('jobSiteVisitForm').addEventListener('submit',async e=>{
  try{
   const saved=await store.add(entry);jobSiteVisitRecords.unshift(saved);
   $('jobSiteHistorySearch').value='';renderJobSiteHistory();
-  $('jobSiteHistoryStatus').textContent='Site visit saved to your private account. '+jobSiteVisitRecords.length+' saved visit(s).';
+  $('jobSiteHistoryStatus').textContent=saved._syncPending?'Site visit saved safely on this device. It will upload automatically when signal returns.':'Site visit saved to your private account. '+jobSiteVisitRecords.length+' saved visit(s).';
   const ref=entry.job;$('jobSiteVisitForm').reset();$('siteVisitRef').value=ref;$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections();
-  toast('Site visit saved for '+ref);
+  toast(saved._syncPending?'Site visit saved on this device · waiting for signal.':'Site visit saved for '+ref);
  }catch(error){toast('Site visit was not saved: '+(error?.message||error))}
  finally{button.disabled=false;button.textContent='Save site visit'}
 });
