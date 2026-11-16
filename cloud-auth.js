@@ -485,9 +485,10 @@ setupButton.addEventListener("click", async () => {
 // signed-in account and workspace and retain their UUID across retries.
 function offlineQueueKey(userId){return "van-stock-pro-offline-queue-v1-"+userId}
 function readOfflineQueue(userId){
-  try{const raw=localStorage.getItem(offlineQueueKey(userId));if(!raw)return [];
-    const value=JSON.parse(raw);return Array.isArray(value)?value:[];
-  }catch{return []}
+  const raw=localStorage.getItem(offlineQueueKey(userId));if(!raw)return [];
+  const value=JSON.parse(raw);
+  if(!Array.isArray(value))throw new Error("The offline save queue is damaged. Do not clear this browser's site data; contact support before continuing.");
+  return value;
 }
 function writeOfflineQueue(userId,queue){
   localStorage.setItem(offlineQueueKey(userId),JSON.stringify(queue));
