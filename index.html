@@ -447,13 +447,13 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
  </div>
  <div class="panel" style="margin:0 0 14px;padding:12px">
   <h3 style="margin-top:0">📦 Add stock used to this job</h3>
-  <div class="sub" style="margin-bottom:9px">Choose a van stock item and record it against a job or site reference.</div>
+  <div class="sub" style="margin-bottom:9px">Tap “Add to job” beside any item in the main stock list, enter the quantity here, then save the site visit to record all parts together.</div>
   <div class="formgrid">
    <div class="full"><label class="fieldlabel" for="siteUsageItem">Stock item</label><select class="field" id="siteUsageItem"><option value="">Choose stock item…</option></select></div>
    <div><label class="fieldlabel" for="siteUsageRef">Job / site reference *</label><input class="field" id="siteUsageRef" maxlength="120" placeholder="e.g. SITE-001"></div>
    <div><label class="fieldlabel" for="siteUsageQty">Quantity used</label><input class="field" id="siteUsageQty" class="field" type="number" min="1" step="1" value="1"></div>
   </div>
-  <div class="entryactions" style="margin-top:10px"><button type="button" id="siteUsageAddBtn">＋ Record stock used</button></div>
+  <div class="entryactions" style="margin-top:10px"><button type="button" id="siteUsageAddBtn">＋ Add item to job sheet</button></div><div id="siteUsagePending" class="notice" style="margin-top:12px" aria-live="polite">No stock items added to this job yet.</div>
  </div>
  <div class="panel" style="margin:0 0 14px;padding:12px">
   <h3 style="margin-top:0">🔋 Batteries recorded on site</h3>
@@ -518,7 +518,7 @@ window.__VSP_APPLY_CLOUD_STOCK=function(cloudItems){
   finally{window.__VSP_CLOUD_APPLYING=false;}
   render();
 };
-function render(){if(!Array.isArray(items))items=[];/* Empty stock is valid for a new workspace; never seed shared starter stock here. */const q=$('search').value.trim().toLowerCase(),cat=$('categoryFilter').value,st=$('statusFilter').value;const filtered=items.filter(i=>(!q||[i.name,i.sku,i.barcode,i.category,i.location].some(v=>String(v||'').toLowerCase().includes(q)))&&(!cat||i.category===cat)&&(!st||status(i)===st));$('skuCount').textContent=items.length;$('lowCount').textContent=items.filter(i=>status(i)==='low').length;$('outCount').textContent=items.filter(i=>status(i)==='out').length;$('inventoryCount').textContent=filtered.length+' item'+(filtered.length===1?'':'s');$('stockRows').innerHTML=filtered.map(i=>{const st=status(i);return '<tr><td class="checkcell"><input type="checkbox" data-select="'+i.id+'" aria-label="Select '+esc(i.name)+' for restock" '+(selectedRestock.has(i.id)?'checked':'')+'></td><td><div class="itemcell">'+(i.photo?'<img class="thumb" src="'+i.photo+'" alt="" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'thumb\',textContent:\'📦\'}))">':'<div class="thumb" style="display:grid;place-items:center;color:var(--muted)">📦</div>')+'<div class="itemdetails"><div class="itemname">'+esc(i.name)+'</div><div class="itemlocation">Location: '+esc(i.location||'Not set')+'</div><div class="sku">'+esc(i.sku||i.barcode||'No SKU')+'</div></div></div></td><td>'+'<div class="supplier-cell"><img class="qr-thumb" alt="QR code for '+esc(i.name)+'" data-qr-value="'+esc(validSupplierUrl(i.supplierUrl)?i.supplierUrl:(i.barcode||i.sku||i.name))+'" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data='+encodeURIComponent(validSupplierUrl(i.supplierUrl)?i.supplierUrl:(i.barcode||i.sku||i.name))+'" loading="lazy">'+(validSupplierUrl(i.supplierUrl)?'<a class="supplier-link" href="'+esc(i.supplierUrl)+'" target="_blank" rel="noopener">Open supplier</a>':'<span class="supplier-link">Scan item ID</span>')+'</div>'+'</td><td>'+esc(i.category)+'</td><td><strong>'+Number(i.qty)+'</strong></td><td>'+Number(i.minQty)+'</td><td>'+(i.maxQty!==null&&i.maxQty!==undefined&&i.maxQty!==''&&Number.isInteger(Number(i.maxQty))?Number(i.maxQty):'—')+'</td><td><span class="pill '+(st==='ok'?'':st)+'">'+(st==='out'?'OUT OF STOCK':st==='low'?'REORDER':'IN STOCK')+'</span></td><td><div class="rowactions"><button class="smallbtn secondary" data-adjust="-1" data-id="'+i.id+'" aria-label="Use one item" title="Use one item">−1 Use</button><button class="smallbtn secondary" data-adjust="1" data-id="'+i.id+'" aria-label="Add one item" title="Add one item">+1 Add</button><button class="smallbtn secondary" data-usejob="'+i.id+'">Use on job</button><button class="smallbtn secondary" data-edit="'+i.id+'">Edit</button></div></td></tr>'}).join('');$('emptyState').style.display=filtered.length?'none':'block';const visibleIds=filtered.map(i=>String(i.id));const selectedVisible=visibleIds.filter(id=>selectedRestock.has(items.find(i=>String(i.id)===id)?.id)).length;$('selectedCount').textContent='Selected for restock: '+selectedRestock.size+' total ('+selectedVisible+' visible)';const allBox=$('selectAllStock');if(allBox){allBox.checked=visibleIds.length>0&&selectedVisible===visibleIds.length;allBox.indeterminate=selectedVisible>0&&selectedVisible<visibleIds.length}}
+function render(){if(!Array.isArray(items))items=[];/* Empty stock is valid for a new workspace; never seed shared starter stock here. */const q=$('search').value.trim().toLowerCase(),cat=$('categoryFilter').value,st=$('statusFilter').value;const filtered=items.filter(i=>(!q||[i.name,i.sku,i.barcode,i.category,i.location].some(v=>String(v||'').toLowerCase().includes(q)))&&(!cat||i.category===cat)&&(!st||status(i)===st));$('skuCount').textContent=items.length;$('lowCount').textContent=items.filter(i=>status(i)==='low').length;$('outCount').textContent=items.filter(i=>status(i)==='out').length;$('inventoryCount').textContent=filtered.length+' item'+(filtered.length===1?'':'s');$('stockRows').innerHTML=filtered.map(i=>{const st=status(i);return '<tr><td class="checkcell"><input type="checkbox" data-select="'+i.id+'" aria-label="Select '+esc(i.name)+' for restock" '+(selectedRestock.has(i.id)?'checked':'')+'></td><td><div class="itemcell">'+(i.photo?'<img class="thumb" src="'+i.photo+'" alt="" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'thumb\',textContent:\'📦\'}))">':'<div class="thumb" style="display:grid;place-items:center;color:var(--muted)">📦</div>')+'<div class="itemdetails"><div class="itemname">'+esc(i.name)+'</div><div class="itemlocation">Location: '+esc(i.location||'Not set')+'</div><div class="sku">'+esc(i.sku||i.barcode||'No SKU')+'</div></div></div></td><td>'+'<div class="supplier-cell"><img class="qr-thumb" alt="QR code for '+esc(i.name)+'" data-qr-value="'+esc(validSupplierUrl(i.supplierUrl)?i.supplierUrl:(i.barcode||i.sku||i.name))+'" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data='+encodeURIComponent(validSupplierUrl(i.supplierUrl)?i.supplierUrl:(i.barcode||i.sku||i.name))+'" loading="lazy">'+(validSupplierUrl(i.supplierUrl)?'<a class="supplier-link" href="'+esc(i.supplierUrl)+'" target="_blank" rel="noopener">Open supplier</a>':'<span class="supplier-link">Scan item ID</span>')+'</div>'+'</td><td>'+esc(i.category)+'</td><td><strong>'+Number(i.qty)+'</strong></td><td>'+Number(i.minQty)+'</td><td>'+(i.maxQty!==null&&i.maxQty!==undefined&&i.maxQty!==''&&Number.isInteger(Number(i.maxQty))?Number(i.maxQty):'—')+'</td><td><span class="pill '+(st==='ok'?'':st)+'">'+(st==='out'?'OUT OF STOCK':st==='low'?'REORDER':'IN STOCK')+'</span></td><td><div class="rowactions"><button class="smallbtn secondary" data-adjust="-1" data-id="'+i.id+'" aria-label="Use one item" title="Use one item">−1 Use</button><button class="smallbtn secondary" data-adjust="1" data-id="'+i.id+'" aria-label="Add one item" title="Add one item">+1 Add</button><button class="smallbtn secondary" data-usejob="'+i.id+'">Add to job</button><button class="smallbtn secondary" data-edit="'+i.id+'">Edit</button></div></td></tr>'}).join('');$('emptyState').style.display=filtered.length?'none':'block';const visibleIds=filtered.map(i=>String(i.id));const selectedVisible=visibleIds.filter(id=>selectedRestock.has(items.find(i=>String(i.id)===id)?.id)).length;$('selectedCount').textContent='Selected for restock: '+selectedRestock.size+' total ('+selectedVisible+' visible)';const allBox=$('selectAllStock');if(allBox){allBox.checked=visibleIds.length>0&&selectedVisible===visibleIds.length;allBox.indeterminate=selectedVisible>0&&selectedVisible<visibleIds.length}}
 function toast(msg){const t=$('toast');t.textContent=msg;t.style.display='block';clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>t.style.display='none',2400)}
 function resetForm(){ $('itemForm').reset();$('editId').value='';$('qty').value=0;$('minQty').value=1;$('maxQty').value='';$('formTitle').textContent='Add stock item';$('saveBtn').textContent='Save item';$('cancelEdit').hidden=true;$('deleteItemBtn').hidden=true;$('cancelAddItem').hidden=false;photoData='';$('photoPreview').style.display='none';$('entryPanel').hidden=true}
 $('deleteItemBtn').addEventListener('click',()=>{const id=$('editId').value;const item=items.find(i=>String(i.id)===String(id));if(!item)return;if(!confirm('Permanently delete '+item.name+'? This cannot be undone. Make sure you have a backup if you may need this item again.'))return;items=items.filter(i=>String(i.id)!==String(id));if(save()){selectedRestock.delete(id);showSelectedItem(items[0]||null);resetForm();toast('Item deleted')}});
@@ -536,7 +536,23 @@ function stopScanner(){scanActive=false;if(scanStream){scanStream.getTracks().fo
 $('scanBtn').addEventListener('click',startScanner);$('stopScanBtn').addEventListener('click',stopScanner);
 
 
-let pendingUsageItemId=null;$('stockRows').addEventListener('click',async function handleUseOnJob(e){const b=e.target.closest('button[data-usejob]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();const item=items.find(x=>String(x.id)===String(b.getAttribute('data-usejob')));if(!item){toast('Could not find this stock item.');return}pendingUsageItemId=item.id;$('jobUseItemName').textContent=item.name+' · '+item.qty+' in stock';$('jobUseRef').value='';$('jobUseQty').value='1';$('jobUseEngineer').value='';$('jobUseVisitNotes').value='';await openJobSiteHistory();loadPrivateJobNoteTemplates();const panel=$('jobUsePanel');panel.hidden=false;panel.style.display='block';panel.style.position='static';panel.style.inset='auto';panel.style.zIndex='auto';panel.style.background='transparent';panel.style.alignItems='stretch';panel.style.justifyContent='initial';panel.style.padding='0';panel.style.margin='0 0 14px';const card=panel.querySelector('.job-use-card');card.style.display='block';card.style.background='linear-gradient(145deg,rgba(25,38,58,.96),rgba(17,28,44,.96))';card.style.color='var(--text)';card.style.padding='16px';card.style.border='1px solid var(--line)';card.style.borderRadius='14px';card.style.maxWidth='none';card.style.width='100%';card.style.maxHeight='none';card.style.overflow='visible';setTimeout(()=>$('jobUseRef').focus(),50)});function closeJobUsePanel(){const panel=$('jobUsePanel');panel.hidden=true;panel.style.display='none';panel.style.position='';panel.style.inset='';panel.style.zIndex='';panel.style.background='';panel.style.padding='';panel.style.margin='';pendingUsageItemId=null}
+let pendingUsageItemId=null;
+$('stockRows').addEventListener('click',async function handleUseOnJob(e){
+ const b=e.target.closest('button[data-usejob]');if(!b)return;
+ e.preventDefault();e.stopImmediatePropagation();
+ const item=items.find(x=>String(x.id)===String(b.getAttribute('data-usejob')));
+ if(!item){toast('Could not find this stock item.');return}
+ if(Number(item.qty||0)<1){toast('This item is out of stock.');return}
+ await openJobSiteHistory();
+ $('siteUsageItem').value=String(item.id);
+ $('siteUsageQty').value='1';
+ syncSiteUsageReference();
+ if(!$('siteVisitRef').value.trim()&&$('siteUsageRef').value.trim())$('siteVisitRef').value=$('siteUsageRef').value.trim();
+ $('siteUsageQty').focus();
+ $('siteUsageItem').scrollIntoView({behavior:'smooth',block:'center'});
+ toast(item.name+' selected. Enter the quantity and add it to the job sheet.');
+});
+function closeJobUsePanel(){const panel=$('jobUsePanel');panel.hidden=true;panel.style.display='none';panel.style.position='';panel.style.inset='';panel.style.zIndex='';panel.style.background='';panel.style.padding='';panel.style.margin='';pendingUsageItemId=null}
 async function loadPrivateJobNoteTemplates(){
  const select=$('jobNoteTemplateSelect'),homeSelect=$('homeJobNoteTemplateSelect'),historySelect=$('historyJobNoteTemplateSelect');
  [select,homeSelect,historySelect].filter(Boolean).forEach(s=>s.replaceChildren(new Option('Choose a saved template…','')));
@@ -857,6 +873,18 @@ $('saveSiteBattery').addEventListener('click',async()=>{
 });
 $('clearSiteBattery').addEventListener('click',()=>{$('siteBatteryJobRef').value='';$('siteBatterySiteName').value='';$('siteBatterySystem').value='Fire alarm';$('siteBatteryType').value='';$('siteBatteryQty').value='1';$('siteBatteryFitted').value=new Date().toISOString().slice(0,10);$('siteBatteryDue').value='';$('siteBatterySaveStatus').textContent='Enter the site and battery details, then add the record.'});
 
+let stagedJobUsage=[];
+function renderStagedJobUsage(){
+ const box=$('siteUsagePending');if(!box)return;
+ if(!stagedJobUsage.length){box.innerHTML='No stock items added to this job yet.';return}
+ box.innerHTML='<strong>Items queued for this job</strong><div style="display:grid;gap:7px;margin-top:8px">'+stagedJobUsage.map((line,index)=>'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px;background:#0b1524;border:1px solid var(--line);border-radius:10px"><div style="min-width:0"><strong>'+esc(line.itemName)+'</strong><div class="sub">'+esc(line.sku||line.category||'')+' · Qty '+Number(line.quantity)+'</div></div><button type="button" class="smallbtn danger" data-remove-staged-usage="'+index+'">Remove</button></div>').join('')+'</div><div class="sub" style="margin-top:8px">Stock is deducted only when you save the site visit.</div>';
+}
+$('siteUsagePending').addEventListener('click',e=>{
+ const b=e.target.closest('[data-remove-staged-usage]');if(!b)return;
+ const index=Number(b.getAttribute('data-remove-staged-usage'));
+ if(!Number.isInteger(index)||index<0||index>=stagedJobUsage.length)return;
+ stagedJobUsage.splice(index,1);renderStagedJobUsage();
+});
 function refreshSiteUsageItems(){
  const select=$('siteUsageItem'),keep=select.value;
  select.innerHTML='<option value="">Choose stock item…</option>'+items.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(i=>'<option value="'+esc(i.id)+'">'+esc(i.name)+' · '+Number(i.qty||0)+' in stock'+(i.sku?' · '+esc(i.sku):'')+'</option>').join('');
@@ -871,43 +899,66 @@ $('siteVisitRef').addEventListener('change',syncSiteUsageReference);
 $('siteVisitRef').addEventListener('keyup',syncSiteUsageReference);
 $('siteUsageRef').addEventListener('focus',syncSiteUsageReference);
 syncSiteUsageReference();
-$('siteUsageAddBtn').addEventListener('click',async()=>{
+renderStagedJobUsage();
+$('siteUsageAddBtn').addEventListener('click',()=>{
  syncSiteUsageReference();
  const item=items.find(i=>String(i.id)===String($('siteUsageItem').value));
- const job=$('siteUsageRef').value.trim()||$('siteVisitRef').value.trim();
  const qty=Number($('siteUsageQty').value);
+ const job=$('siteVisitRef').value.trim()||$('siteUsageRef').value.trim();
  if(!item){toast('Choose a stock item first.');return}
- if(!job){toast('Enter a job or site reference first.');$('siteUsageRef').focus();return}
+ if(!job){toast('Enter the job reference in the site visit form first.');$('siteVisitRef').focus();return}
+ if(!$('siteVisitRef').value.trim())$('siteVisitRef').value=job;
+ $('siteUsageRef').value=job;
  if(!Number.isInteger(qty)||qty<1){toast('Enter a whole quantity of at least 1.');return}
- if(qty>Number(item.qty||0)){toast('Not enough stock available.');return}
- pendingUsageItemId=item.id;
- $('jobUseItemName').textContent=item.name+' · '+item.qty+' in stock';
- $('jobUseRef').value=job;
- $('jobUseQty').value=qty;
- $('jobUseEngineer').value=$('siteVisitEngineer').value.trim();
- $('jobUseVisitNotes').value='';
- loadPrivateJobNoteTemplates();
- const panel=$('jobUsePanel');panel.hidden=false;panel.style.display='block';panel.style.position='static';panel.style.inset='auto';panel.style.zIndex='auto';panel.style.background='transparent';panel.style.alignItems='stretch';panel.style.justifyContent='initial';panel.style.padding='0';panel.style.margin='0 0 14px';
- const card=panel.querySelector('.job-use-card');card.style.display='block';card.style.background='linear-gradient(145deg,rgba(25,38,58,.96),rgba(17,28,44,.96))';card.style.color='var(--text)';card.style.padding='16px';card.style.border='1px solid var(--line)';card.style.borderRadius='14px';card.style.maxWidth='none';card.style.width='100%';card.style.maxHeight='none';card.style.overflow='visible';
- panel.scrollIntoView({behavior:'smooth',block:'center'});
+ const already=stagedJobUsage.filter(x=>String(x.itemId)===String(item.id)).reduce((sum,x)=>sum+Number(x.quantity||0),0);
+ if(already+qty>Number(item.qty||0)){toast('Not enough stock available. '+Math.max(0,Number(item.qty||0)-already)+' remaining for this job.');return}
+ const existing=stagedJobUsage.find(x=>String(x.itemId)===String(item.id));
+ if(existing)existing.quantity+=qty;
+ else stagedJobUsage.push({itemId:item.id,itemName:item.name,sku:item.sku||'',category:item.category||'',quantity:qty});
+ renderStagedJobUsage();
+ $('siteUsageQty').value='1';$('siteUsageItem').value='';
+ toast(item.name+' × '+qty+' added to the job sheet.');
 });
 
-$('clearSiteVisitForm').addEventListener('click',()=>{$('jobSiteVisitForm').reset();syncSiteUsageReference();$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections()});
+$('clearSiteVisitForm').addEventListener('click',()=>{if(stagedJobUsage.length&&!confirm('Clear the stock items waiting on this job as well?'))return;stagedJobUsage=[];renderStagedJobUsage();$('jobSiteVisitForm').reset();syncSiteUsageReference();$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections()});
 $('jobSiteVisitForm').addEventListener('submit',async e=>{
  e.preventDefault();
- const store=window.__VSP_JOB_SITE_VISIT_STORE;
- if(!store?.isReady()){toast('Sign in and wait for cloud stock to finish loading before saving site visits.');return}
+ const store=window.__VSP_JOB_SITE_VISIT_STORE,usageStore=window.__VSP_JOB_USAGE_STORE;
+ if(!store?.isReady()||!usageStore?.isReady()){toast('Sign in and wait for cloud stock to finish loading before saving this job.');return}
  const entry={job:$('siteVisitRef').value.trim(),siteName:$('siteVisitName').value.trim(),date:$('siteVisitDate').value,engineer:$('siteVisitEngineer').value.trim(),systemType:$('siteVisitSystem').value,notes:$('siteVisitNotes').value.trim(),defects:$('siteVisitDefects').value.trim(),followUp:$('siteVisitFollowUp').value.trim(),batteryType:$('siteVisitBatteryType').value.trim(),batteryQuantity:$('siteVisitBatteryQuantity').value===''?'':Number($('siteVisitBatteryQuantity').value),batteryInstalledDate:$('siteVisitBatteryInstalled').value,batteryDueDate:$('siteVisitBatteryDue').value,intruderBatteryType:$('siteVisitIntruderBatteryType').value,intruderBatteryOther:$('siteVisitIntruderBatteryOther').value.trim(),intruderBatteryQuantity:$('siteVisitIntruderBatteryQuantity').value===''?'':Number($('siteVisitIntruderBatteryQuantity').value),intruderBatteryInstalledDate:$('siteVisitIntruderBatteryInstalled').value,intruderBatteryDueDate:$('siteVisitIntruderBatteryDue').value};
  if([entry.batteryQuantity,entry.intruderBatteryQuantity].some(q=>q!==''&&(!Number.isInteger(q)||q<0))){toast('Battery quantities must be whole numbers of zero or more.');return}
  if(!entry.job||!entry.date||!entry.notes){toast('Enter the site reference, visit date and work carried out.');return}
+ const requiredByItem=new Map();for(const line of stagedJobUsage)requiredByItem.set(String(line.itemId),(requiredByItem.get(String(line.itemId))||0)+Number(line.quantity));
+ for(const [id,qty] of requiredByItem){const item=items.find(x=>String(x.id)===id);if(!item||qty>Number(item.qty||0)){toast('Stock availability changed. Review the queued items before saving.');return}}
  const button=$('saveSiteVisit');button.disabled=true;button.textContent='Saving…';
+ const createdUsage=[];let savedVisit=null;const previousQuantities=new Map();
  try{
-  const saved=await store.add(entry);jobSiteVisitRecords.unshift(saved);
+  savedVisit=await store.add(entry);
+  const now=new Date(),localDate=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  for(const line of stagedJobUsage){
+   const usage=await usageStore.add({date:now.toISOString(),usageDate:localDate,job:entry.job,engineer:entry.engineer,visitNotes:entry.notes,itemId:line.itemId,itemName:line.itemName,sku:line.sku,category:line.category,quantity:Number(line.quantity)});
+   createdUsage.push(usage);
+  }
+  for(const [id,qty] of requiredByItem){const item=items.find(x=>String(x.id)===id);previousQuantities.set(id,Number(item.qty));item.qty=Number(item.qty)-qty}
+  const payload=JSON.stringify(items);localStorage.setItem(KEY,payload);
+  if(localStorage.getItem(KEY)!==payload)throw new Error('Stock quantity could not be verified on this device.');
+  jobSiteVisitRecords.unshift(savedVisit);
+  for(const usage of createdUsage){if(Array.isArray(jobSiteUsageRecords))jobSiteUsageRecords.unshift(usage);if(Array.isArray(jobUsageCloudRecords))jobUsageCloudRecords.unshift(usage)}
+  for(const [id,qty] of requiredByItem){const item=items.find(x=>String(x.id)===id);try{recordMovement(item,-qty,'Used on job: '+entry.job)}catch(error){}}
+  stagedJobUsage=[];renderStagedJobUsage();render();
   $('jobSiteHistorySearch').value='';renderJobSiteHistory();
-  $('jobSiteHistoryStatus').textContent=saved._syncPending?'Site visit saved safely on this device. It will upload automatically when signal returns.':'Site visit saved to your private account. '+jobSiteVisitRecords.length+' saved visit(s).';
-  const ref=entry.job;$('jobSiteVisitForm').reset();$('siteVisitRef').value=ref;$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections();
-  toast(saved._syncPending?'Site visit saved on this device · waiting for signal.':'Site visit saved for '+ref);
- }catch(error){toast('Site visit was not saved: '+(error?.message||error))}
+  const pending=[savedVisit,...createdUsage].some(x=>x?._syncPending);
+  $('jobSiteHistoryStatus').textContent=pending?'Job and parts saved safely on this device. They will upload automatically when signal returns.':'Job and parts saved to your private account. '+jobSiteVisitRecords.length+' saved visit(s).';
+  const ref=entry.job;$('jobSiteVisitForm').reset();$('siteVisitRef').value=ref;$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections();syncSiteUsageReference();
+  toast(pending?'Job saved on this device · waiting for signal.':'Job saved with '+createdUsage.length+' stock item(s).');
+ }catch(error){
+  for(const [id,qty] of previousQuantities){const item=items.find(x=>String(x.id)===id);if(item)item.qty=qty}
+  try{localStorage.setItem(KEY,JSON.stringify(items))}catch(rollbackError){}
+  for(const usage of createdUsage.slice().reverse()){try{await usageStore.remove(usage.id)}catch(rollbackError){}}
+  if(savedVisit){try{await store.remove(savedVisit.id)}catch(rollbackError){}}
+  render();
+  toast('Job was not fully saved: '+(error?.message||error)+'. Queued stock items have been kept so you can retry.');
+ }
  finally{button.disabled=false;button.textContent='Save site visit'}
 });
 $('jobSiteHistoryRows').addEventListener('click',async e=>{
