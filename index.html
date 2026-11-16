@@ -246,7 +246,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <header class="top"><div class="brand"><img class="logo" src="./van-stock-header-logo.svg?v=1" alt="Van Stock Pro futuristic van logo"><span class="app-version" aria-label="Build number 0001">Build 0001</span><div><h1>Van Stock Pro</h1><div class="title-auth-actions" style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" id="cloudSignInMini" type="button">☁️ Sign in</button><button class="secondary" id="cloudSignOutMini" type="button" aria-label="Sign out of Van Stock Pro" hidden>☁️ Sign out</button></div><div class="sub">Your stock. Your van. Under control.</div></div></div><div class="actions home-actions" aria-label="Main app tools">
 <details class="home-group"><summary>📦 Stock</summary><div class="home-group-items"><button id="addFocusBtn">＋ Add item</button><button class="secondary" id="addSelectedTop">＋ Add selected</button><button class="secondary" id="receiveStockBtn" type="button">📦 Receive delivery</button><button class="secondary" id="stocktakeBtn" type="button">📋 Stocktake</button><button class="secondary" id="stockAlertsBtn" type="button">🔔 Stock alerts</button><button class="secondary" id="minMaxBtn" type="button">🎯 Min / max levels</button></div></details>
 <details class="home-group"><summary>🛒 Reordering</summary><div class="home-group-items"><button class="secondary" id="reorderPlannerBtn" type="button">Reorder planner</button><button class="secondary" id="emailRestockTop">Email restock</button><button class="secondary" id="exportBtn">Export stock CSV</button></div></details>
-<details class="home-group"><summary>📋 Jobs &amp; history</summary><div class="home-group-items"><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open')); ">Stock history</button><button class="secondary" id="jobSiteHistoryBtn" type="button" onclick="window.openJobSiteHistory()">＋ Add new job</button></div></details>
+<details class="home-group"><summary>📋 Jobs &amp; history</summary><div class="home-group-items"><button class="secondary" id="exportJobUsageTop" type="button">Job usage CSV</button><button class="secondary" id="movementHistoryBtn" type="button" onclick="var p=document.getElementById('movementPanel');p.hidden=false;p.style.display='flex';window.dispatchEvent(new Event('movement-history-open')); ">Stock history</button><button class="secondary" id="jobSiteHistoryBtn" type="button" onclick="window.openJobSiteHistory()">＋ Add new job</button><button class="secondary" id="newJobSiteSearchBtn" type="button" onclick="window.startNewJobSiteSearch()">🔎 New Search</button></div></details>
 <details class="home-group" id="supplierToolsMenu"><summary>🏷️ Suppliers &amp; tools</summary><div class="home-group-items"><button class="secondary" id="supplierDirectoryBtn" type="button">Suppliers</button><button class="secondary" id="supplierDetailsBtn" type="button">Supplier contacts</button><button class="secondary" id="supplierImportBtn" type="button">Import contacts</button></div></details>
 <details class="home-group home-template-manager" id="jobNoteTemplatesMenu" style="grid-column:1/-1;width:100%;margin-top:2px">
 <summary>📝 Job note templates</summary>
@@ -710,6 +710,9 @@ function siteVisitDate(value){const raw=String(value||'').slice(0,10);const m=ra
 function formatSiteVisitNotes(value){return String(value||'').replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g,(_,y,m,d)=>d+'/'+m+'/'+y)}
 function renderJobSiteHistory(){
  const q=$('jobSiteHistorySearch').value.trim().toLowerCase();
+ const rowsBox=$('jobSiteHistoryRows'),batteryBox=$('jobSiteBatterySummary');
+ if(!q){rowsBox.innerHTML='';rowsBox.hidden=true;$('jobSiteHistoryEmpty').hidden=true;batteryBox.innerHTML='';batteryBox.hidden=true;$('jobSiteBatteryEmpty').hidden=true;return}
+ rowsBox.hidden=false;batteryBox.hidden=false;
  const norm=x=>String(x||'').trim().toLowerCase();
  const groups=new Map();
  for(const v of jobSiteVisitRecords){const k=norm(v.job);if(!k)continue;if(!groups.has(k))groups.set(k,{job:v.job,visits:[],usage:[]});groups.get(k).visits.push(v)}
@@ -721,7 +724,7 @@ function renderJobSiteHistory(){
   const hasIntruderBattery=Boolean(v.intruderBatteryOther||(v.intruderBatteryType&&v.intruderBatteryType!=='Other')||(v.intruderBatteryQuantity!==''&&v.intruderBatteryQuantity!=null)||v.intruderBatteryInstalledDate||v.intruderBatteryDueDate);
   if(hasIntruderBattery)entries.push({id:v.id,systemKey:'intruder',job:v.job,site:v.siteName||v.job,system:'🔐 Intruder alarm',type:(v.intruderBatteryType==='Other'?v.intruderBatteryOther:v.intruderBatteryType)||v.intruderBatteryOther,qty:v.intruderBatteryQuantity,installed:v.intruderBatteryInstalledDate,due:v.intruderBatteryDueDate,date:v.date});
   return entries;
- }).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+ }).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).filter(x=>[x.job,x.site,x.type,x.system].join(' ').toLowerCase().includes(q));
  $('jobSiteBatterySummary').innerHTML=batteryEntries.map(x=>'<article class="panel" style="padding:10px"><strong>'+esc(x.site)+'</strong><div class="sub">Job reference: '+esc(x.job)+' · '+x.system+'</div><div class="notice" style="margin:6px 0 0"><strong>'+esc(x.type||'Battery type not recorded')+'</strong><div>'+[x.qty!==''&&x.qty!=null?'Quantity: '+esc(x.qty):'Quantity not recorded',x.installed?'Fitted: '+esc(siteVisitDate(x.installed)):'Fitted date not recorded',x.due?'Replacement due: '+esc(siteVisitDate(x.due)):'Replacement date not recorded'].join(' · ')+'</div></div></article>').join('');
  $('jobSiteBatteryEmpty').hidden=batteryEntries.length>0;
  $('jobSiteHistoryRows').innerHTML=rows.map(g=>{
@@ -753,6 +756,13 @@ window.openJobSiteHistory=async function openJobSiteHistory(){
  $('siteVisitDate').value=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0')+'-'+String(new Date().getDate()).padStart(2,'0');
  await loadJobSiteHistory();
  $('jobSiteHistoryPanel').scrollIntoView({behavior:'smooth',block:'start'});
+};
+window.startNewJobSiteSearch=function(){
+ $('jobSiteHistoryPanel').hidden=false;
+ $('jobSiteHistorySearch').value='';
+ renderJobSiteHistory();
+ $('jobSiteHistoryPanel').scrollIntoView({behavior:'smooth',block:'start'});
+ setTimeout(()=>$('jobSiteHistorySearch').focus(),120);
 };
 $('jobSiteHistoryPanel').insertBefore($('jobReportPanel'),$('jobSiteHistoryPanel').children[3]);
 // Keep the stock-use form inside Job Site History instead of displaying it as a full-screen popup.
@@ -803,7 +813,7 @@ $('saveSiteBattery').addEventListener('click',async()=>{
  try{
   const fire=system==='Fire alarm';
   const entry={job,siteName:$('siteBatterySiteName').value.trim(),date:fitted,engineer:'',systemType:system,notes:'Battery register entry: '+type+' × '+qty+'. Fitted '+siteVisitDate(fitted)+'. Replacement due '+siteVisitDate(due)+'.',defects:'',followUp:'',batteryType:fire?type:'',batteryQuantity:fire?qty:'',batteryInstalledDate:fire?fitted:'',batteryDueDate:fire?due:'',intruderBatteryType:fire?'':type,intruderBatteryOther:fire?'':type,intruderBatteryQuantity:fire?'':qty,intruderBatteryInstalledDate:fire?'':fitted,intruderBatteryDueDate:fire?'':due};
-  const saved=await store.add(entry);jobSiteVisitRecords.unshift(saved);renderJobSiteHistory();
+  const saved=await store.add(entry);jobSiteVisitRecords.unshift(saved);$('jobSiteHistorySearch').value='';renderJobSiteHistory();
   $('siteBatterySaveStatus').textContent='Battery record saved for '+job+'. Add another type if required.';
   $('siteBatteryType').value='';$('siteBatteryQty').value='1';$('siteBatteryDue').value='';$('siteBatteryType').focus();
  }catch(error){$('siteBatterySaveStatus').textContent='Could not save battery record: '+(error?.message||error)}
