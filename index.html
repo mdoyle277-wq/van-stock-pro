@@ -816,7 +816,7 @@ $('saveSiteBattery').addEventListener('click',async()=>{
   const fire=system==='Fire alarm';
   const entry={job,siteName:$('siteBatterySiteName').value.trim(),date:fitted,engineer:'',systemType:system,notes:'Battery register entry: '+type+' × '+qty+'. Fitted '+siteVisitDate(fitted)+'. Replacement due '+siteVisitDate(due)+'.',defects:'',followUp:'',batteryType:fire?type:'',batteryQuantity:fire?qty:'',batteryInstalledDate:fire?fitted:'',batteryDueDate:fire?due:'',intruderBatteryType:fire?'':type,intruderBatteryOther:fire?'':type,intruderBatteryQuantity:fire?'':qty,intruderBatteryInstalledDate:fire?'':fitted,intruderBatteryDueDate:fire?'':due};
   const saved=await store.add(entry);jobSiteVisitRecords.unshift(saved);$('jobSiteHistorySearch').value='';renderJobSiteHistory();
-  $('siteBatterySaveStatus').textContent='Battery record saved for '+job+'. Add another type if required.';
+  $('siteBatterySaveStatus').textContent=saved._syncPending?'Battery record saved on this device. It will upload automatically when signal returns.':'Battery record saved for '+job+'. Add another type if required.';
   $('siteBatteryType').value='';$('siteBatteryQty').value='1';$('siteBatteryDue').value='';$('siteBatteryType').focus();
  }catch(error){$('siteBatterySaveStatus').textContent='Could not save battery record: '+(error?.message||error)}
  finally{button.disabled=false;button.textContent='＋ Add battery record'}
