@@ -937,7 +937,20 @@ $('siteUsageAddBtn').addEventListener('click',()=>{
  toast(item.name+' × '+qty+' added to the job sheet.');
 });
 
-$('clearSiteVisitForm').addEventListener('click',()=>{if(stagedJobUsage.length&&!confirm('Clear the stock items waiting on this job as well?'))return;stagedJobUsage=[];renderStagedJobUsage();$('jobSiteVisitForm').reset();syncSiteUsageReference();$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections()});
+let editingSiteVisitId=null;
+function cancelSiteVisitEdit(){
+ editingSiteVisitId=null;
+ $('jobSiteVisitForm').reset();
+ $('siteVisitDate').value=new Date().toISOString().slice(0,10);
+ $('saveSiteVisit').textContent='Save site visit';
+ $('clearSiteVisitForm').textContent='Clear form';
+ updateSiteBatterySections();syncSiteUsageReference();
+}
+$('clearSiteVisitForm').addEventListener('click',()=>{
+ if(editingSiteVisitId){cancelSiteVisitEdit();toast('Edit cancelled. The saved job was not changed.');return}
+ if(stagedJobUsage.length&&!confirm('Clear the stock items waiting on this job as well?'))return;
+ stagedJobUsage=[];renderStagedJobUsage();$('jobSiteVisitForm').reset();syncSiteUsageReference();$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections()
+});
 $('jobSiteVisitForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const store=window.__VSP_JOB_SITE_VISIT_STORE,usageStore=window.__VSP_JOB_USAGE_STORE;
@@ -947,7 +960,22 @@ $('jobSiteVisitForm').addEventListener('submit',async e=>{
  if(!entry.job||!entry.date||!entry.notes){toast('Enter the site reference, visit date and work carried out.');return}
  const requiredByItem=new Map();for(const line of stagedJobUsage)requiredByItem.set(String(line.itemId),(requiredByItem.get(String(line.itemId))||0)+Number(line.quantity));
  for(const [id,qty] of requiredByItem){const item=items.find(x=>String(x.id)===id);if(!item||qty>Number(item.qty||0)){toast('Stock availability changed. Review the queued items before saving.');return}}
- const button=$('saveSiteVisit');button.disabled=true;button.textContent='Saving…';
+ const button=$('saveSiteVisit');button.disabled=true;button.textContent=editingSiteVisitId?'Updating…':'Saving…';
+ if(editingSiteVisitId){
+  const id=editingSiteVisitId;
+  try{
+   const updated=await store.update(id,entry);
+   jobSiteVisitRecords=jobSiteVisitRecords.map(v=>String(v.id)===String(id)?updated:v);
+   editingSiteVisitId=null;
+   $('saveSiteVisit').textContent='Save site visit';$('clearSiteVisitForm').textContent='Clear form';
+   $('jobSiteHistorySearch').value=entry.job;renderJobSiteHistory();
+   $('jobSiteHistoryStatus').textContent='Site visit updated successfully. Parts-used records and stock quantities were left unchanged.';
+   $('jobSiteVisitForm').reset();$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections();syncSiteUsageReference();
+   toast('Saved job sheet updated.');
+  }catch(error){toast('Could not update job sheet: '+(error?.message||error));$('jobSiteHistoryStatus').textContent='Update failed: '+(error?.message||error)}
+  finally{button.disabled=false;button.textContent=editingSiteVisitId?'Update site visit':'Save site visit'}
+  return;
+ }
  const createdUsage=[];let savedVisit=null;const previousQuantities=new Map();
  try{
   savedVisit=await store.add(entry);
@@ -979,6 +1007,26 @@ $('jobSiteVisitForm').addEventListener('submit',async e=>{
  finally{button.disabled=false;button.textContent='Save site visit'}
 });
 $('jobSiteHistoryRows').addEventListener('click',async e=>{
+ const editButton=e.target.closest('[data-edit-site-visit]');
+ if(editButton){
+  const visit=jobSiteVisitRecords.find(v=>String(v.id)===String(editButton.getAttribute('data-edit-site-visit')));
+  if(!visit){$('jobSiteHistoryStatus').textContent='Could not find this saved visit. Search again and retry.';return}
+  editingSiteVisitId=visit.id;
+  $('siteVisitRef').value=visit.job||'';$('siteVisitName').value=visit.siteName||'';
+  $('siteVisitDate').value=visit.date||'';$('siteVisitEngineer').value=visit.engineer||'';
+  $('siteVisitSystem').value=visit.systemType||'';$('siteVisitNotes').value=visit.notes||'';
+  $('siteVisitDefects').value=visit.defects||'';$('siteVisitFollowUp').value=visit.followUp||'';
+  $('siteVisitBatteryType').value=visit.batteryType||'';$('siteVisitBatteryQuantity').value=visit.batteryQuantity??'';
+  $('siteVisitBatteryInstalled').value=visit.batteryInstalledDate||'';$('siteVisitBatteryDue').value=visit.batteryDueDate||'';
+  $('siteVisitIntruderBatteryType').value=visit.intruderBatteryType||'';$('siteVisitIntruderBatteryOther').value=visit.intruderBatteryOther||'';
+  $('siteVisitIntruderBatteryQuantity').value=visit.intruderBatteryQuantity??'';
+  $('siteVisitIntruderBatteryInstalled').value=visit.intruderBatteryInstalledDate||'';$('siteVisitIntruderBatteryDue').value=visit.intruderBatteryDueDate||'';
+  $('saveSiteVisit').textContent='Update site visit';$('clearSiteVisitForm').textContent='Cancel edit';
+  updateSiteBatterySections();syncSiteUsageReference();
+  $('jobSiteHistoryStatus').textContent='Editing saved visit '+(visit.job||'')+'. Make changes and tap Update site visit.';
+  $('jobSiteVisitForm').scrollIntoView({behavior:'smooth',block:'start'});
+  return;
+ }
  const copyButton=e.target.closest('[data-copy-site-visit]');
  if(copyButton){
   const previous=jobSiteVisitRecords.find(v=>String(v.id)===String(copyButton.getAttribute('data-copy-site-visit')));
