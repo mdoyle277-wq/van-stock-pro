@@ -1066,4 +1066,4 @@ $('homeQuickOut').addEventListener('click',()=>{$('search').value='';$('category
 $('homeQuickClear').addEventListener('click',()=>{$('search').value='';$('categoryFilter').value='';$('statusFilter').value='';$('homeQuickSearch').value='';render()});
 
 vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();render();if(items.length){const savedWithPhoto=items.find(i=>i.photo);showSelectedItem(savedWithPhoto||items[0])}
-</script><script type="module" src="./cloud-auth.js?v=20261114-private-job-history"></script></body></html>
+</script><script>if("serviceWorker" in navigator && location.protocol==="https:"){window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}))}</script><script type="module" src="./cloud-auth.js?v=20261116-offline-queue"></script></body></html>
