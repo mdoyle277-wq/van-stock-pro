@@ -277,6 +277,7 @@ async function initialiseCloudStock() {
     const workspace = await getMyStockWorkspace();
     if (currentSession?.user?.id !== userId) return;
     stockWorkspaceId = workspace.id;
+    try{localStorage.setItem("van-stock-pro-workspace-"+userId,workspace.id)}catch{}
     // Only workspace owners/admins may access app-code backup and restore.
     document.body.classList.toggle("cloud-admin", ["owner", "admin"].includes(String(workspace.role || "").toLowerCase()));
     const { data: cloudRows, error } = await supabase.from("stock_items")
@@ -317,12 +318,19 @@ async function initialiseCloudStock() {
     if (currentSession?.user?.id === userId) {
       stockSyncReady = true;
       document.body.classList.remove("cloud-loading");
+      await syncOfflineQueue();
     }
   } catch (error) {
     if (currentSession?.user?.id === userId) {
-      stockSyncReady = false;
-      clearCloudLoadingWithEmptyStock();
-      message("CLOUD STOCK NOT READY — local data has been left untouched. " + cloudStockErrorDetail(error), "error");
+      const cachedWorkspace=localStorage.getItem("van-stock-pro-workspace-"+userId);
+      if(cachedWorkspace&&/^[0-9a-f-]{36}$/i.test(cachedWorkspace)){
+        stockWorkspaceId=cachedWorkspace;stockSyncReady=true;
+        document.body.classList.remove("cloud-loading");
+        message("OFFLINE MODE — your existing local stock is available. New job and battery records will be saved on this device and uploaded when signal returns.","warning");
+      }else{
+        stockSyncReady=false;clearCloudLoadingWithEmptyStock();
+        message("CLOUD STOCK NOT READY — connect to the internet once on this device before offline use. "+cloudStockErrorDetail(error),"error");
+      }
     }
   }
 }
@@ -336,8 +344,10 @@ async function runStockSync() {
     const raw = localStorage.getItem("van-stock-pro-items-v1");
     const items = raw == null ? [] : JSON.parse(raw);
     if (!Array.isArray(items)) throw new Error("Saved local stock is not a valid list.");
+    if(navigator.onLine===false)return;
     await writeCloudStock(items);
     if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId) return;
+    await syncOfflineQueue();
     message("Cloud stock saved and verified: " + items.length + " item(s).", "success");
   } catch (error) {
     if (currentSession?.user?.id === userId) {
@@ -349,6 +359,8 @@ async function runStockSync() {
     else stockSyncAgain = false;
   }
 }
+window.addEventListener("online",()=>{if(stockSyncReady){runStockSync();syncOfflineQueue()}else if(currentSession?.user?.id){initialiseCloudStock()}});
+window.addEventListener("focus",()=>{if(stockSyncReady&&navigator.onLine!==false){runStockSync();syncOfflineQueue()}});
 window.addEventListener("vsp:stock-changed", () => {
   if (!stockSyncReady) return;
   if (stockSyncTimer) window.clearTimeout(stockSyncTimer);
@@ -468,6 +480,72 @@ setupButton.addEventListener("click", async () => {
 // Category preferences live in each user's own Supabase auth metadata.
 // updateUser can only update the currently authenticated account, so another
 // workspace member cannot edit the administrator's category list (or vice versa).
+
+// Durable offline queue for job history records. Entries are scoped to the
+// signed-in account and workspace and retain their UUID across retries.
+function offlineQueueKey(userId){return "van-stock-pro-offline-queue-v1-"+userId}
+function readOfflineQueue(userId){
+  try{const raw=localStorage.getItem(offlineQueueKey(userId));if(!raw)return [];
+    const value=JSON.parse(raw);return Array.isArray(value)?value:[];
+  }catch{return []}
+}
+function writeOfflineQueue(userId,queue){
+  localStorage.setItem(offlineQueueKey(userId),JSON.stringify(queue));
+}
+function isNetworkFailure(error){
+  if(typeof navigator!=="undefined"&&navigator.onLine===false)return true;
+  const s=String(error?.message||error||"").toLowerCase();
+  return /failed to fetch|networkerror|network request|load failed|offline|connection (lost|reset|closed)|timed? ?out|timeout|fetch failed/.test(s);
+}
+function queueOfflineRecord(kind,row){
+  const userId=currentSession?.user?.id;
+  if(!userId||!row?.workspace_id||!row?.id)throw new Error("Cannot queue this record without a signed-in account and saved workspace.");
+  const queue=readOfflineQueue(userId);
+  if(!queue.some(x=>x.id===row.id&&x.kind===kind))queue.push({kind,id:row.id,row,queued_at:new Date().toISOString()});
+  writeOfflineQueue(userId,queue);
+  message("Saved on this device · waiting to upload "+queue.length+" record(s) when signal returns.","warning");
+}
+function queuedRows(kind,workspaceId){
+  const userId=currentSession?.user?.id;
+  return userId?readOfflineQueue(userId).filter(x=>x.kind===kind&&x.row?.workspace_id===workspaceId&&x.row?.owner_user_id===userId).map(x=>x.row):[];
+}
+function queuedDomain(kind,row){
+  if(kind==="job_usage")return {id:row.id,date:row.usage_date,usageDate:String(row.usage_date||"").slice(0,10),job:row.job_reference,itemId:row.item_id,itemName:row.item_name,engineer:row.engineer_name||"",visitNotes:row.visit_notes||"",sku:row.sku||"",category:row.category||"",quantity:Number(row.quantity||0),_syncPending:true};
+  return {id:row.id,date:row.visit_date,job:row.job_reference,siteName:row.site_name||"",engineer:row.engineer_name||"",systemType:row.system_type||"",notes:row.visit_notes||"",defects:row.defects||"",followUp:row.follow_up||"",batteryType:row.battery_type||"",batteryQuantity:row.battery_quantity??"",batteryInstalledDate:row.battery_installed_date||"",batteryDueDate:row.battery_due_date||"",intruderBatteryType:row.intruder_battery_type||"",intruderBatteryOther:row.intruder_battery_other||"",intruderBatteryQuantity:row.intruder_battery_quantity??"",intruderBatteryInstalledDate:row.intruder_battery_installed_date||"",intruderBatteryDueDate:row.intruder_battery_due_date||"",_syncPending:true};
+}
+let offlineQueueSyncBusy=false;
+async function syncOfflineQueue(){
+  const userId=currentSession?.user?.id,workspaceId=stockWorkspaceId;
+  if(!userId||!workspaceId||!stockSyncReady||navigator.onLine===false||offlineQueueSyncBusy)return;
+  offlineQueueSyncBusy=true;
+  let queue=readOfflineQueue(userId),uploaded=0;
+  try{
+    for(const entry of queue.slice()){
+      if(entry.row?.owner_user_id!==userId||entry.row?.workspace_id!==workspaceId)continue;
+      const table=entry.kind==="job_usage"?"job_usage_records":entry.kind==="site_visit"?"job_site_visits":null;
+      if(!table)continue;
+      const {data,error}=await supabase.from(table).insert(entry.row).select("id").single();
+      if(error){
+        if(error.code==="23505"){
+          const {data:existing,error:checkError}=await supabase.from(table).select("id").eq("id",entry.id).eq("workspace_id",workspaceId).eq("owner_user_id",userId).maybeSingle();
+          if(checkError||!existing?.id)throw error;
+        }else throw error;
+      }
+      if(currentSession?.user?.id!==userId||stockWorkspaceId!==workspaceId)throw new Error("Account changed during offline sync.");
+      queue=queue.filter(x=>!(x.kind===entry.kind&&x.id===entry.id));
+      writeOfflineQueue(userId,queue);uploaded++;
+    }
+    if(uploaded){
+      message("Synced "+uploaded+" offline record(s) to Supabase. "+queue.length+" still waiting.","success");
+      window.dispatchEvent(new Event("vsp:offline-sync-complete"));
+    }else if(queue.length){
+      message(queue.length+" record(s) saved on this device · waiting to upload.","warning");
+    }
+  }catch(error){
+    message("Offline sync paused · "+queue.length+" record(s) remain safely on this device. "+(error?.message||"Check your connection."),"warning");
+  }finally{offlineQueueSyncBusy=false;}
+}
+
 // Private job usage history. RLS and explicit owner filters ensure that
 // even workspace admins can see only their own records in this first release.
 window.__VSP_JOB_USAGE_STORE = {
