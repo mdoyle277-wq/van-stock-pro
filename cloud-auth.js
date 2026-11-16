@@ -717,6 +717,38 @@ window.__VSP_JOB_SITE_VISIT_STORE = {
     if(currentSession?.user?.id!==userId||stockWorkspaceId!==workspaceId)throw new Error("The signed-in account changed while saving. Refresh before continuing.");
     return {id:data.id,date:data.visit_date,job:data.job_reference,siteName:data.site_name||"",engineer:data.engineer_name||"",systemType:data.system_type||"",notes:data.visit_notes||"",defects:data.defects||"",followUp:data.follow_up||"",batteryType:data.battery_type||"",batteryQuantity:data.battery_quantity??"",batteryInstalledDate:data.battery_installed_date||"",batteryDueDate:data.battery_due_date||"",intruderBatteryType:data.intruder_battery_type||"",intruderBatteryOther:data.intruder_battery_other||"",intruderBatteryQuantity:data.intruder_battery_quantity??"",intruderBatteryInstalledDate:data.intruder_battery_installed_date||"",intruderBatteryDueDate:data.intruder_battery_due_date||""};
   },
+  async update(id,entry) {
+    if(!this.isReady())throw new Error("Sign in and wait for cloud stock to finish loading before editing a site visit.");
+    if(!id)throw new Error("The site visit ID is missing.");
+    const userId=currentSession.user.id,workspaceId=stockWorkspaceId;
+    const fields={
+      visit_date:entry.date||new Date().toISOString(),
+      job_reference:String(entry.job||"").trim().slice(0,120),
+      site_name:String(entry.siteName||"").trim().slice(0,160),
+      engineer_name:String(entry.engineer||"").trim().slice(0,80),
+      system_type:String(entry.systemType||"").trim().slice(0,80),
+      visit_notes:String(entry.notes||"").trim().slice(0,4000),
+      defects:String(entry.defects||"").trim().slice(0,2000),
+      follow_up:String(entry.followUp||"").trim().slice(0,2000),
+      battery_type:String(entry.batteryType||"").trim().slice(0,100),
+      battery_quantity:entry.batteryQuantity===""||entry.batteryQuantity==null?null:Number(entry.batteryQuantity),
+      battery_installed_date:entry.batteryInstalledDate||null,
+      battery_due_date:entry.batteryDueDate||null,
+      intruder_battery_type:String(entry.intruderBatteryType||"").trim().slice(0,100),
+      intruder_battery_other:String(entry.intruderBatteryOther||"").trim().slice(0,100),
+      intruder_battery_quantity:entry.intruderBatteryQuantity===""||entry.intruderBatteryQuantity==null?null:Number(entry.intruderBatteryQuantity),
+      intruder_battery_installed_date:entry.intruderBatteryInstalledDate||null,
+      intruder_battery_due_date:entry.intruderBatteryDueDate||null
+    };
+    if(!fields.job_reference||!fields.visit_notes)throw new Error("Enter a job/site reference and visit notes.");
+    const {data,error}=await supabase.from("job_site_visits").update(fields)
+      .eq("id",id).eq("workspace_id",workspaceId).eq("owner_user_id",userId)
+      .select("id,visit_date,job_reference,site_name,engineer_name,system_type,visit_notes,defects,follow_up,battery_type,battery_quantity,battery_installed_date,battery_due_date,intruder_battery_type,intruder_battery_other,intruder_battery_quantity,intruder_battery_installed_date,intruder_battery_due_date").single();
+    if(error)throw error;
+    if(currentSession?.user?.id!==userId||stockWorkspaceId!==workspaceId)throw new Error("The signed-in account changed while updating. Refresh before continuing.");
+    if(!data?.id)throw new Error("Supabase did not confirm the updated site visit.");
+    return {id:data.id,date:data.visit_date,job:data.job_reference,siteName:data.site_name||"",engineer:data.engineer_name||"",systemType:data.system_type||"",notes:data.visit_notes||"",defects:data.defects||"",followUp:data.follow_up||"",batteryType:data.battery_type||"",batteryQuantity:data.battery_quantity??"",batteryInstalledDate:data.battery_installed_date||"",batteryDueDate:data.battery_due_date||"",intruderBatteryType:data.intruder_battery_type||"",intruderBatteryOther:data.intruder_battery_other||"",intruderBatteryQuantity:data.intruder_battery_quantity??"",intruderBatteryInstalledDate:data.intruder_battery_installed_date||"",intruderBatteryDueDate:data.intruder_battery_due_date||""};
+  },
   async removeBatteryRecord(id,system) {
     if(!this.isReady())throw new Error("Cloud account is not ready.");
     if(!id||!["fire","intruder"].includes(system))throw new Error("Invalid battery record.");
