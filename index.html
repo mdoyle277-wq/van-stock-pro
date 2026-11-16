@@ -816,7 +816,9 @@ function refreshSiteUsageItems(){
  select.innerHTML='<option value="">Choose stock item…</option>'+items.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(i=>'<option value="'+esc(i.id)+'">'+esc(i.name)+' · '+Number(i.qty||0)+' in stock'+(i.sku?' · '+esc(i.sku):'')+'</option>').join('');
  if(items.some(i=>String(i.id)===String(keep)))select.value=keep;
 }
-$('siteVisitRef').addEventListener('input',()=>{if(!$('siteUsageRef').value.trim())$('siteUsageRef').value=$('siteVisitRef').value.trim()});
+function syncSiteUsageReference(){ $('siteUsageRef').value=$('siteVisitRef').value.trim(); }
+$('siteVisitRef').addEventListener('input',syncSiteUsageReference);
+syncSiteUsageReference();
 $('siteUsageAddBtn').addEventListener('click',async()=>{
  const item=items.find(i=>String(i.id)===String($('siteUsageItem').value));
  const job=$('siteUsageRef').value.trim()||$('siteVisitRef').value.trim();
@@ -837,7 +839,7 @@ $('siteUsageAddBtn').addEventListener('click',async()=>{
  panel.scrollIntoView({behavior:'smooth',block:'center'});
 });
 
-$('clearSiteVisitForm').addEventListener('click',()=>{$('jobSiteVisitForm').reset();$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections()});
+$('clearSiteVisitForm').addEventListener('click',()=>{$('jobSiteVisitForm').reset();syncSiteUsageReference();$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections()});
 $('jobSiteVisitForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const store=window.__VSP_JOB_SITE_VISIT_STORE;
@@ -861,6 +863,7 @@ $('jobSiteHistoryRows').addEventListener('click',async e=>{
   const previous=jobSiteVisitRecords.find(v=>String(v.id)===String(copyButton.getAttribute('data-copy-site-visit')));
   if(!previous){toast('Previous visit could not be found. Refresh site history and try again.');return}
   $('siteVisitRef').value=previous.job||'';
+  syncSiteUsageReference();
   $('siteVisitName').value=previous.siteName||'';
   $('siteVisitEngineer').value=previous.engineer||'';
   $('siteVisitSystem').value=previous.systemType||'';
