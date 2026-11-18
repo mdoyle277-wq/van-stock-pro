@@ -923,7 +923,71 @@ const fireAlarmToolGuides={
  'bs5839-1':{title:'BS 5839-1 — non-domestic premises',intro:'BS 5839-1 is the UK code of practice covering the design, installation, commissioning and maintenance of fire detection and fire alarm systems in non-domestic premises.',sections:[['Use it for',['Design and category / system coverage decisions','Installation, siting, wiring and system integrity','Commissioning, verification and documentation','Inspection, servicing, testing and maintenance']],['Engineer reminder',['Confirm the edition and amendments currently in force before relying on a clause or recommendation','Use the project specification, fire strategy, design certificate and manufacturer instructions alongside the standard','This app provides a navigation aid, not the full copyrighted standard']]]},
  'bs5839-6':{title:'BS 5839-6 — domestic premises',intro:'BS 5839-6 is the UK code of practice for the design, installation, commissioning and maintenance of fire detection and fire alarm systems in domestic premises.',sections:[['Use it for',['Domestic premises including houses and relevant residential buildings','Grade and category selection appropriate to the building and risk','Detector selection, siting, interconnection and power supply','Commissioning, user information, inspection and maintenance']],['Engineer reminder',['Check the current edition and amendments and confirm the building type and scope','Do not assume domestic guidance applies to common areas or non-domestic parts of mixed-use buildings','This app provides a navigation aid, not the full copyrighted standard']]]}
 };
-function openFireAlarmTool(key){const guide=fireAlarmToolGuides[key];if(!guide)return;const panel=$('fireAlarmToolPanel');$('fireAlarmToolTitle').textContent=guide.title;$('fireAlarmToolContent').innerHTML='<p>'+guide.intro+'</p>'+guide.sections.map(section=>'<div class="panel" style="padding:12px;margin:0"><strong>'+section[0]+'</strong><ul style="margin:8px 0 0;padding-left:20px">'+section[1].map(item=>'<li style="margin:5px 0">'+item+'</li>').join('')+'</ul></div>').join('');panel.hidden=false;panel.scrollIntoView({behavior:'smooth',block:'start'});
+function openFireAlarmTool(key){
+ const guide=fireAlarmToolGuides[key];if(!guide)return;
+ const panel=$('fireAlarmToolPanel'),content=$('fireAlarmToolContent');
+ $('fireAlarmToolTitle').textContent=guide.title;
+ if(key==='spacing'){
+  content.innerHTML=`<p>Detector coverage calculator based on the point-detector recommendations in BS 5839-1:2025, clause 21.2. Enter the room or corridor dimensions and select the detector type.</p>
+  <div class="panel" style="padding:12px;margin:0 0 10px">
+   <div class="formgrid">
+    <label><span class="fieldlabel">Detector type</span><select class="field" id="vspSpacingType"><option value="smoke">Point smoke detector</option><option value="heat-a1">Heat detector — Class A1</option><option value="heat-other">Heat detector — other class</option><option value="multi">Multi-sensor — heat + smoke only</option></select></label>
+    <label><span class="fieldlabel">Area layout</span><select class="field" id="vspSpacingLayout"><option value="room">Room / open area</option><option value="corridor">Corridor up to 2 m wide</option></select></label>
+    <label><span class="fieldlabel">Room / corridor length (m)</span><input class="field" id="vspSpacingLength" type="number" min="0.1" step="0.1" placeholder="e.g. 18"></label>
+    <label id="vspSpacingWidthWrap"><span class="fieldlabel">Room width (m)</span><input class="field" id="vspSpacingWidth" type="number" min="0.1" step="0.1" placeholder="e.g. 12"></label>
+    <label><span class="fieldlabel">Ceiling height (m)</span><input class="field" id="vspSpacingHeight" type="number" min="0.1" step="0.1" placeholder="e.g. 3"></label>
+    <label><span class="fieldlabel">Area above normal height limit (%)</span><input class="field" id="vspSpacingHighArea" type="number" min="0" max="10" step="0.1" value="0"></label>
+   </div>
+   <div class="notice">For a corridor, enter its length and set its width in the layout selection; the corridor allowance is only for corridors no wider than 2 m.</div>
+   <div id="vspSpacingResult" class="panel" style="padding:12px;margin-top:12px;background:#0b1524"><span class="sub">Enter dimensions and calculate an indicative detector quantity.</span></div>
+   <div class="entryactions" style="margin-top:10px"><button type="button" id="vspSpacingCalculate">Calculate spacing</button><button type="button" class="secondary" id="vspSpacingReset">Reset</button><button type="button" class="secondary" id="vspSpacingCopy">Copy result</button></div>
+  </div>
+  <div class="panel" style="padding:12px;margin:0 0 10px"><strong>2025 reference figures used by this calculator</strong><ul style="margin:8px 0 0;padding-left:20px">
+   <li>Point smoke: maximum horizontal distance 7.5 m; generally applicable ceiling height 10.5 m (12.5 m over no more than 10% of ceiling area).</li>
+   <li>Heat: maximum horizontal distance 5.3 m; Class A1 ceiling height 9.0 m (10.5 m over up to 10%); other classes 7.5 m (10.5 m over up to 10%).</li>
+   <li>Multi-sensor configured for heat and smoke only: use the lower heat-detector ceiling-height limit. The calculator also uses the conservative heat coverage radius.</li>
+   <li>Corridors up to 2 m wide: indicative intervals up to 15 m for smoke or 10.6 m for heat/multi-sensor, with the end-wall distance not exceeding the applicable radius.</li>
+  </ul></div>
+  <div class="panel" style="padding:12px;margin:0 0 10px"><strong>Important siting checks</strong><ul style="margin:8px 0 0;padding-left:20px">
+   <li>Keep point detectors at least 500 mm from walls and obstructions treated as walls.</li>
+   <li>For ordinary ceiling siting, sensing elements are generally 25–600 mm below the ceiling for smoke and 25–150 mm for heat.</li>
+   <li>Review beams, ducts, partitions, airflow, sloping/apex ceilings, voids, ceiling cells and manufacturer instructions. These can change the layout and detector count.</li>
+   <li>For multi-sensors, record the selected operating mode and configuration in the design information and commissioning documentation.</li>
+  </ul></div>
+  <p class="notice">Reference aid only — not a design approval or compliance certificate. The quantity is a preliminary rectangular-grid estimate. Confirm every point is within the permitted horizontal coverage, apply all relevant clause 21.2 conditions and the manufacturer's instructions, and check the full licensed BS 5839-1:2025 before installation. This calculator does not account for obstacles, beams, partitions, sloping ceilings, voids, air movement, BS 7273-4 or special risks.</p>`;
+  const $s=id=>document.getElementById(id);let spacingCopy='';
+  const typeEl=$s('vspSpacingType'),layoutEl=$s('vspSpacingLayout');
+  function updateSpacingLayout(){$s('vspSpacingWidthWrap').style.display=layoutEl.value==='corridor'?'none':''}
+  layoutEl.addEventListener('change',updateSpacingLayout);updateSpacingLayout();
+  function calculateSpacing(){
+   const type=typeEl.value,layout=layoutEl.value,L=Number($s('vspSpacingLength').value),W=Number($s('vspSpacingWidth').value),H=Number($s('vspSpacingHeight').value),high=Number($s('vspSpacingHighArea').value);
+   if(!Number.isFinite(L)||L<=0||!Number.isFinite(H)||H<=0|| (layout==='room'&&(!Number.isFinite(W)||W<=0))||!Number.isFinite(high)||high<0||high>10){$s('vspSpacingResult').innerHTML='<span class="sub">Enter valid positive dimensions and a high-level area between 0 and 10%.</span>';spacingCopy='';return}
+   const isSmoke=type==='smoke',isA1=type==='heat-a1',isMulti=type==='multi',radius=isSmoke?7.5:5.3;
+   const normalHeight=isSmoke?10.5:isA1?9:7.5,exceptionHeight=isSmoke?12.5:10.5;
+   const permitted=high>0?exceptionHeight:normalHeight;
+   const label=isSmoke?'Point smoke detector':isMulti?'Multi-sensor (heat + smoke only)':isA1?'Heat detector — Class A1':'Heat detector — other class';
+   if(H>permitted){$s('vspSpacingResult').innerHTML='<strong style="color:#ff9aa5">Outside the selected ceiling-height limit</strong><p class="sub">Entered height '+H.toFixed(2)+' m exceeds '+permitted.toFixed(1)+' m for this selection. Check specialist detection/manufacturer guidance and the full standard.</p>';spacingCopy='';return}
+   let count,detail;
+   if(layout==='corridor'){
+    count=Math.ceil(L/(2*radius));
+    detail='Maximum indicative interval: '+(2*radius).toFixed(1)+' m. Keep the first/last detector no more than '+radius.toFixed(1)+' m from the end wall.';
+   }else{
+    const cell=radius*Math.sqrt(2),along=Math.ceil(L/cell),across=Math.ceil(W/cell);
+    count=along*across;
+    detail='Indicative grid: '+along+' along × '+across+' across. Approximate grid pitch: '+cell.toFixed(2)+' m maximum in each direction.';
+   }
+   const heightNote=isMulti?' Multi-sensor ceiling-height limit is based on the lower heat limit, as required when configured for heat and smoke only.':'';
+   const text='BS 5839-1:2025 detector spacing estimate\nDetector: '+label+'\nLayout: '+(layout==='corridor'?'Corridor up to 2 m wide':'Room / open area')+'\nDimensions: '+(layout==='corridor'?L+' m long':L+' m × '+W+' m')+'\nCeiling height: '+H+' m\nArea above normal height limit: '+high+'%\nMaximum horizontal coverage radius used: '+radius+' m\nIndicative detector quantity: '+count+'\n'+detail+heightNote+'\nPreliminary estimate only; verify all siting conditions and manufacturer guidance.';
+   spacingCopy=text;
+   $s('vspSpacingResult').innerHTML='<div class="sub">'+label+' · '+(layout==='corridor'?'Corridor':'Room / open area')+'</div><div style="font-size:28px;font-weight:850;color:var(--mint);margin:4px 0">'+count+' detector'+(count===1?'':'s')+'</div><div style="font-size:13px">'+detail+'</div><div class="notice">Coverage radius used: '+radius.toFixed(1)+' m · Ceiling-height limit applied: '+permitted.toFixed(1)+' m'+(high>0?' (up to 10% area allowance)':'')+'.'+heightNote+'</div><div class="notice">Check walls, obstructions, detector positioning and all site-specific conditions before setting out.</div>';
+  }
+  $s('vspSpacingCalculate').addEventListener('click',calculateSpacing);
+  $s('vspSpacingReset').addEventListener('click',()=>{['vspSpacingLength','vspSpacingWidth','vspSpacingHeight'].forEach(id=>$s(id).value='');$s('vspSpacingType').value='smoke';$s('vspSpacingLayout').value='room';$s('vspSpacingHighArea').value='0';updateSpacingLayout();$s('vspSpacingResult').innerHTML='<span class="sub">Enter dimensions and calculate an indicative detector quantity.</span>';spacingCopy=''});
+  $s('vspSpacingCopy').addEventListener('click',()=>{if(!spacingCopy){calculateSpacing();if(!spacingCopy)return}if(navigator.clipboard?.writeText)navigator.clipboard.writeText(spacingCopy).then(()=>alert('Spacing calculation copied.')).catch(()=>alert(spacingCopy));else alert(spacingCopy)});
+ }else{
+  content.innerHTML='<p>'+guide.intro+'</p>'+guide.sections.map(section=>'<div class="panel" style="padding:12px;margin:0"><strong>'+section[0]+'</strong><ul style="margin:8px 0 0;padding-left:20px">'+section[1].map(item=>'<li style="margin:5px 0">'+item+'</li>').join('')+'</ul></div>').join('');
+ }
+ panel.hidden=false;panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
 document.querySelectorAll('[data-fire-tool]').forEach(button=>button.addEventListener('click',()=>openFireAlarmTool(button.dataset.fireTool)));
 $('closeFireAlarmTool').addEventListener('click',()=>$('fireAlarmToolPanel').hidden=true);
