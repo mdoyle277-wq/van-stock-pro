@@ -439,13 +439,11 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
      </div>
     </div>
     <div class="full"><label class="fieldlabel" for="siteVisitNotes">Work carried out / visit notes *</label><textarea class="field" id="siteVisitNotes" rows="4" maxlength="4000" required placeholder="Describe work completed, tests carried out and results…"></textarea></div>
-    <div class="full"><label class="fieldlabel" for="siteVisitDefects">Defects found</label><textarea class="field" id="siteVisitDefects" rows="2" maxlength="2000" placeholder="Record faults or defects identified"></textarea></div>
     <div class="full" id="siteVisitDefectPhotosWrap">
-     <label class="fieldlabel" for="siteVisitDefectPhotos">📷 Defect photographs</label>
-     <input class="field" id="siteVisitDefectPhotos" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple>
-     <div class="sub" style="margin-top:6px">Take photos or choose from your gallery. JPG, PNG or WEBP · originals up to 20 MB · up to 10 per upload. Photos are automatically converted to high-quality WebP (maximum 2560 px) before private Supabase upload.</div>
-     <div id="siteVisitDefectPhotoPreview" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-top:9px"></div>
-     <div style="margin-top:10px"><strong class="fieldlabel">Saved defect photographs</strong><div id="siteVisitSavedDefectPhotos" class="sub" style="margin-top:6px">Saved photographs will appear here when you edit an existing visit.</div></div>
+     <div class="fieldlabel">Defects found</div>
+     <div class="sub" style="margin:4px 0 10px">Add each fault separately. Give it a title, describe the issue and attach photographs to that specific defect.</div>
+     <div id="siteVisitDefectsEditor"></div>
+     <button type="button" class="secondary" id="addSiteVisitDefect" style="margin-top:9px">＋ Add another defect</button>
      <div id="siteVisitDefectPhotoStatus" class="notice" role="status" style="margin-top:8px">No new photographs selected.</div>
     </div>
     <div class="full"><label class="fieldlabel" for="siteVisitFollowUp">Follow-up required</label><textarea class="field" id="siteVisitFollowUp" rows="2" maxlength="2000" placeholder="Outstanding work, parts required or return visit"></textarea></div>
@@ -1028,12 +1026,12 @@ $('jobSiteVisitForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const store=window.__VSP_JOB_SITE_VISIT_STORE,usageStore=window.__VSP_JOB_USAGE_STORE;
  if(!store?.isReady()||!usageStore?.isReady()){toast('Sign in and wait for cloud stock to finish loading before saving this job.');return}
- const entry={job:$('siteVisitRef').value.trim(),siteName:$('siteVisitName').value.trim(),date:$('siteVisitDate').value,engineer:$('siteVisitEngineer').value.trim(),systemType:$('siteVisitSystem').value,notes:$('siteVisitNotes').value.trim(),defects:$('siteVisitDefects').value.trim(),followUp:$('siteVisitFollowUp').value.trim(),batteryType:$('siteVisitBatteryType').value.trim(),batteryQuantity:$('siteVisitBatteryQuantity').value===''?'':Number($('siteVisitBatteryQuantity').value),batteryInstalledDate:$('siteVisitBatteryInstalled').value,batteryDueDate:$('siteVisitBatteryDue').value,intruderBatteryType:$('siteVisitIntruderBatteryType').value,intruderBatteryOther:$('siteVisitIntruderBatteryOther').value.trim(),intruderBatteryQuantity:$('siteVisitIntruderBatteryQuantity').value===''?'':Number($('siteVisitIntruderBatteryQuantity').value),intruderBatteryInstalledDate:$('siteVisitIntruderBatteryInstalled').value,intruderBatteryDueDate:$('siteVisitIntruderBatteryDue').value};
+ const entry={job:$('siteVisitRef').value.trim(),siteName:$('siteVisitName').value.trim(),date:$('siteVisitDate').value,engineer:$('siteVisitEngineer').value.trim(),systemType:$('siteVisitSystem').value,notes:$('siteVisitNotes').value.trim(),defects:window.__VSP_DEFECT_EDITOR?.serialise()||'',followUp:$('siteVisitFollowUp').value.trim(),batteryType:$('siteVisitBatteryType').value.trim(),batteryQuantity:$('siteVisitBatteryQuantity').value===''?'':Number($('siteVisitBatteryQuantity').value),batteryInstalledDate:$('siteVisitBatteryInstalled').value,batteryDueDate:$('siteVisitBatteryDue').value,intruderBatteryType:$('siteVisitIntruderBatteryType').value,intruderBatteryOther:$('siteVisitIntruderBatteryOther').value.trim(),intruderBatteryQuantity:$('siteVisitIntruderBatteryQuantity').value===''?'':Number($('siteVisitIntruderBatteryQuantity').value),intruderBatteryInstalledDate:$('siteVisitIntruderBatteryInstalled').value,intruderBatteryDueDate:$('siteVisitIntruderBatteryDue').value};
  if([entry.batteryQuantity,entry.intruderBatteryQuantity].some(q=>q!==''&&(!Number.isInteger(q)||q<0))){toast('Battery quantities must be whole numbers of zero or more.');return}
  if(!entry.job||!entry.date||!entry.notes){toast('Enter the site reference, visit date and work carried out.');return}
  const requiredByItem=new Map();for(const line of stagedJobUsage)requiredByItem.set(String(line.itemId),(requiredByItem.get(String(line.itemId))||0)+Number(line.quantity));
  for(const [id,qty] of requiredByItem){const item=items.find(x=>String(x.id)===id);if(!item||qty>Number(item.qty||0)){toast('Stock availability changed. Review the queued items before saving.');return}}
- const selectedDefectPhotos=Array.from($('siteVisitDefectPhotos')?.files||[]);
+ const selectedDefectPhotos=window.__VSP_DEFECT_EDITOR?.selectedFiles()||[];
  if(selectedDefectPhotos.length&&navigator.onLine===false){toast('Photographs need an internet connection to upload. Your job has not been saved yet. Reconnect and try again.');return}
  const button=$('saveSiteVisit');button.disabled=true;button.textContent=editingSiteVisitId?'Updating…':'Saving…';
  if(editingSiteVisitId){
@@ -1043,7 +1041,7 @@ $('jobSiteVisitForm').addEventListener('submit',async e=>{
    if(selectedDefectPhotos.length){
     const photoStore=window.__VSP_JOB_SITE_PHOTO_STORE;
     if(!photoStore?.isReady())throw new Error('Private photo storage is not ready. Run the defect-photo Supabase setup SQL and refresh.');
-    await photoStore.uploadForVisit(id,selectedDefectPhotos);
+    for(const item of window.__VSP_DEFECT_EDITOR.pendingUploads())await photoStore.uploadForVisit(id,item.files,item.id);
    }
    jobSiteVisitRecords=jobSiteVisitRecords.map(v=>String(v.id)===String(id)?updated:v);
    editingSiteVisitId=null;
@@ -1068,7 +1066,7 @@ $('jobSiteVisitForm').addEventListener('submit',async e=>{
     try{
      const photoStore=window.__VSP_JOB_SITE_PHOTO_STORE;
      if(!photoStore?.isReady())throw new Error('Private photo storage is not ready. Run the defect-photo Supabase setup SQL and refresh.');
-     await photoStore.uploadForVisit(savedVisit.id,selectedDefectPhotos);
+     for(const item of window.__VSP_DEFECT_EDITOR.pendingUploads())await photoStore.uploadForVisit(savedVisit.id,item.files,item.id);
     }catch(photoError){
      // A photograph failure must never undo a successfully saved job visit.
      photoUploadFailed=true;photoUploadMessage=photoError?.message||String(photoError);
@@ -1113,7 +1111,7 @@ $('jobSiteHistoryRows').addEventListener('click',async e=>{
   $('siteVisitRef').value=visit.job||'';$('siteVisitName').value=visit.siteName||'';
   $('siteVisitDate').value=visit.date||'';$('siteVisitEngineer').value=visit.engineer||'';
   $('siteVisitSystem').value=visit.systemType||'';$('siteVisitNotes').value=visit.notes||'';
-  $('siteVisitDefects').value=visit.defects||'';$('siteVisitFollowUp').value=visit.followUp||'';
+  window.__VSP_DEFECT_EDITOR?.load(visit.defects||'',visit.id);$('siteVisitFollowUp').value=visit.followUp||'';
   $('siteVisitBatteryType').value=visit.batteryType||'';$('siteVisitBatteryQuantity').value=visit.batteryQuantity??'';
   $('siteVisitBatteryInstalled').value=visit.batteryInstalledDate||'';$('siteVisitBatteryDue').value=visit.batteryDueDate||'';
   $('siteVisitIntruderBatteryType').value=visit.intruderBatteryType||'';$('siteVisitIntruderBatteryOther').value=visit.intruderBatteryOther||'';
@@ -1136,7 +1134,7 @@ $('jobSiteHistoryRows').addEventListener('click',async e=>{
   $('siteVisitEngineer').value=previous.engineer||'';
   $('siteVisitSystem').value=previous.systemType||'';
   $('siteVisitNotes').value=previous.notes||'';
-  $('siteVisitDefects').value=previous.defects||'';
+  window.__VSP_DEFECT_EDITOR?.load(previous.defects||'');
   $('siteVisitFollowUp').value=previous.followUp||'';
   $('siteVisitBatteryType').value=previous.batteryType||'';$('siteVisitBatteryQuantity').value=previous.batteryQuantity||'';$('siteVisitBatteryInstalled').value=previous.batteryInstalledDate||'';$('siteVisitBatteryDue').value=previous.batteryDueDate||'';$('siteVisitIntruderBatteryType').value=previous.intruderBatteryType||'';$('siteVisitIntruderBatteryOther').value=previous.intruderBatteryOther||'';$('siteVisitIntruderBatteryQuantity').value=previous.intruderBatteryQuantity??'';$('siteVisitIntruderBatteryInstalled').value=previous.intruderBatteryInstalledDate||'';$('siteVisitIntruderBatteryDue').value=previous.intruderBatteryDueDate||'';updateSiteBatterySections();
   $('siteVisitDate').value=new Date().toISOString().slice(0,10);
@@ -1476,4 +1474,48 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
  showStep(0);
 })();
 </script>
-<script type="module" src="./cloud-auth.js?v=20261118-history-search-fix"></script></body></html>
+<script type="module" src="./cloud-auth.js?v=20261118-history-search-fix"></script><script id="vspMultipleDefects20261118">
+(function(){
+ const root=document.getElementById('siteVisitDefectsEditor');if(!root)return;
+ let defects=[],visitId=null,urls=[];
+ const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const uid=()=>('def_'+(crypto.randomUUID?crypto.randomUUID():Date.now()+'_'+Math.random().toString(36).slice(2)));
+ function clean(){urls.forEach(u=>URL.revokeObjectURL(u));urls=[]}
+ function draw(){
+  clean();root.replaceChildren();
+  if(!defects.length){const empty=document.createElement('div');empty.className='sub';empty.textContent='No defects added. Select “Add another defect” to record one.';root.append(empty)}
+  defects.forEach((d,index)=>{
+   const card=document.createElement('section');card.className='panel';card.style.cssText='padding:11px;margin:9px 0;border:1px solid var(--line)';
+   card.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>Defect '+(index+1)+'</strong><button type="button" class="smallbtn danger" data-remove-defect="'+esc(d.id)+'">Remove defect</button></div><label class="fieldlabel" style="display:block;margin-top:9px">Defect title</label><input class="field" data-defect-title="'+esc(d.id)+'" maxlength="120" placeholder="e.g. Sounder circuit fault" value="'+esc(d.title)+'"><label class="fieldlabel" style="display:block;margin-top:9px">Description</label><textarea class="field" data-defect-description="'+esc(d.id)+'" rows="3" maxlength="2000" placeholder="Describe the fault, location and findings">'+esc(d.description)+'</textarea><label class="fieldlabel" style="display:block;margin-top:9px">Photographs for this defect</label><input class="field" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple data-defect-files="'+esc(d.id)+'"><div class="sub" style="margin-top:5px">JPG, PNG or WEBP · up to 10 photos per save · stored privately in Supabase</div><div data-defect-preview="'+esc(d.id)+'" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:7px;margin-top:8px"></div><div data-defect-saved="'+esc(d.id)+'" style="margin-top:8px"></div>';
+   root.append(card);
+   const saved=card.querySelector('[data-defect-saved]');
+   (d.saved||[]).forEach(p=>{const wrap=document.createElement('div');wrap.style.cssText='display:inline-block;width:88px;margin:4px';const img=document.createElement('img');img.src=p.url;img.alt=p.original_name||'Defect photograph';img.setAttribute('data-open-job-photo','');img.setAttribute('data-photo-name',p.original_name||d.title||'Defect photograph');img.style.cssText='width:88px;height:72px;object-fit:cover;border-radius:7px;cursor:zoom-in';wrap.append(img);const del=document.createElement('button');del.type='button';del.className='smallbtn danger';del.textContent='Delete';del.style.cssText='font-size:11px;padding:4px';del.setAttribute('data-delete-job-photo',p.id);wrap.append(del);saved.append(wrap)});
+   if(!(d.saved||[]).length)saved.textContent='No saved photographs for this defect yet.';
+   (d.files||[]).forEach(f=>{const u=URL.createObjectURL(f);urls.push(u);const img=document.createElement('img');img.src=u;img.alt=f.name;img.style.cssText='width:100%;height:72px;object-fit:cover;border-radius:7px';card.querySelector('[data-defect-preview]').append(img)});
+  });
+  root.querySelectorAll('[data-defect-title]').forEach(el=>el.addEventListener('input',()=>{const d=defects.find(x=>x.id===el.dataset.defectTitle);if(d)d.title=el.value}));
+  root.querySelectorAll('[data-defect-description]').forEach(el=>el.addEventListener('input',()=>{const d=defects.find(x=>x.id===el.dataset.defectDescription);if(d)d.description=el.value}));
+  root.querySelectorAll('[data-defect-files]').forEach(el=>el.addEventListener('change',()=>{const d=defects.find(x=>x.id===el.dataset.defectFiles);if(!d)return;const files=Array.from(el.files||[]);if(files.length>10||files.some(f=>!['image/jpeg','image/png','image/webp'].includes(f.type)||f.size<=0||f.size>20971520)){alert('Choose up to 10 JPG, PNG or WEBP photos, each no larger than 20 MB.');el.value='';return}d.files=files;draw();}));
+ }
+ function parse(raw){
+  if(!raw)return [];
+  try{const x=JSON.parse(raw);if(Array.isArray(x))return x.filter(d=>d&&typeof d==='object').map(d=>({id:String(d.id||uid()),title:String(d.title||''),description:String(d.description||''),files:[],saved:[]}))}catch(e){}
+  return [{id:uid(),title:'Existing defect notes',description:String(raw),files:[],saved:[]}];
+ }
+ async function load(raw,id){
+  defects=parse(raw);visitId=id||null;
+  if(id){try{const store=window.__VSP_JOB_SITE_PHOTO_STORE;if(store?.isReady()){const photos=await store.getForVisit(id);photos.forEach(p=>{const d=defects.find(x=>x.id===p.defect_id);if(d)d.saved.push(p);else{let legacy=defects.find(x=>x.id==='legacy_photos');if(!legacy){legacy={id:'legacy_photos',title:'Existing / unassigned photographs',description:'Photographs saved before defects were separated.',files:[],saved:[]};defects.push(legacy)}legacy.saved.push(p)}})}}catch(e){console.warn('Could not load defect photographs',e)}}
+  draw();
+ }
+ document.getElementById('addSiteVisitDefect')?.addEventListener('click',()=>{defects.push({id:uid(),title:'',description:'',files:[],saved:[]});draw();root.querySelector('[data-defect-title]:last-of-type')?.focus()});
+ root.addEventListener('click',e=>{const b=e.target.closest('[data-remove-defect]');if(!b)return;const d=defects.find(x=>x.id===b.dataset.removeDefect);if(d?.saved?.length&&!confirm('This defect has saved photographs. Remove the defect entry? The saved photographs will remain attached to the job as older/unassigned photos.'))return;defects=defects.filter(x=>x.id!==b.dataset.removeDefect);draw()});
+ document.getElementById('jobSiteVisitForm')?.addEventListener('reset',()=>{defects=[];visitId=null;draw();const status=document.getElementById('siteVisitDefectPhotoStatus');if(status)status.textContent='No new photographs selected.'});
+ window.__VSP_DEFECT_EDITOR={
+  serialise(){return JSON.stringify(defects.map(d=>({id:d.id,title:String(d.title||'').trim(),description:String(d.description||'').trim()})).filter(d=>d.title||d.description))},
+  selectedFiles(){return defects.flatMap(d=>d.files||[])},
+  pendingUploads(){return defects.filter(d=>(d.files||[]).length).map(d=>({id:d.id,files:d.files}))},
+  async load
+ };
+ draw();
+})();
+</script></body></html>
