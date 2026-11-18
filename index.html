@@ -1307,13 +1307,18 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
  document.getElementById('siteUsagePending').addEventListener('click',()=>{if(step===3)updateReview();});
  const oldClear=document.getElementById('clearSiteVisitForm');
  oldClear?.addEventListener('click',()=>{showStep(0);});
+ // These battery fields now sit outside the visit form, so clear them when the visit form is reset.
+ form.addEventListener('reset',()=>{
+  ['siteVisitBatteryType','siteVisitBatteryQuantity','siteVisitBatteryInstalled','siteVisitBatteryDue','siteVisitIntruderBatteryType','siteVisitIntruderBatteryOther','siteVisitIntruderBatteryQuantity','siteVisitIntruderBatteryInstalled','siteVisitIntruderBatteryDue'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+ });
  document.getElementById('jobSiteHistoryRows')?.addEventListener('click',e=>{
   if(e.target.closest('[data-edit-site-visit]'))showStep(0);
  });
- form.addEventListener('submit',()=>{if(saveButton){saveButton.disabled=true;saveButton.textContent='Saving job…';}});
- // Restore the final button after the existing save handler finishes.
- const observer=new MutationObserver(()=>{if(saveButton&&!saveButton.disabled&&saveButton.textContent==='Saving job…')saveButton.textContent='Save job and finish';});
- if(saveButton)observer.observe(saveButton,{attributes:true,attributeFilter:['disabled']});
+ // The existing save routine controls disabled state and text while saving; keep the wizard wording afterwards.
+ const observer=new MutationObserver(()=>{
+  if(saveButton&&!saveButton.disabled&&saveButton.textContent.trim()==='Save site visit')saveButton.textContent='Save job and finish';
+ });
+ if(saveButton)observer.observe(saveButton,{attributes:true,attributeFilter:['disabled'],childList:true,subtree:true,characterData:true});
  showStep(0);
 })();
 </script>
