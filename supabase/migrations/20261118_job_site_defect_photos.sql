@@ -72,7 +72,6 @@ create policy "members can view job site photos"
   on storage.objects for select to authenticated
   using (
     bucket_id = 'job-site-photos'
-    and (storage.foldername(name))[1] = (select workspace_id::text from public.workspace_members where user_id = auth.uid() and workspace_id::text = (storage.foldername(name))[1] limit 1)
     and (storage.foldername(name))[2] = auth.uid()::text
     and public.is_workspace_member(((storage.foldername(name))[1])::uuid)
   );
