@@ -775,12 +775,12 @@ function openJobPhotoLightbox(src,name){
   overlay.setAttribute('role','dialog');
   overlay.setAttribute('aria-modal','true');
   overlay.setAttribute('aria-label','Full-screen defect photograph');
-  overlay.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;box-sizing:border-box';
+  overlay.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.96);display:none;flex-direction:column;align-items:center;justify-content:center;padding:14px;box-sizing:border-box';
   const top=document.createElement('div');
   top.style.cssText='width:100%;max-width:1100px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0 12px;color:#fff';
   const caption=document.createElement('div');caption.id='vspJobPhotoLightboxCaption';caption.style.cssText='font-size:14px;overflow-wrap:anywhere;min-width:0';
   const close=document.createElement('button');close.type='button';close.textContent='✕ Close';close.setAttribute('aria-label','Close full-screen photograph');close.style.cssText='flex:0 0 auto;border:0;border-radius:10px;padding:11px 16px;background:#26364b;color:#fff;font-weight:700;font-size:15px';
-  close.addEventListener('click',()=>{overlay.hidden=true;document.body.style.overflow='';});
+  close.addEventListener('click',()=>{overlay.hidden=true;overlay.style.display='none';document.body.style.overflow='';});
   top.append(caption,close);
   const image=document.createElement('img');image.id='vspJobPhotoLightboxImage';image.alt='Full-screen defect photograph';image.style.cssText='display:block;max-width:100%;max-height:calc(100dvh - 90px);width:auto;height:auto;object-fit:contain;border-radius:5px';
   overlay.append(top,image);
@@ -791,6 +791,7 @@ function openJobPhotoLightbox(src,name){
  overlay.querySelector('#vspJobPhotoLightboxImage').src=src;
  overlay.querySelector('#vspJobPhotoLightboxCaption').textContent=name||'Defect photograph';
  overlay.hidden=false;
+ overlay.style.display='flex';
  document.body.style.overflow='hidden';
  overlay.querySelector('button')?.focus();
 }
