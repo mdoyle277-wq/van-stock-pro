@@ -814,19 +814,46 @@ window.__VSP_JOB_SITE_PHOTO_STORE = {
     if(selected.length>10) throw new Error("Choose no more than 10 photographs for one upload.");
     for(const file of selected){
       if(!["image/jpeg","image/png","image/webp"].includes(file.type)) throw new Error("Use JPG, PNG or WEBP photographs.");
-      if(file.size<=0||file.size>5242880) throw new Error("Each photograph must be 5 MB or smaller.");
+      if(file.size<=0||file.size>20971520) throw new Error("Each original photograph must be 20 MB or smaller.");
+    }
+    // Convert photos to high-quality WebP in the browser before uploading.
+    // Cap the longest edge at 2560 px to retain readable equipment labels.
+    const toWebP=async original=>{
+      if(typeof createImageBitmap!=="function")return original;
+      let bitmap;
+      try{
+        bitmap=await createImageBitmap(original);
+        const scale=Math.min(1,2560/Math.max(bitmap.width,bitmap.height));
+        const width=Math.max(1,Math.round(bitmap.width*scale));
+        const height=Math.max(1,Math.round(bitmap.height*scale));
+        const canvas=document.createElement("canvas");
+        canvas.width=width;canvas.height=height;
+        const context=canvas.getContext("2d");
+        if(!context)return original;
+        context.drawImage(bitmap,0,0,width,height);
+        const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/webp",0.90));
+        if(!blob||blob.type!=="image/webp")return original;
+        const base=String(original.name||"defect-photo").replace(/\.[^.]+$/,"")||"defect-photo";
+        return new File([blob],base+".webp",{type:"image/webp",lastModified:Date.now()});
+      }catch(error){return original;}
+      finally{try{bitmap?.close()}catch(error){}}
+    };
+    const optimised=[];
+    for(const original of selected){
+      const file=await toWebP(original);
+      if(file.size<=0||file.size>5242880)throw new Error("A photograph is still larger than 5 MB after WebP conversion. Choose a smaller image.");
+      optimised.push({original,file});
     }
     const userId=currentSession.user.id,workspaceId=stockWorkspaceId,uploaded=[];
     try{
-      for(const file of selected){
-        const extension=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
-        const safeName=(String(file.name||"photo").replace(/[^a-zA-Z0-9._-]/g,"_").slice(-80)||"photo."+extension);
+      for(const {original,file} of optimised){
+        const safeName=(String(file.name||"defect-photo.webp").replace(/[^a-zA-Z0-9._-]/g,"_").slice(-80)||"defect-photo.webp");
         const path=workspaceId+"/"+userId+"/"+visitId+"/"+crypto.randomUUID()+"-"+safeName;
         const {error:uploadError}=await supabase.storage.from("job-site-photos").upload(path,file,{contentType:file.type,upsert:false});
         if(uploadError) throw uploadError;
         const {data,error}=await supabase.from("job_site_visit_photos").insert({
           workspace_id:workspaceId,owner_user_id:userId,visit_id:visitId,file_path:path,
-          original_name:String(file.name||safeName).slice(0,200),mime_type:file.type,file_size:file.size
+          original_name:String(original.name||safeName).slice(0,200),mime_type:file.type,file_size:file.size
         }).select("id,visit_id,file_path,original_name,mime_type,file_size,created_at").single();
         if(error){await supabase.storage.from("job-site-photos").remove([path]);throw error;}
         uploaded.push(data);
