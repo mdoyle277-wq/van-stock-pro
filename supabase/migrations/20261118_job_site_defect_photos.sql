@@ -91,3 +91,11 @@ create policy "members can delete job site photos"
     and (storage.foldername(name))[2] = auth.uid()::text
     and public.has_workspace_role(((storage.foldername(name))[1])::uuid, array['owner','admin','member'])
   );
+
+
+-- Associate each photograph with an individual defect entry.
+alter table public.job_site_visit_photos
+  add column if not exists defect_id text;
+
+create index if not exists job_site_visit_photos_defect_idx
+  on public.job_site_visit_photos (workspace_id, owner_user_id, visit_id, defect_id, created_at);
