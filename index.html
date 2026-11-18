@@ -1050,7 +1050,7 @@ $('jobSiteVisitForm').addEventListener('submit',async e=>{
   for(const [id,qty] of previousQuantities){const item=items.find(x=>String(x.id)===id);if(item)item.qty=qty}
   try{localStorage.setItem(KEY,JSON.stringify(items))}catch(rollbackError){}
   for(const usage of createdUsage.slice().reverse()){try{await usageStore.remove(usage.id)}catch(rollbackError){}}
-  if(savedVisit){try{await store.remove(savedVisit.id)}catch(rollbackError){}}
+  if(savedVisit){try{const photoStore=window.__VSP_JOB_SITE_PHOTO_STORE;if(photoStore?.isReady())await photoStore.removeForVisit(savedVisit.id)}catch(rollbackError){}try{await store.remove(savedVisit.id)}catch(rollbackError){}}
   render();
   toast('Job was not fully saved: '+(error?.message||error)+'. Queued stock items have been kept so you can retry.');
  }
@@ -1274,6 +1274,9 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
  const status=document.getElementById('siteVisitDefectPhotoStatus');
  if(!input||!preview||!status)return;
  let urls=[];
+ document.getElementById('jobSiteVisitForm')?.addEventListener('reset',()=>{
+  input.value='';clearUrls();preview.replaceChildren();status.textContent='No new photographs selected.';
+ });
  function clearUrls(){urls.forEach(url=>URL.revokeObjectURL(url));urls=[];}
  input.addEventListener('change',()=>{
   clearUrls();preview.replaceChildren();
@@ -1361,6 +1364,8 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
   box.append(reviewLine('Stock used',pending?pending.innerText.replace(/^Stock added to this job sheet\s*/,'').trim():''));
   const batterySummary=document.getElementById('jobSiteBatterySummary');
   box.append(reviewLine('Saved battery records',batterySummary&&batterySummary.children.length?batterySummary.innerText:'No separate battery records added'));
+  const photoCount=Array.from(document.getElementById('siteVisitDefectPhotos')?.files||[]).length;
+  box.append(reviewLine('New defect photographs',photoCount?photoCount+' photograph(s) ready to upload':'No new photographs selected'));
   const inline=[];
   [['Fire alarm', 'siteVisitBatteryType','siteVisitBatteryQuantity'],['Intruder alarm','siteVisitIntruderBatteryType','siteVisitIntruderBatteryQuantity']].forEach(([label,type,qty])=>{
    const t=document.getElementById(type)?.value.trim(),q=document.getElementById(qty)?.value;
