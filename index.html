@@ -440,6 +440,13 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
     </div>
     <div class="full"><label class="fieldlabel" for="siteVisitNotes">Work carried out / visit notes *</label><textarea class="field" id="siteVisitNotes" rows="4" maxlength="4000" required placeholder="Describe work completed, tests carried out and results…"></textarea></div>
     <div class="full"><label class="fieldlabel" for="siteVisitDefects">Defects found</label><textarea class="field" id="siteVisitDefects" rows="2" maxlength="2000" placeholder="Record faults or defects identified"></textarea></div>
+    <div class="full" id="siteVisitDefectPhotosWrap">
+     <label class="fieldlabel" for="siteVisitDefectPhotos">📷 Defect photographs</label>
+     <input class="field" id="siteVisitDefectPhotos" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple>
+     <div class="sub" style="margin-top:6px">Take photos or choose from your gallery. JPG, PNG or WEBP · maximum 5 MB each · up to 10 per upload. Photographs are stored privately in your Supabase account.</div>
+     <div id="siteVisitDefectPhotoPreview" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-top:9px"></div>
+     <div id="siteVisitDefectPhotoStatus" class="notice" role="status" style="margin-top:8px">No new photographs selected.</div>
+    </div>
     <div class="full"><label class="fieldlabel" for="siteVisitFollowUp">Follow-up required</label><textarea class="field" id="siteVisitFollowUp" rows="2" maxlength="2000" placeholder="Outstanding work, parts required or return visit"></textarea></div>
    </div>
    <div class="entryactions" style="margin-top:10px"><button type="submit" id="saveSiteVisit">Save site visit</button><button type="button" class="secondary" id="clearSiteVisitForm">Clear form</button></div>
