@@ -934,11 +934,11 @@ function openFireAlarmTool(key){
     <label><span class="fieldlabel">Detector type</span><select class="field" id="vspSpacingType"><option value="smoke">Point smoke detector</option><option value="heat-a1">Heat detector — Class A1</option><option value="heat-other">Heat detector — other class</option><option value="multi">Multi-sensor — heat + smoke only</option></select></label>
     <label><span class="fieldlabel">Area layout</span><select class="field" id="vspSpacingLayout"><option value="room">Room / open area</option><option value="corridor">Corridor up to 2 m wide</option></select></label>
     <label><span class="fieldlabel">Room / corridor length (m)</span><input class="field" id="vspSpacingLength" type="number" min="0.1" step="0.1" placeholder="e.g. 18"></label>
-    <label id="vspSpacingWidthWrap"><span class="fieldlabel">Room width (m)</span><input class="field" id="vspSpacingWidth" type="number" min="0.1" step="0.1" placeholder="e.g. 12"></label>
+    <label id="vspSpacingWidthWrap"><span class="fieldlabel" id="vspSpacingWidthLabel">Room width (m)</span><input class="field" id="vspSpacingWidth" type="number" min="0.1" step="0.1" placeholder="e.g. 12"></label>
     <label><span class="fieldlabel">Ceiling height (m)</span><input class="field" id="vspSpacingHeight" type="number" min="0.1" step="0.1" placeholder="e.g. 3"></label>
     <label><span class="fieldlabel">Area above normal height limit (%)</span><input class="field" id="vspSpacingHighArea" type="number" min="0" max="10" step="0.1" value="0"></label>
    </div>
-   <div class="notice">For a corridor, enter its length and set its width in the layout selection; the corridor allowance is only for corridors no wider than 2 m.</div>
+   <div class="notice">For a corridor, enter its actual width. The special corridor spacing allowance is only used when the width is 2 m or less.</div>
    <div id="vspSpacingResult" class="panel" style="padding:12px;margin-top:12px;background:#0b1524"><span class="sub">Enter dimensions and calculate an indicative detector quantity.</span></div>
    <div class="entryactions" style="margin-top:10px"><button type="button" id="vspSpacingCalculate">Calculate spacing</button><button type="button" class="secondary" id="vspSpacingReset">Reset</button><button type="button" class="secondary" id="vspSpacingCopy">Copy result</button></div>
   </div>
@@ -957,11 +957,11 @@ function openFireAlarmTool(key){
   <p class="notice">Reference aid only — not a design approval or compliance certificate. The quantity is a preliminary rectangular-grid estimate. Confirm every point is within the permitted horizontal coverage, apply all relevant clause 21.2 conditions and the manufacturer's instructions, and check the full licensed BS 5839-1:2025 before installation. This calculator does not account for obstacles, beams, partitions, sloping ceilings, voids, air movement, BS 7273-4 or special risks.</p>`;
   const $s=id=>document.getElementById(id);let spacingCopy='';
   const typeEl=$s('vspSpacingType'),layoutEl=$s('vspSpacingLayout');
-  function updateSpacingLayout(){$s('vspSpacingWidthWrap').style.display=layoutEl.value==='corridor'?'none':''}
+  function updateSpacingLayout(){$s('vspSpacingWidthWrap').style.display='';$s('vspSpacingWidthLabel').textContent=layoutEl.value==='corridor'?'Corridor width (m) — max 2 m':'Room width (m)'}
   layoutEl.addEventListener('change',updateSpacingLayout);updateSpacingLayout();
   function calculateSpacing(){
    const type=typeEl.value,layout=layoutEl.value,L=Number($s('vspSpacingLength').value),W=Number($s('vspSpacingWidth').value),H=Number($s('vspSpacingHeight').value),high=Number($s('vspSpacingHighArea').value);
-   if(!Number.isFinite(L)||L<=0||!Number.isFinite(H)||H<=0|| (layout==='room'&&(!Number.isFinite(W)||W<=0))||!Number.isFinite(high)||high<0||high>10){$s('vspSpacingResult').innerHTML='<span class="sub">Enter valid positive dimensions and a high-level area between 0 and 10%.</span>';spacingCopy='';return}
+   if(!Number.isFinite(L)||L<=0||!Number.isFinite(H)||H<=0|| (!Number.isFinite(W)||W<=0)||(layout==='corridor'&&W>2)||!Number.isFinite(high)||high<0||high>10){$s('vspSpacingResult').innerHTML='<span class="sub">Enter valid positive dimensions and a high-level area between 0 and 10%.</span>';spacingCopy='';return}
    const isSmoke=type==='smoke',isA1=type==='heat-a1',isMulti=type==='multi',radius=isSmoke?7.5:5.3;
    const normalHeight=isSmoke?10.5:isA1?9:7.5,exceptionHeight=isSmoke?12.5:10.5;
    const permitted=high>0?exceptionHeight:normalHeight;
@@ -977,7 +977,7 @@ function openFireAlarmTool(key){
     detail='Indicative grid: '+along+' along × '+across+' across. Approximate grid pitch: '+cell.toFixed(2)+' m maximum in each direction.';
    }
    const heightNote=isMulti?' Multi-sensor ceiling-height limit is based on the lower heat limit, as required when configured for heat and smoke only.':'';
-   const text='BS 5839-1:2025 detector spacing estimate\nDetector: '+label+'\nLayout: '+(layout==='corridor'?'Corridor up to 2 m wide':'Room / open area')+'\nDimensions: '+(layout==='corridor'?L+' m long':L+' m × '+W+' m')+'\nCeiling height: '+H+' m\nArea above normal height limit: '+high+'%\nMaximum horizontal coverage radius used: '+radius+' m\nIndicative detector quantity: '+count+'\n'+detail+heightNote+'\nPreliminary estimate only; verify all siting conditions and manufacturer guidance.';
+   const text='BS 5839-1:2025 detector spacing estimate\nDetector: '+label+'\nLayout: '+(layout==='corridor'?'Corridor up to 2 m wide':'Room / open area')+'\nDimensions: '+(layout==='corridor'?L+' m × '+W+' m wide':L+' m × '+W+' m')+'\nCeiling height: '+H+' m\nArea above normal height limit: '+high+'%\nMaximum horizontal coverage radius used: '+radius+' m\nIndicative detector quantity: '+count+'\n'+detail+heightNote+'\nPreliminary estimate only; verify all siting conditions and manufacturer guidance.';
    spacingCopy=text;
    $s('vspSpacingResult').innerHTML='<div class="sub">'+label+' · '+(layout==='corridor'?'Corridor':'Room / open area')+'</div><div style="font-size:28px;font-weight:850;color:var(--mint);margin:4px 0">'+count+' detector'+(count===1?'':'s')+'</div><div style="font-size:13px">'+detail+'</div><div class="notice">Coverage radius used: '+radius.toFixed(1)+' m · Ceiling-height limit applied: '+permitted.toFixed(1)+' m'+(high>0?' (up to 10% area allowance)':'')+'.'+heightNote+'</div><div class="notice">Check walls, obstructions, detector positioning and all site-specific conditions before setting out.</div>';
   }
