@@ -1246,8 +1246,9 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
  nav.className='entryactions';
  nav.style.cssText='margin:0;justify-content:space-between;gap:8px';
  nav.innerHTML='<button type="button" class="secondary" id="vspWizardBack" hidden>Back</button><span class="sub" id="vspWizardNavHint">Complete this section to continue.</span><button type="button" id="vspWizardNext">Next</button>';
- wizard.append(...panels,nav);
+ // Insert the wizard while the original visit card is still a direct child of the history panel.
  panel.insertBefore(wizard,visitCard);
+ wizard.append(...panels,nav);
  // Keep the inline battery details available in the battery stage, without changing their saved fields.
  if(inlineFire)batteryCard.appendChild(inlineFire);
  if(inlineIntruder)batteryCard.appendChild(inlineIntruder);
