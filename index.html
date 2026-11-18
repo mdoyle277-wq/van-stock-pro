@@ -836,14 +836,21 @@ async function loadJobSiteHistory(){
 window.addEventListener('vsp:offline-sync-complete',()=>{if($('jobSiteHistoryPanel')&&!$('jobSiteHistoryPanel').hidden)loadJobSiteHistory()});
 window.openJobSiteHistory=async function openJobSiteHistory(){
  $('jobSiteHistoryPanel').hidden=false;
+ window.setJobWizardVisible?.(true);
  $('siteVisitDate').value=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0')+'-'+String(new Date().getDate()).padStart(2,'0');
  await loadJobSiteHistory();
  $('jobSiteHistoryPanel').scrollIntoView({behavior:'smooth',block:'start'});
 };
-window.startNewJobSiteSearch=function(){
+window.startNewJobSiteSearch=async function(){
  $('jobSiteHistoryPanel').hidden=false;
+ window.setJobWizardVisible?.(false);
  $('jobSiteHistorySearch').value='';
- renderJobSiteHistory();
+ $('jobSiteHistoryRows').hidden=true;
+ $('jobSiteHistoryEmpty').hidden=true;
+ $('jobSiteBatterySummary').hidden=true;
+ $('jobSiteBatteryEmpty').hidden=true;
+ const loaded=await loadJobSiteHistory();
+ if(!loaded)return;
  $('jobSiteHistoryPanel').scrollIntoView({behavior:'smooth',block:'start'});
  setTimeout(()=>$('jobSiteHistorySearch').focus(),120);
 };
@@ -1425,6 +1432,12 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
   if(saveButton&&!saveButton.disabled&&saveButton.textContent.trim()==='Save site visit')saveButton.textContent='Save job and finish';
  });
  if(saveButton)observer.observe(saveButton,{attributes:true,attributeFilter:['disabled'],childList:true,subtree:true,characterData:true});
+ // History search and new-job entry are separate modes.
+ window.setJobWizardVisible=function(visible){
+  wizard.hidden=!visible;
+  if(visible)showStep(0);
+ };
+ wizard.hidden=true;
  showStep(0);
 })();
 </script>
