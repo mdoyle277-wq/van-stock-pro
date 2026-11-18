@@ -303,6 +303,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <div class="sub" id="historyJobNoteTemplateStatus" style="margin-top:2px">Your private templates.</div>
 </div></details>
 <button class="secondary" id="vspOpenBatteryCalculator" type="button" style="grid-column:1/-1;width:100%;min-height:48px;margin-top:2px;padding:13px 12px;text-align:left;font-size:13px;font-weight:850;border-radius:14px;background:linear-gradient(145deg,rgba(25,38,58,.98),rgba(17,28,44,.98));border:1px solid var(--line);color:var(--text)">🔋 Battery calculator</button>
+<button class="secondary" id="vspOpenVoltDropCalculator" type="button" style="grid-column:1/-1;width:100%;min-height:48px;margin-top:2px;padding:13px 12px;text-align:left;font-size:13px;font-weight:850;border-radius:14px;background:linear-gradient(145deg,rgba(25,38,58,.98),rgba(17,28,44,.98));border:1px solid var(--line);color:var(--text)">⚡ Voltage drop calculator</button>
 </div></header>
 <section class="panel" id="cloudStatus" style="margin:0 0 16px">
   <div class="panelhead"><div><h2>☁️ Multi-device cloud setup</h2><div class="sub">Sign in to access your Van Stock Pro account. Your existing browser stock stays on this device until you review and confirm a cloud import.</div></div><span class="pill" style="white-space:nowrap">Account sign-in</span></div>
@@ -1564,4 +1565,43 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
  $('vspBcalcSystem').addEventListener('change',()=>{if($('vspBcalcSystem').value==='Fire alarm'){$('vspBcalcHours').value='24';$('vspBcalcMinutes').value='30'}else{$('vspBcalcHours').value='12';$('vspBcalcMinutes').value='15'}});
 })();
 </script>
+
+<style id="vspVoltDropCalculatorStyles20261118">
+#vspVoltDropOverlay{position:fixed;inset:0;z-index:100051;background:#030812dd;display:flex;align-items:center;justify-content:center;padding:12px}
+#vspVoltDropOverlay[hidden]{display:none!important}
+#vspVoltDropOverlay .vsp-vdrop{width:min(720px,100%);max-height:92dvh;overflow:auto;background:#101b2d;color:var(--text);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 20px 70px #000b}
+#vspVoltDropOverlay .vsp-vdrop-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+#vspVoltDropOverlay h2{font-size:19px;margin:0}
+#vspVoltDropOverlay .vsp-vdrop-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#vspVoltDropOverlay .vsp-vdrop-result{background:#0b1524;border:1px solid #356b60;border-radius:13px;padding:13px;margin-top:13px}
+#vspVoltDropOverlay .vsp-vdrop-result strong{font-size:25px;color:var(--mint)}
+#vspVoltDropOverlay .vsp-vdrop-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}
+#vspVoltDropOverlay .vsp-vdrop-note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.45}
+@media(max-width:520px){#vspVoltDropOverlay .vsp-vdrop-grid{grid-template-columns:1fr}#vspVoltDropOverlay .vsp-vdrop{padding:13px}}
+</style>
+<script id="vspVoltDropCalculator20261118">
+(function(){
+ if(document.getElementById('vspVoltDropOverlay'))return;
+ const overlay=document.createElement('div');overlay.id='vspVoltDropOverlay';overlay.hidden=true;
+ overlay.innerHTML='<section class="vsp-vdrop" role="dialog" aria-modal="true" aria-labelledby="vspVdropTitle"><div class="vsp-vdrop-head"><div><div class="eyebrow">Engineer tools</div><h2 id="vspVdropTitle">⚡ Voltage drop calculator</h2></div><button type="button" class="secondary" id="vspVdropClose">✕ Close</button></div><div class="sub" style="margin-bottom:12px">Estimate cable voltage drop from load current, cable length and conductor size.</div><div class="vsp-vdrop-grid"><label><span class="fieldlabel">System type</span><select class="field" id="vspVdropSystem"><option value="dc">DC / two-wire circuit</option><option value="single">Single-phase AC</option><option value="three">Three-phase AC</option></select></label><label><span class="fieldlabel">Supply voltage (V)</span><input class="field" id="vspVdropVoltage" type="number" min="0.1" step="0.1" value="12"></label><label><span class="fieldlabel">Load current (A)</span><input class="field" id="vspVdropCurrent" type="number" min="0.001" step="0.01" placeholder="e.g. 2"></label><label><span class="fieldlabel">One-way cable length (m)</span><input class="field" id="vspVdropLength" type="number" min="0.01" step="0.1" placeholder="e.g. 30"></label><label><span class="fieldlabel">Conductor size (mm²)</span><select class="field" id="vspVdropArea"><option value="0.5">0.5</option><option value="0.75">0.75</option><option value="1">1.0</option><option value="1.5" selected>1.5</option><option value="2.5">2.5</option><option value="4">4</option><option value="6">6</option><option value="10">10</option><option value="16">16</option><option value="25">25</option><option value="35">35</option><option value="50">50</option></select></label><label><span class="fieldlabel">Conductor material</span><select class="field" id="vspVdropMaterial"><option value="copper">Copper</option><option value="aluminium">Aluminium</option></select></label><label><span class="fieldlabel">Conductor temperature</span><select class="field" id="vspVdropTemp"><option value="20">20°C</option><option value="70" selected>70°C</option><option value="90">90°C</option></select></label></div><div class="vsp-vdrop-result" id="vspVdropResult" aria-live="polite"><div class="sub">Enter the circuit details and calculate the estimated voltage drop.</div></div><div class="vsp-vdrop-actions"><button type="button" id="vspVdropCalculate">Calculate voltage drop</button><button type="button" class="secondary" id="vspVdropReset">Reset</button><button type="button" class="secondary" id="vspVdropCopy">Copy calculation</button></div><div class="vsp-vdrop-note">Approximate resistive calculation using conductor resistivity adjusted for temperature. DC and single-phase calculations include the outgoing and return conductors; three-phase uses √3 × one-way length. AC cable reactance, power factor, grouping, installation conditions and manufacturer-specific cable data are not included. Use the cable manufacturer’s data and applicable design standards for final verification. This tool does not determine current-carrying capacity or confirm compliance.</div></section>';
+ document.body.appendChild(overlay);
+ const $=id=>document.getElementById(id);let lastText='';
+ function calculate(){
+  const voltage=Number($('vspVdropVoltage').value),current=Number($('vspVdropCurrent').value),length=Number($('vspVdropLength').value),area=Number($('vspVdropArea').value),temp=Number($('vspVdropTemp').value),system=$('vspVdropSystem').value,material=$('vspVdropMaterial').value;
+  if(![voltage,current,length,area,temp].every(Number.isFinite)||voltage<=0||current<=0||length<=0||area<=0){$('vspVdropResult').innerHTML='<div class="sub">Enter a positive supply voltage, load current and one-way cable length.</div>';lastText='';return}
+  const rho20=material==='copper'?0.017241:0.028264,alpha=material==='copper'?0.00393:0.00403,rho=rho20*(1+alpha*(temp-20));
+  const factor=system==='three'?Math.sqrt(3):2,drop=factor*length*current*rho/area,percent=drop/voltage*100,finalV=voltage-drop;
+  const type=system==='three'?'Three-phase AC':system==='single'?'Single-phase AC':'DC / two-wire';
+  $('vspVdropResult').innerHTML='<div class="sub">'+type+' · '+material+' · '+area+' mm² · '+temp+'°C</div><div style="margin:5px 0 2px"><strong>'+drop.toFixed(2)+' V</strong></div><div class="sub">Estimated voltage drop · '+percent.toFixed(2)+'%</div><div style="margin-top:9px;font-size:13px">Estimated voltage at load: <b>'+finalV.toFixed(2)+' V</b><br>One-way cable length: '+length+' m · Load current: '+current+' A<br>Conductor resistance used: '+rho.toFixed(5)+' Ω·mm²/m</div>';
+  lastText='Voltage drop calculation\nSystem: '+type+'\nSupply voltage: '+voltage+' V\nLoad current: '+current+' A\nOne-way cable length: '+length+' m\nConductor: '+material+' '+area+' mm² at '+temp+'°C\nEstimated voltage drop: '+drop.toFixed(2)+' V ('+percent.toFixed(2)+'%)\nEstimated voltage at load: '+finalV.toFixed(2)+' V\nResistive estimate only; verify against manufacturer cable data and applicable design requirements.';
+ }
+ $('vspOpenVoltDropCalculator')?.addEventListener('click',()=>{overlay.hidden=false;document.body.style.overflow='hidden'});
+ function close(){overlay.hidden=true;document.body.style.overflow=''}
+ $('vspVdropClose').addEventListener('click',close);overlay.addEventListener('click',e=>{if(e.target===overlay)close()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!overlay.hidden)close()});
+ $('vspVdropCalculate').addEventListener('click',calculate);
+ $('vspVdropReset').addEventListener('click',()=>{$('vspVdropSystem').value='dc';$('vspVdropVoltage').value='12';$('vspVdropCurrent').value='';$('vspVdropLength').value='';$('vspVdropArea').value='1.5';$('vspVdropMaterial').value='copper';$('vspVdropTemp').value='70';$('vspVdropResult').innerHTML='<div class="sub">Enter the circuit details and calculate the estimated voltage drop.</div>';lastText=''});
+ $('vspVdropCopy').addEventListener('click',()=>{if(!lastText){calculate();if(!lastText)return}if(navigator.clipboard?.writeText)navigator.clipboard.writeText(lastText).then(()=>alert('Voltage drop calculation copied.')).catch(()=>alert('Could not copy. Please calculate again and copy manually.'));else alert(lastText)});
+})();
+</script>
+
 </body></html>
