@@ -562,9 +562,16 @@ function queuedDomain(kind,row){
 }
 async function insertOrQueueOfflineRecord(kind,table,row,selectFields){
   if(navigator.onLine===false){queueOfflineRecord(kind,row);return null;}
-  const {data,error}=await supabase.from(table).insert(row).select(selectFields).single();
-  if(error){if(isNetworkFailure(error)){queueOfflineRecord(kind,row);return null;}throw error;}
-  return data;
+  try{
+    const {data,error}=await supabase.from(table).insert(row).select(selectFields).single();
+    if(error){if(isNetworkFailure(error)){queueOfflineRecord(kind,row);return null;}throw error;}
+    return data;
+  }catch(error){
+    // Supabase fetch failures can reject the promise instead of returning {error}.
+    // Treat those like an offline response and persist the exact row locally.
+    if(isNetworkFailure(error)){queueOfflineRecord(kind,row);return null;}
+    throw error;
+  }
 }
 let offlineQueueSyncBusy=false;
 async function syncOfflineQueue(){
