@@ -1267,6 +1267,47 @@ $('homeQuickClear').addEventListener('click',()=>{$('search').value='';$('catego
 
 vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();render();if(items.length){const savedWithPhoto=items.find(i=>i.photo);showSelectedItem(savedWithPhoto||items[0])}
 </script><script>if("serviceWorker" in navigator && location.protocol==="https:"){window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}))}</script>
+<script id="vspDefectPhotoUi20261118">
+(function(){
+ const input=document.getElementById('siteVisitDefectPhotos');
+ const preview=document.getElementById('siteVisitDefectPhotoPreview');
+ const status=document.getElementById('siteVisitDefectPhotoStatus');
+ if(!input||!preview||!status)return;
+ let urls=[];
+ function clearUrls(){urls.forEach(url=>URL.revokeObjectURL(url));urls=[];}
+ input.addEventListener('change',()=>{
+  clearUrls();preview.replaceChildren();
+  const files=Array.from(input.files||[]);
+  const invalid=files.find(f=>!['image/jpeg','image/png','image/webp'].includes(f.type)||f.size<=0||f.size>5242880);
+  if(files.length>10||invalid){
+   input.value='';
+   status.textContent=files.length>10?'Choose no more than 10 photographs at a time.':'Use JPG, PNG or WEBP images no larger than 5 MB each.';
+   return;
+  }
+  if(!files.length){status.textContent='No new photographs selected.';return;}
+  files.forEach(file=>{
+   const url=URL.createObjectURL(file);urls.push(url);
+   const card=document.createElement('div');card.style.cssText='min-width:0;border:1px solid var(--line);border-radius:9px;padding:5px';
+   const img=document.createElement('img');img.src=url;img.alt=file.name;img.style.cssText='width:100%;height:82px;object-fit:cover;border-radius:6px';
+   const name=document.createElement('div');name.className='sub';name.style.cssText='font-size:10px;overflow-wrap:anywhere;margin-top:4px';name.textContent=file.name;
+   card.append(img,name);preview.append(card);
+  });
+  status.textContent=files.length+' photograph(s) ready. They will upload privately to Supabase when you save the job.';
+ });
+ document.getElementById('jobSiteHistoryRows')?.addEventListener('click',async e=>{
+  const button=e.target.closest('[data-delete-job-photo]');
+  if(!button)return;
+  if(!confirm('Delete this defect photograph from Supabase?'))return;
+  button.disabled=true;button.textContent='Deleting…';
+  try{
+   await window.__VSP_JOB_SITE_PHOTO_STORE.remove(button.getAttribute('data-delete-job-photo'));
+   const gallery=button.closest('[data-job-photo-gallery]');
+   if(gallery){gallery.textContent='Refreshing photographs…';const store=window.__VSP_JOB_SITE_PHOTO_STORE;const photos=await store.getForVisit(gallery.getAttribute('data-job-photo-gallery'));gallery.replaceChildren();if(!photos.length){gallery.textContent='No defect photographs attached.';}else{const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:9px;margin-top:8px';photos.forEach(photo=>{const card=document.createElement('div');card.style.cssText='min-width:0;border:1px solid var(--line);border-radius:10px;padding:6px';const img=document.createElement('img');img.src=photo.url;img.alt=photo.original_name||'Defect photograph';img.style.cssText='width:100%;height:100px;object-fit:cover;border-radius:7px';const name=document.createElement('div');name.className='sub';name.textContent=photo.original_name||'Photograph';const del=document.createElement('button');del.type='button';del.className='smallbtn danger';del.textContent='Delete photo';del.setAttribute('data-delete-job-photo',photo.id);card.append(img,name,del);grid.append(card)});gallery.append(grid)}}
+   $('jobSiteHistoryStatus').textContent='Defect photograph deleted from Supabase.';
+  }catch(error){button.disabled=false;button.textContent='Delete photo';$('jobSiteHistoryStatus').textContent='Could not delete photograph: '+(error?.message||error)}
+ });
+})();
+</script>
 <script id="vspJobWizard20261118">
 (function(){
  const panel=document.getElementById('jobSiteHistoryPanel');
