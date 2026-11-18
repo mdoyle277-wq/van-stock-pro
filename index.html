@@ -1100,7 +1100,7 @@ $('jobSiteHistoryRows').addEventListener('click',async e=>{
  const id=button.getAttribute('data-delete-site-visit');
  button.disabled=true;button.textContent='Deleting…';
  $('jobSiteHistoryStatus').textContent='Deleting visit…';
- try{await window.__VSP_JOB_SITE_VISIT_STORE.remove(id);jobSiteVisitRecords=jobSiteVisitRecords.filter(v=>String(v.id)!==String(id));await loadJobSiteHistory();$('jobSiteHistoryStatus').textContent='Site visit deleted. Parts-usage records were preserved.';toast('Site visit deleted')}
+ try{const photoStore=window.__VSP_JOB_SITE_PHOTO_STORE;if(photoStore?.isReady())await photoStore.removeForVisit(id);await window.__VSP_JOB_SITE_VISIT_STORE.remove(id);jobSiteVisitRecords=jobSiteVisitRecords.filter(v=>String(v.id)!==String(id));await loadJobSiteHistory();$('jobSiteHistoryStatus').textContent='Site visit and its defect photographs deleted. Parts-usage records were preserved.';toast('Site visit deleted')}
  catch(error){button.disabled=false;button.textContent='Delete visit';$('jobSiteHistoryStatus').textContent='Delete failed: '+(error?.message||error);toast('Could not delete visit: '+(error?.message||error))}
 });
 
