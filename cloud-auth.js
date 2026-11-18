@@ -793,7 +793,7 @@ window.__VSP_JOB_SITE_PHOTO_STORE = {
     if(!this.isReady()) throw new Error("Sign in and wait for cloud stock to finish loading.");
     const userId=currentSession.user.id,workspaceId=stockWorkspaceId;
     const {data,error}=await supabase.from("job_site_visit_photos")
-      .select("id,visit_id,file_path,original_name,mime_type,file_size,created_at")
+      .select("id,visit_id,defect_id,file_path,original_name,mime_type,file_size,created_at")
       .eq("workspace_id",workspaceId).eq("owner_user_id",userId).eq("visit_id",visitId)
       .order("created_at",{ascending:true});
     if(error) throw error;
@@ -806,7 +806,7 @@ window.__VSP_JOB_SITE_PHOTO_STORE = {
     }
     return photos;
   },
-  async uploadForVisit(visitId,files) {
+  async uploadForVisit(visitId,files,defectId=null) {
     if(!this.isReady()) throw new Error("Sign in and wait for cloud stock to finish loading before uploading photographs.");
     if(!visitId) throw new Error("Save the site visit before uploading photographs.");
     const selected=Array.from(files||[]);
@@ -852,9 +852,9 @@ window.__VSP_JOB_SITE_PHOTO_STORE = {
         const {error:uploadError}=await supabase.storage.from("job-site-photos").upload(path,file,{contentType:file.type,upsert:false});
         if(uploadError) throw uploadError;
         const {data,error}=await supabase.from("job_site_visit_photos").insert({
-          workspace_id:workspaceId,owner_user_id:userId,visit_id:visitId,file_path:path,
+          workspace_id:workspaceId,owner_user_id:userId,visit_id:visitId,defect_id:defectId,file_path:path,
           original_name:String(original.name||safeName).slice(0,200),mime_type:file.type,file_size:file.size
-        }).select("id,visit_id,file_path,original_name,mime_type,file_size,created_at").single();
+        }).select("id,visit_id,defect_id,file_path,original_name,mime_type,file_size,created_at").single();
         if(error){await supabase.storage.from("job-site-photos").remove([path]);throw error;}
         uploaded.push(data);
         if(currentSession?.user?.id!==userId||stockWorkspaceId!==workspaceId) throw new Error("The signed-in account changed while uploading photographs.");
