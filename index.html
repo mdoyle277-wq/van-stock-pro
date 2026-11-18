@@ -766,6 +766,40 @@ let jobSiteVisitRecords=[];
 let jobSiteUsageRecords=[];
 function siteVisitDate(value){const raw=String(value||'').slice(0,10);const m=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(m)return m[3]+'/'+m[2]+'/'+m[1];const d=new Date(value||'');if(Number.isNaN(d.getTime()))return raw;return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()}
 function formatSiteVisitNotes(value){return String(value||'').replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g,(_,y,m,d)=>d+'/'+m+'/'+y)}
+function openJobPhotoLightbox(src,name){
+ if(!src)return;
+ let overlay=document.getElementById('vspJobPhotoLightbox');
+ if(!overlay){
+  overlay=document.createElement('div');
+  overlay.id='vspJobPhotoLightbox';
+  overlay.setAttribute('role','dialog');
+  overlay.setAttribute('aria-modal','true');
+  overlay.setAttribute('aria-label','Full-screen defect photograph');
+  overlay.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;box-sizing:border-box';
+  const top=document.createElement('div');
+  top.style.cssText='width:100%;max-width:1100px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0 12px;color:#fff';
+  const caption=document.createElement('div');caption.id='vspJobPhotoLightboxCaption';caption.style.cssText='font-size:14px;overflow-wrap:anywhere;min-width:0';
+  const close=document.createElement('button');close.type='button';close.textContent='✕ Close';close.setAttribute('aria-label','Close full-screen photograph');close.style.cssText='flex:0 0 auto;border:0;border-radius:10px;padding:11px 16px;background:#26364b;color:#fff;font-weight:700;font-size:15px';
+  close.addEventListener('click',()=>{overlay.hidden=true;document.body.style.overflow='';});
+  top.append(caption,close);
+  const image=document.createElement('img');image.id='vspJobPhotoLightboxImage';image.alt='Full-screen defect photograph';image.style.cssText='display:block;max-width:100%;max-height:calc(100dvh - 90px);width:auto;height:auto;object-fit:contain;border-radius:5px';
+  overlay.append(top,image);
+  overlay.addEventListener('click',event=>{if(event.target===overlay){overlay.hidden=true;document.body.style.overflow='';}});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!overlay.hidden){overlay.hidden=true;document.body.style.overflow='';}});
+  document.body.append(overlay);
+ }
+ overlay.querySelector('#vspJobPhotoLightboxImage').src=src;
+ overlay.querySelector('#vspJobPhotoLightboxCaption').textContent=name||'Defect photograph';
+ overlay.hidden=false;
+ document.body.style.overflow='hidden';
+ overlay.querySelector('button')?.focus();
+}
+document.addEventListener('click',event=>{
+ const photo=event.target.closest('[data-open-job-photo]');
+ if(!photo)return;
+ event.preventDefault();
+ openJobPhotoLightbox(photo.currentSrc||photo.src,photo.getAttribute('data-photo-name')||photo.alt);
+});
 async function loadJobSitePhotoGalleries(){
  const store=window.__VSP_JOB_SITE_PHOTO_STORE;
  const targets=[...document.querySelectorAll('[data-job-photo-gallery]')];
@@ -779,7 +813,7 @@ async function loadJobSitePhotoGalleries(){
    const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:9px;margin-top:8px';
    for(const photo of photos){
     const card=document.createElement('div');card.style.cssText='min-width:0;border:1px solid var(--line);border-radius:10px;padding:6px';
-    const img=document.createElement('img');img.src=photo.url;img.alt=photo.original_name||'Defect photograph';img.loading='lazy';img.style.cssText='width:100%;height:100px;object-fit:cover;border-radius:7px;background:#0b1524';
+    const img=document.createElement('img');img.src=photo.url;img.alt=photo.original_name||'Defect photograph';img.loading='lazy';img.setAttribute('data-open-job-photo','');img.setAttribute('data-photo-name',photo.original_name||'Defect photograph');img.title='Tap to view full screen';img.style.cssText='width:100%;height:100px;object-fit:cover;border-radius:7px;background:#0b1524;cursor:zoom-in';
     const name=document.createElement('div');name.className='sub';name.style.cssText='font-size:11px;overflow-wrap:anywhere;margin:5px 0';name.textContent=photo.original_name||'Photograph';
     const remove=document.createElement('button');remove.type='button';remove.className='smallbtn danger';remove.textContent='Delete photo';remove.setAttribute('data-delete-job-photo',photo.id);
     card.append(img,name,remove);grid.append(card);
