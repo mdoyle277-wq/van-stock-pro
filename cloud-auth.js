@@ -779,6 +779,76 @@ window.__VSP_JOB_SITE_VISIT_STORE = {
   }
 };
 
+
+window.__VSP_JOB_SITE_PHOTO_STORE = {
+  isReady() { return !!(currentSession?.user?.id && stockWorkspaceId && stockSyncReady); },
+  async getForVisit(visitId) {
+    if(!this.isReady()) throw new Error("Sign in and wait for cloud stock to finish loading.");
+    const userId=currentSession.user.id,workspaceId=stockWorkspaceId;
+    const {data,error}=await supabase.from("job_site_visit_photos")
+      .select("id,visit_id,file_path,original_name,mime_type,file_size,created_at")
+      .eq("workspace_id",workspaceId).eq("owner_user_id",userId).eq("visit_id",visitId)
+      .order("created_at",{ascending:true});
+    if(error) throw error;
+    if(currentSession?.user?.id!==userId||stockWorkspaceId!==workspaceId) throw new Error("The signed-in account changed while loading photographs.");
+    const photos=[];
+    for(const row of data||[]){
+      const {data:signed,error:signedError}=await supabase.storage.from("job-site-photos").createSignedUrl(row.file_path,3600);
+      if(signedError) throw signedError;
+      photos.push({...row,url:signed?.signedUrl||""});
+    }
+    return photos;
+  },
+  async uploadForVisit(visitId,files) {
+    if(!this.isReady()) throw new Error("Sign in and wait for cloud stock to finish loading before uploading photographs.");
+    if(!visitId) throw new Error("Save the site visit before uploading photographs.");
+    const selected=Array.from(files||[]);
+    if(!selected.length) return [];
+    if(selected.length>10) throw new Error("Choose no more than 10 photographs for one upload.");
+    for(const file of selected){
+      if(!["image/jpeg","image/png","image/webp"].includes(file.type)) throw new Error("Use JPG, PNG or WEBP photographs.");
+      if(file.size<=0||file.size>5242880) throw new Error("Each photograph must be 5 MB or smaller.");
+    }
+    const userId=currentSession.user.id,workspaceId=stockWorkspaceId,uploaded=[];
+    for(const file of selected){
+      const extension=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
+      const safeName=(String(file.name||"photo").replace(/[^a-zA-Z0-9._-]/g,"_").slice(-80)||"photo."+extension);
+      const path=workspaceId+"/"+userId+"/"+visitId+"/"+crypto.randomUUID()+"-"+safeName;
+      const {error:uploadError}=await supabase.storage.from("job-site-photos").upload(path,file,{contentType:file.type,upsert:false});
+      if(uploadError) throw uploadError;
+      try{
+        const {data,error}=await supabase.from("job_site_visit_photos").insert({
+          workspace_id:workspaceId,owner_user_id:userId,visit_id:visitId,file_path:path,
+          original_name:String(file.name||safeName).slice(0,200),mime_type:file.type,file_size:file.size
+        }).select("id,visit_id,file_path,original_name,mime_type,file_size,created_at").single();
+        if(error) throw error;
+        const {data:signed,error:signedError}=await supabase.storage.from("job-site-photos").createSignedUrl(path,3600);
+        if(signedError) throw signedError;
+        uploaded.push({...data,url:signed?.signedUrl||""});
+      }catch(error){
+        await supabase.storage.from("job-site-photos").remove([path]).catch(()=>{});
+        throw error;
+      }
+      if(currentSession?.user?.id!==userId||stockWorkspaceId!==workspaceId) throw new Error("The signed-in account changed while uploading photographs.");
+    }
+    return uploaded;
+  },
+  async remove(photoId) {
+    if(!this.isReady()) throw new Error("Cloud account is not ready.");
+    const userId=currentSession.user.id,workspaceId=stockWorkspaceId;
+    const {data,error}=await supabase.from("job_site_visit_photos")
+      .select("id,file_path").eq("id",photoId).eq("workspace_id",workspaceId).eq("owner_user_id",userId).single();
+    if(error) throw error;
+    if(!data?.file_path) throw new Error("Could not find this photograph in your account.");
+    const {error:deleteError}=await supabase.from("job_site_visit_photos").delete()
+      .eq("id",photoId).eq("workspace_id",workspaceId).eq("owner_user_id",userId);
+    if(deleteError) throw deleteError;
+    const {error:storageError}=await supabase.storage.from("job-site-photos").remove([data.file_path]);
+    if(storageError) throw new Error("Photo record removed, but its stored file could not be deleted: "+storageError.message);
+    return true;
+  }
+};
+
 window.__VSP_JOB_NOTE_TEMPLATE_STORE = {
  async getAll(){
   if(!currentSession?.user?.id)throw new Error("Sign in to load your private templates.");
