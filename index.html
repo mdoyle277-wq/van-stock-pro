@@ -784,8 +784,8 @@ function openJobPhotoLightbox(src,name){
   top.append(caption,close);
   const image=document.createElement('img');image.id='vspJobPhotoLightboxImage';image.alt='Full-screen defect photograph';image.style.cssText='display:block;max-width:100%;max-height:calc(100dvh - 90px);width:auto;height:auto;object-fit:contain;border-radius:5px';
   overlay.append(top,image);
-  overlay.addEventListener('click',event=>{if(event.target===overlay){overlay.hidden=true;document.body.style.overflow='';}});
-  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!overlay.hidden){overlay.hidden=true;document.body.style.overflow='';}});
+  overlay.addEventListener('click',event=>{if(event.target===overlay){overlay.hidden=true;overlay.style.display='none';document.body.style.overflow='';}});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!overlay.hidden){overlay.hidden=true;overlay.style.display='none';document.body.style.overflow='';}});
   document.body.append(overlay);
  }
  overlay.querySelector('#vspJobPhotoLightboxImage').src=src;
