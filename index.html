@@ -971,6 +971,7 @@ $('jobSiteVisitForm').addEventListener('submit',async e=>{
    $('jobSiteHistorySearch').value=entry.job;renderJobSiteHistory();
    $('jobSiteHistoryStatus').textContent='Site visit updated successfully. Parts-used records and stock quantities were left unchanged.';
    $('jobSiteVisitForm').reset();$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections();syncSiteUsageReference();
+   $('jobSiteHistoryPanel').hidden=true;
    toast('Saved job sheet updated.');
   }catch(error){toast('Could not update job sheet: '+(error?.message||error));$('jobSiteHistoryStatus').textContent='Update failed: '+(error?.message||error)}
   finally{button.disabled=false;button.textContent=editingSiteVisitId?'Update site visit':'Save site visit'}
@@ -995,6 +996,7 @@ $('jobSiteVisitForm').addEventListener('submit',async e=>{
   const pending=[savedVisit,...createdUsage].some(x=>x?._syncPending);
   $('jobSiteHistoryStatus').textContent=pending?'Job and parts saved safely on this device. They will upload automatically when signal returns.':'Job and parts saved to your private account. '+jobSiteVisitRecords.length+' saved visit(s).';
   const ref=entry.job;$('jobSiteVisitForm').reset();$('siteVisitRef').value=ref;$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections();syncSiteUsageReference();
+  $('jobSiteHistoryPanel').hidden=true;
   toast(pending?'Job saved on this device · waiting for signal.':'Job saved with '+createdUsage.length+' stock item(s).');
  }catch(error){
   for(const [id,qty] of previousQuantities){const item=items.find(x=>String(x.id)===id);if(item)item.qty=qty}
