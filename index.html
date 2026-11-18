@@ -1514,7 +1514,7 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
   serialise(){return JSON.stringify(defects.map(d=>({id:d.id,title:String(d.title||'').trim(),description:String(d.description||'').trim()})).filter(d=>d.title||d.description))},
   selectedFiles(){return defects.flatMap(d=>d.files||[])},
   pendingUploads(){return defects.filter(d=>(d.files||[]).length).map(d=>({id:d.id,files:d.files}))},
-  async load
+  load
  };
  draw();
 })();
