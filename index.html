@@ -1216,4 +1216,105 @@ $('homeQuickOut').addEventListener('click',()=>{$('search').value='';$('category
 $('homeQuickClear').addEventListener('click',()=>{$('search').value='';$('categoryFilter').value='';$('statusFilter').value='';$('homeQuickSearch').value='';render()});
 
 vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();render();if(items.length){const savedWithPhoto=items.find(i=>i.photo);showSelectedItem(savedWithPhoto||items[0])}
-</script><script>if("serviceWorker" in navigator && location.protocol==="https:"){window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}))}</script><script type="module" src="./cloud-auth.js?v=20261116-offline-queue"></script></body></html>
+</script><script>if("serviceWorker" in navigator && location.protocol==="https:"){window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}))}</script>
+<script id="vspJobWizard20261118">
+(function(){
+ const panel=document.getElementById('jobSiteHistoryPanel');
+ const form=document.getElementById('jobSiteVisitForm');
+ const visitCard=form&&form.closest('.panel');
+ const stockCard=document.getElementById('siteUsageAddBtn')?.closest('.panel');
+ const batteryCard=document.getElementById('saveSiteBattery')?.closest('.panel');
+ if(!panel||!form||!visitCard||!stockCard||!batteryCard)return;
+ const saveButton=document.getElementById('saveSiteVisit');
+ const inlineFire=document.getElementById('fireBatteryFields');
+ const inlineIntruder=document.getElementById('intruderBatteryFields');
+ const wizard=document.createElement('div');
+ wizard.id='vspJobWizard';
+ wizard.style.cssText='display:grid;gap:12px;margin:0 0 14px';
+ const header=document.createElement('div');
+ header.className='panel';
+ header.style.cssText='margin:0;padding:12px';
+ header.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>New job – step-by-step</strong><span id="vspWizardCount" class="sub">Step 1 of 4</span></div><div style="height:6px;background:var(--line);border-radius:99px;overflow:hidden;margin:10px 0"><div id="vspWizardProgress" style="height:100%;width:25%;background:var(--mint,#39d6ad);border-radius:99px;transition:width .2s"></div></div><div id="vspWizardStepName" style="font-weight:700">1. Record a site visit</div><div class="sub" id="vspWizardHint">Enter the job and visit details first.</div>';
+ wizard.appendChild(header);
+ const review=document.createElement('div');
+ review.className='panel';
+ review.id='vspJobReview';
+ review.style.cssText='margin:0;padding:12px';
+ review.innerHTML='<h3 style="margin-top:0">4. Review and complete</h3><div class="sub" style="margin-bottom:10px">Check the job details and anything recorded before saving.</div><div id="vspJobReviewDetails" style="display:grid;gap:8px"></div><div class="entryactions" style="margin-top:14px"><button type="button" class="secondary" id="vspWizardBack3">Back</button></div>';
+ const panels=[visitCard,stockCard,batteryCard,review];
+ const nav=document.createElement('div');
+ nav.className='entryactions';
+ nav.style.cssText='margin:0;justify-content:space-between;gap:8px';
+ nav.innerHTML='<button type="button" class="secondary" id="vspWizardBack" hidden>Back</button><span class="sub" id="vspWizardNavHint">Complete this section to continue.</span><button type="button" id="vspWizardNext">Next</button>';
+ wizard.append(...panels,nav);
+ panel.insertBefore(wizard,visitCard);
+ // Keep the inline battery details available in the battery stage, without changing their saved fields.
+ if(inlineFire)batteryCard.appendChild(inlineFire);
+ if(inlineIntruder)batteryCard.appendChild(inlineIntruder);
+ // The existing save handler remains the single source of truth; move its submit button to the final review stage.
+ if(saveButton){saveButton.setAttribute('form','jobSiteVisitForm');saveButton.textContent='Save job and finish';review.querySelector('.entryactions').appendChild(saveButton);}
+ let step=0;
+ const names=['1. Record a site visit','2. Add stock used','3. Batteries recorded on site','4. Review and complete'];
+ const hints=['Enter the job reference, customer, visit date and work carried out.','Add any parts used. You can continue without stock if nothing was used.','Record batteries fitted or replacement details. You can skip this section.','Check the details, then save the job and any queued stock usage.'];
+ function reviewLine(label,value){const row=document.createElement('div');row.style.cssText='padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:rgba(127,127,127,.05)';const strong=document.createElement('strong');strong.textContent=label;const val=document.createElement('div');val.className='sub';val.style.cssText='margin-top:4px;white-space:pre-wrap';val.textContent=value||'Not entered';row.append(strong,val);return row;}
+ function updateReview(){
+  const box=document.getElementById('vspJobReviewDetails');box.replaceChildren();
+  box.append(reviewLine('Job reference',document.getElementById('siteVisitRef').value.trim()));
+  box.append(reviewLine('Site / customer',document.getElementById('siteVisitName').value.trim()));
+  box.append(reviewLine('Visit date',document.getElementById('siteVisitDate').value));
+  box.append(reviewLine('Engineer',document.getElementById('siteVisitEngineer').value.trim()));
+  box.append(reviewLine('System type',document.getElementById('siteVisitSystem').value));
+  box.append(reviewLine('Work carried out',document.getElementById('siteVisitNotes').value.trim()));
+  const pending=document.getElementById('siteUsagePending');
+  box.append(reviewLine('Stock used',pending?pending.innerText.replace(/^Stock added to this job sheet\s*/,'').trim():''));
+  const batterySummary=document.getElementById('jobSiteBatterySummary');
+  box.append(reviewLine('Saved battery records',batterySummary&&batterySummary.children.length?batterySummary.innerText:'No separate battery records added'));
+  const inline=[];
+  [['Fire alarm', 'siteVisitBatteryType','siteVisitBatteryQuantity'],['Intruder alarm','siteVisitIntruderBatteryType','siteVisitIntruderBatteryQuantity']].forEach(([label,type,qty])=>{
+   const t=document.getElementById(type)?.value.trim(),q=document.getElementById(qty)?.value;
+   if(t||q)inline.push(label+': '+(t||'Battery details')+(q?' × '+q:''));
+  });
+  if(inline.length)box.append(reviewLine('Battery details on visit',inline.join('\n')));
+ }
+ function showStep(next){
+  step=Math.max(0,Math.min(3,next));
+  panels.forEach((p,i)=>{p.hidden=i!==step;p.style.display=i===step?'':'none';});
+  document.getElementById('vspWizardCount').textContent='Step '+(step+1)+' of 4';
+  document.getElementById('vspWizardProgress').style.width=((step+1)*25)+'%';
+  document.getElementById('vspWizardStepName').textContent=names[step];
+  document.getElementById('vspWizardHint').textContent=hints[step];
+  document.getElementById('vspWizardBack').hidden=step===0||step===3;
+  document.getElementById('vspWizardNext').hidden=step===3;
+  document.getElementById('vspWizardNavHint').textContent=step===1?'Stock is only deducted when the final save succeeds.':step===2?'Battery entries can be added separately or skipped.':'';
+  if(step===3)updateReview();
+  if(step===0){document.getElementById('vspWizardNext').textContent='Continue to stock';}
+  if(step===1){document.getElementById('vspWizardNext').textContent='Continue to batteries';}
+  if(step===2){document.getElementById('vspWizardNext').textContent='Review job';}
+ }
+ document.getElementById('vspWizardNext').addEventListener('click',()=>{
+  if(step===0){
+   const required=['siteVisitRef','siteVisitDate','siteVisitNotes'].map(id=>document.getElementById(id));
+   const missing=required.find(el=>!el.value.trim());
+   if(missing){missing.focus();missing.reportValidity?.();if(!missing.reportValidity)missing.focus();return;}
+  }
+  if(step===1&&!document.getElementById('siteVisitRef').value.trim()){showStep(0);document.getElementById('siteVisitRef').focus();return;}
+  showStep(step+1);
+ });
+ document.getElementById('vspWizardBack').addEventListener('click',()=>showStep(step-1));
+ document.getElementById('vspWizardBack3').addEventListener('click',()=>showStep(2));
+ // Keep the review current if the user changes fields after moving between stages.
+ form.addEventListener('input',()=>{if(step===3)updateReview();});
+ document.getElementById('siteUsagePending').addEventListener('click',()=>{if(step===3)updateReview();});
+ const oldClear=document.getElementById('clearSiteVisitForm');
+ oldClear?.addEventListener('click',()=>{showStep(0);});
+ document.getElementById('jobSiteHistoryRows')?.addEventListener('click',e=>{
+  if(e.target.closest('[data-edit-site-visit]'))showStep(0);
+ });
+ form.addEventListener('submit',()=>{if(saveButton){saveButton.disabled=true;saveButton.textContent='Saving job…';}});
+ // Restore the final button after the existing save handler finishes.
+ const observer=new MutationObserver(()=>{if(saveButton&&!saveButton.disabled&&saveButton.textContent==='Saving job…')saveButton.textContent='Save job and finish';});
+ if(saveButton)observer.observe(saveButton,{attributes:true,attributeFilter:['disabled']});
+ showStep(0);
+})();
+</script>
+<script type="module" src="./cloud-auth.js?v=20261116-offline-queue"></script></body></html>
