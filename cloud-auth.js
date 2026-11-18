@@ -810,28 +810,35 @@ window.__VSP_JOB_SITE_PHOTO_STORE = {
       if(file.size<=0||file.size>5242880) throw new Error("Each photograph must be 5 MB or smaller.");
     }
     const userId=currentSession.user.id,workspaceId=stockWorkspaceId,uploaded=[];
-    for(const file of selected){
-      const extension=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
-      const safeName=(String(file.name||"photo").replace(/[^a-zA-Z0-9._-]/g,"_").slice(-80)||"photo."+extension);
-      const path=workspaceId+"/"+userId+"/"+visitId+"/"+crypto.randomUUID()+"-"+safeName;
-      const {error:uploadError}=await supabase.storage.from("job-site-photos").upload(path,file,{contentType:file.type,upsert:false});
-      if(uploadError) throw uploadError;
-      try{
+    try{
+      for(const file of selected){
+        const extension=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
+        const safeName=(String(file.name||"photo").replace(/[^a-zA-Z0-9._-]/g,"_").slice(-80)||"photo."+extension);
+        const path=workspaceId+"/"+userId+"/"+visitId+"/"+crypto.randomUUID()+"-"+safeName;
+        const {error:uploadError}=await supabase.storage.from("job-site-photos").upload(path,file,{contentType:file.type,upsert:false});
+        if(uploadError) throw uploadError;
         const {data,error}=await supabase.from("job_site_visit_photos").insert({
           workspace_id:workspaceId,owner_user_id:userId,visit_id:visitId,file_path:path,
           original_name:String(file.name||safeName).slice(0,200),mime_type:file.type,file_size:file.size
         }).select("id,visit_id,file_path,original_name,mime_type,file_size,created_at").single();
-        if(error) throw error;
-        const {data:signed,error:signedError}=await supabase.storage.from("job-site-photos").createSignedUrl(path,3600);
-        if(signedError) throw signedError;
-        uploaded.push({...data,url:signed?.signedUrl||""});
-      }catch(error){
-        await supabase.storage.from("job-site-photos").remove([path]).catch(()=>{});
-        throw error;
+        if(error){await supabase.storage.from("job-site-photos").remove([path]);throw error;}
+        uploaded.push(data);
+        if(currentSession?.user?.id!==userId||stockWorkspaceId!==workspaceId) throw new Error("The signed-in account changed while uploading photographs.");
       }
-      if(currentSession?.user?.id!==userId||stockWorkspaceId!==workspaceId) throw new Error("The signed-in account changed while uploading photographs.");
+      const result=[];
+      for(const row of uploaded){
+        const {data:signed,error}=await supabase.storage.from("job-site-photos").createSignedUrl(row.file_path,3600);
+        if(error) throw error;
+        result.push({...row,url:signed?.signedUrl||""});
+      }
+      return result;
+    }catch(error){
+      for(const row of uploaded){
+        try{await supabase.from("job_site_visit_photos").delete().eq("id",row.id).eq("workspace_id",workspaceId).eq("owner_user_id",userId)}catch(cleanupError){}
+        try{await supabase.storage.from("job-site-photos").remove([row.file_path])}catch(cleanupError){}
+      }
+      throw error;
     }
-    return uploaded;
   },
   async remove(photoId) {
     if(!this.isReady()) throw new Error("Cloud account is not ready.");
