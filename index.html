@@ -1019,13 +1019,18 @@ $('jobSiteVisitForm').addEventListener('submit',async e=>{
  const createdUsage=[];let savedVisit=null;const previousQuantities=new Map();
  try{
   savedVisit=await store.add(entry);
-  let photosDeferred=false;
+  let photosDeferred=false,photoUploadFailed=false,photoUploadMessage='';
   if(selectedDefectPhotos.length){
    if(savedVisit._syncPending){photosDeferred=true;}
    else{
-    const photoStore=window.__VSP_JOB_SITE_PHOTO_STORE;
-    if(!photoStore?.isReady())throw new Error('Private photo storage is not ready. Run the defect-photo Supabase setup SQL and refresh.');
-    await photoStore.uploadForVisit(savedVisit.id,selectedDefectPhotos);
+    try{
+     const photoStore=window.__VSP_JOB_SITE_PHOTO_STORE;
+     if(!photoStore?.isReady())throw new Error('Private photo storage is not ready. Run the defect-photo Supabase setup SQL and refresh.');
+     await photoStore.uploadForVisit(savedVisit.id,selectedDefectPhotos);
+    }catch(photoError){
+     // A photograph failure must never undo a successfully saved job visit.
+     photoUploadFailed=true;photoUploadMessage=photoError?.message||String(photoError);
+    }
    }
   }
   const now=new Date(),localDate=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
@@ -1044,9 +1049,9 @@ $('jobSiteVisitForm').addEventListener('submit',async e=>{
   const pending=[savedVisit,...createdUsage].some(x=>x?._syncPending);
   $('jobSiteHistoryStatus').textContent=pending?'Job and parts saved safely on this device. They will upload automatically when signal returns.':'Job and parts saved to your private account. '+jobSiteVisitRecords.length+' saved visit(s).';
   const ref=entry.job;$('jobSiteVisitForm').reset();$('siteVisitRef').value=ref;$('siteVisitDate').value=new Date().toISOString().slice(0,10);updateSiteBatterySections();syncSiteUsageReference();
-  $('siteVisitDefectPhotoStatus').textContent=photosDeferred?'Job saved offline. Edit this visit when online to upload its photographs.':selectedDefectPhotos.length?'Photographs uploaded to your private Supabase storage.':'No new photographs selected.';
+  $('siteVisitDefectPhotoStatus').textContent=photosDeferred?'Job saved offline. Edit this visit when online to upload its photographs.':photoUploadFailed?'Job saved, but photograph upload failed: '+photoUploadMessage+'. Edit this visit and select the photograph again to retry.':selectedDefectPhotos.length?'Photographs uploaded to your private Supabase storage.':'No new photographs selected.';
   $('jobSiteHistoryPanel').hidden=true;
-  toast(photosDeferred?'Job saved offline. Add its photographs when you are back online.':pending?'Job saved on this device · waiting for signal.':'Job saved with '+createdUsage.length+' stock item(s).');
+  toast(photoUploadFailed?'Job saved successfully, but its photograph did not upload. Edit the saved visit and select the photo again to retry.':photosDeferred?'Job saved offline. Add its photographs when you are back online.':pending?'Job saved on this device · waiting for signal.':'Job saved with '+createdUsage.length+' stock item(s).');
  }catch(error){
   for(const [id,qty] of previousQuantities){const item=items.find(x=>String(x.id)===id);if(item)item.qty=qty}
   try{localStorage.setItem(KEY,JSON.stringify(items))}catch(rollbackError){}
