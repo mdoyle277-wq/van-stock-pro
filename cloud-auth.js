@@ -840,6 +840,12 @@ window.__VSP_JOB_SITE_PHOTO_STORE = {
       throw error;
     }
   },
+  async removeForVisit(visitId) {
+    if(!this.isReady()) throw new Error("Cloud account is not ready.");
+    const photos=await this.getForVisit(visitId);
+    for(const photo of photos) await this.remove(photo.id);
+    return photos.length;
+  },
   async remove(photoId) {
     if(!this.isReady()) throw new Error("Cloud account is not ready.");
     const userId=currentSession.user.id,workspaceId=stockWorkspaceId;
