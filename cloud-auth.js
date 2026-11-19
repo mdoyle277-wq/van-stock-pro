@@ -289,7 +289,6 @@ async function getMyStockWorkspace() {
   const { data: workspaces, error: workspaceError } = await supabase.from("workspaces")
     .select("id, created_by").in("id", ids);
   if (workspaceError) throw workspaceError;
-    if (refreshSequence !== accessRefreshSequence) return;
   if (currentSession?.user?.id !== userId) throw new Error("The signed-in account changed while loading workspaces.");
   // Prefer the workspace this account was invited into. Newly registered
   // users may also own an automatically-created personal workspace; choosing
