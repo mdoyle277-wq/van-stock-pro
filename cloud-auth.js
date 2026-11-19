@@ -277,6 +277,10 @@ function itemToStockRow(item, workspaceId, ownerUserId) {
     updated_at: new Date().toISOString()
   };
 }
+function isAuthorisedWorkspaceAdmin(user) {
+  const email = String(user?.email || "").trim().toLowerCase();
+  return email === "m.doyle277@gmail.com" || email === "mark.doyle@ifireuk.com";
+}
 async function getMyStockWorkspace() {
   if (!currentSession?.user) throw new Error("Sign in before syncing stock.");
   const userId = currentSession.user.id;
@@ -303,9 +307,12 @@ async function getMyStockWorkspace() {
   const personalMembership = personal
     ? memberships.find(row => row.workspace_id === personal.id)
     : null;
-  // Never fall back to personal-owner rights when an invited shared role is
-  // viewer: the granted shared role is authoritative for this app.
-  const membership = sharedMembership || personalMembership || memberships[0] || null;
+  // Only the two authorised administrator accounts use their own personal
+  // workspaces. Invited members always use the role granted in the team space.
+  const separateAdminWorkspace = isAuthorisedWorkspaceAdmin(currentSession.user);
+  const membership = separateAdminWorkspace && personalMembership
+    ? personalMembership
+    : sharedMembership || personalMembership || memberships[0] || null;
   if (!membership || membership.role === "viewer") {
     throw new Error("This account has view-only access and cannot change stock.");
   }
@@ -1225,11 +1232,12 @@ async function refreshAccessPanel() {
         workspace.id === row.workspace_id && workspace.created_by !== userId
       )
     );
-    // Always take the invited/shared workspace role first, even when it is
-    // "member". Otherwise a member's own auto-created personal workspace
-    // (where they are owner) incorrectly overrides the role granted by you.
+    // The two authorised administrators manage their own personal space.
+    // Ordinary invited users continue to see only their granted shared role.
     const sharedMembership = sharedMemberships[0] || null;
-    const selected = sharedMembership || personalMembership || mine[0] || null;
+    const selected = isAuthorisedWorkspaceAdmin(currentSession.user) && personalMembership
+      ? personalMembership
+      : sharedMembership || personalMembership || mine[0] || null;
     if (!selected) {
       accessPanel.hidden = true; activeWorkspaceId = null; activeWorkspaceRole = null;
       return;
