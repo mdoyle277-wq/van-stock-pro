@@ -69,6 +69,7 @@ function setSession(session) {
     document.body.classList.add("cloud-loading");
     stockSyncReady = false;
     stockWorkspaceId = null;
+    stockWorkspaceOwnerId = null;
     if (typeof window.__VSP_APPLY_CLOUD_STOCK === "function") {
       window.__VSP_APPLY_CLOUD_STOCK([]);
     }
@@ -181,9 +182,10 @@ async function runAuth(action) {
   }
 }
 
-/* Workspace-scoped stock persistence. Each authorised account owns a private
-   stock list inside its workspace; RLS enforces the same owner boundary. */
+/* Workspace-scoped shared stock persistence. The workspace creator owns the
+   canonical stock rows; authorised workspace roles share those rows. */
 let stockWorkspaceId = null;
+let stockWorkspaceOwnerId = null;
 let stockSyncTimer = null;
 let stockSyncBusy = false;
 let stockSyncAgain = false;
@@ -248,11 +250,11 @@ function stockRowsToItems(rows) {
     };
   });
 }
-function itemToStockRow(item, workspaceId, userId) {
+function itemToStockRow(item, workspaceId, ownerUserId) {
   const safe = { ...item };
   return {
     workspace_id: workspaceId,
-    owner_user_id: userId,
+    owner_user_id: ownerUserId,
     legacy_id: String(item.id),
     name: String(item.name || "Unnamed item"),
     sku: String(item.sku || ""),
@@ -301,7 +303,9 @@ async function getMyStockWorkspace() {
   if (!membership || membership.role === "viewer") {
     throw new Error("This account has view-only access and cannot change stock.");
   }
-  return { id: membership.workspace_id, role: membership.role, isPersonal: !!personal && membership.workspace_id === personal.id };
+  const selectedWorkspace = (workspaces || []).find(row => row.id === membership.workspace_id);
+  if (!selectedWorkspace?.created_by) throw new Error("The selected workspace has no verified owner account.");
+  return { id: membership.workspace_id, role: membership.role, ownerUserId: selectedWorkspace.created_by, isPersonal: !!personal && membership.workspace_id === personal.id };
 }
 async function writeCloudStock(items) {
   if (!stockWorkspaceId || !currentSession?.user) throw new Error("Cloud workspace is not ready.");
@@ -331,7 +335,9 @@ async function writeCloudStock(items) {
   }
   const userId = currentSession.user.id;
   const workspaceId = stockWorkspaceId;
-  const rows = items.map(item => itemToStockRow(item, workspaceId, userId));
+  const ownerUserId = stockWorkspaceOwnerId;
+  if (!ownerUserId) throw new Error("The shared workspace owner has not been verified. Cloud stock was not changed.");
+  const rows = items.map(item => itemToStockRow(item, workspaceId, ownerUserId));
   if (rows.length) {
     const { error } = await supabase.from("stock_items")
       .upsert(rows, { onConflict: "workspace_id,owner_user_id,legacy_id" });
@@ -340,7 +346,7 @@ async function writeCloudStock(items) {
   if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId)
     throw new Error("The signed-in account or workspace changed during the save. Sign in again and retry.");
   const { data: existing, error: readError } = await supabase.from("stock_items")
-    .select("legacy_id").eq("workspace_id", workspaceId).eq("owner_user_id", userId);
+    .select("legacy_id").eq("workspace_id", workspaceId).eq("owner_user_id", ownerUserId);
   if (readError) throw readError;
   if (!items.length && (existing || []).length) {
     throw new Error("EMPTY STOCK SYNC BLOCKED — the cloud inventory already contains stock. No records were deleted. Reload cloud stock before trying again.");
@@ -353,14 +359,14 @@ async function writeCloudStock(items) {
   }
   if (remove.length) {
     const { error } = await supabase.from("stock_items").delete()
-      .eq("workspace_id", workspaceId).eq("owner_user_id", userId).in("legacy_id", remove);
+      .eq("workspace_id", workspaceId).eq("owner_user_id", ownerUserId).in("legacy_id", remove);
     if (error) throw error;
   }
   if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId)
     throw new Error("The signed-in account or workspace changed during the save. Sign in again and retry.");
   const { count, error: verifyError } = await supabase.from("stock_items")
     .select("id", { count: "exact", head: true })
-    .eq("workspace_id", workspaceId).eq("owner_user_id", userId);
+    .eq("workspace_id", workspaceId).eq("owner_user_id", ownerUserId);
   if (verifyError) throw verifyError;
   if (count !== items.length) throw new Error("Cloud verification failed: expected " + items.length + " stock lines but found " + count + ".");
 }
@@ -372,18 +378,19 @@ async function initialiseCloudStock() {
     const workspace = await getMyStockWorkspace();
     if (currentSession?.user?.id !== userId) return;
     stockWorkspaceId = workspace.id;
+    stockWorkspaceOwnerId = workspace.ownerUserId;
     try{localStorage.setItem("van-stock-pro-workspace-"+userId,workspace.id)}catch{}
     // Only workspace owners/admins may access app-code backup and restore.
     document.body.classList.toggle("cloud-admin", ["owner", "admin"].includes(String(workspace.role || "").toLowerCase()));
     const { data: cloudRows, error } = await supabase.from("stock_items")
-      .select("*").eq("workspace_id", stockWorkspaceId).eq("owner_user_id", userId)
+      .select("*").eq("workspace_id", stockWorkspaceId).eq("owner_user_id", stockWorkspaceOwnerId)
       .order("name", { ascending: true });
     if (error) throw error;
     if (currentSession?.user?.id !== userId) return;
-    // Fail closed if the database ever returns a row outside this account/workspace.
-    // This is a second guard in addition to the explicit filters and Supabase RLS.
+    // Fail closed if the database returns stock outside the selected shared workspace
+    // or its verified canonical owner. All authorised roles read the same owner rows.
     const foreignRows = (cloudRows || []).filter(row =>
-      row.owner_user_id !== userId || row.workspace_id !== stockWorkspaceId
+      row.owner_user_id !== stockWorkspaceOwnerId || row.workspace_id !== stockWorkspaceId
     );
     if (foreignRows.length) {
       throw new Error("Account isolation check failed: the database returned stock owned by another account. No stock was displayed or changed.");
@@ -392,7 +399,7 @@ async function initialiseCloudStock() {
     if (typeof window.__VSP_APPLY_CLOUD_STOCK !== "function") throw new Error("Stock screen is not ready to receive cloud data.");
     if (cloudItems.length) {
       window.__VSP_APPLY_CLOUD_STOCK(cloudItems);
-      message("Your private cloud stock loaded and verified: " + cloudItems.length + " item(s).", "success");
+      message("Shared workspace cloud stock loaded and verified: " + cloudItems.length + " item(s).", "success");
     } else if (workspace.role === "owner" && workspace.isPersonal) {
       // Import only the cache archived for this exact account on sign-in.
       // Never read the shared browser stock key for a newly invited user.
@@ -401,14 +408,14 @@ async function initialiseCloudStock() {
         await writeCloudStock(local);
         if (currentSession?.user?.id !== userId) return;
         window.__VSP_APPLY_CLOUD_STOCK(local);
-        message("Your account's archived stock was copied to its private cloud list and verified: " + local.length + " item(s).", "success");
+        message("Your archived stock was copied to the workspace cloud list and verified: " + local.length + " item(s).", "success");
       } else {
         window.__VSP_APPLY_CLOUD_STOCK([]);
-        message("Your private stock is ready. Add your first item to begin.", "success");
+        message("This workspace is ready. Add the first shared stock item to begin.", "success");
       }
     } else {
       window.__VSP_APPLY_CLOUD_STOCK([]);
-      message("Your private stock is empty. The administrator's stock is kept separate.", "success");
+      message("No shared stock is currently saved in this workspace.", "success");
     }
     if (currentSession?.user?.id === userId) {
       stockSyncReady = true;
