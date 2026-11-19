@@ -299,6 +299,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <button class="secondary" type="button" data-fire-tool="diagnosis">Fire alarm fault diagnosis</button>
 <button class="secondary" type="button" data-fire-tool="bs5839-1">BS 5839-1:2025</button>
 <button class="secondary" type="button" data-fire-tool="bs5839-6" style="grid-column:1/-1">BS 5839-6</button>
+<button class="secondary" type="button" data-fire-tool="address">Address / DIP switch calculator</button>
 </div></details>
 <details class="home-group home-template-manager" id="jobNoteTemplatesMenu" style="grid-column:1/-1;width:100%;margin-top:2px">
 <summary>📝 Job note templates</summary>
@@ -936,6 +937,7 @@ $('siteVisitSystem').addEventListener('change',updateSiteBatterySections);
 updateSiteBatterySections();
 $('jobSiteHistoryBtn').addEventListener('click',openJobSiteHistory);
 const fireAlarmToolGuides={
+ address:{title:'Address / DIP switch calculator',intro:'Convert an address into the eight binary DIP switch positions, or select the switches manually to calculate the address.'},
  zone:{title:'Zone plan reference',intro:'A zone plan should let responding personnel identify the area covered by each fire alarm zone quickly and unambiguously.',sections:[['Include on the plan',['Building name and address; floor or level clearly identified','You are here marker and orientation where useful','Zone boundaries, zone numbers and the areas covered','Fire alarm control panel and any repeater panel locations','Legend, drawing date, revision and responsible organisation']],['Engineer checks',['Compare the plan against the current cause-and-effect and zone chart','Walk the building and verify boundaries, room names and access routes','Check that the displayed plan is legible, current and located beside the relevant panel where required']]]},
  spacing:{title:'Detector spacing guide',intro:'Detector siting depends on detector type, ceiling geometry, obstructions, airflow, environmental conditions and the system design.',sections:[['Before setting out',['Identify the detector type and the applicable design standard','Check ceiling height, beams, sloping ceilings, voids and partitions','Consider ventilation, air supply/return points, dead spaces and likely fire risks','Check manufacturer limits and any special application guidance']],['Important',['Do not apply a single universal spacing figure to every detector or room','Use the current BS 5839-1 or BS 5839-6 requirements appropriate to the system','Record any departures from standard recommendations and the design rationale']]]},
  cable:{title:'Cable sizing reference',intro:'Cable selection must consider electrical load, circuit length, voltage drop, fault current, fire performance and installation conditions.',sections:[['Information to establish',['Circuit type and equipment manufacturer requirements','Supply voltage and maximum current / load','One-way cable route length and conductor size/material','Permitted voltage drop and minimum operating voltage','Cable installation method, grouping, ambient temperature and fire-resistance requirements']],['Checks',['Calculate voltage drop using the correct conductor resistance and circuit arrangement','Check voltage at the furthest device under the relevant operating load','Confirm protective device, short-circuit and earth-fault requirements where applicable','Use cable types and support methods specified by the design and applicable standards']]]},
@@ -967,7 +969,41 @@ function openFireAlarmTool(key){
  const guide=fireAlarmToolGuides[key];if(!guide)return;
  const panel=$('fireAlarmToolPanel'),content=$('fireAlarmToolContent');
  $('fireAlarmToolTitle').textContent=guide.title;
- if(key==='spacing'){
+ if(key==='address'){
+  content.innerHTML=`<p>Enter an address from <b>0 to 255</b>. The calculator shows which of the eight weighted switches must be ON. You can also tap the switches to calculate an address manually.</p>
+  <div class="panel" style="padding:14px;margin:0 0 10px">
+   <label class="fieldlabel" for="faseAddressNumber">Address number</label>
+   <div style="display:grid;grid-template-columns:48px minmax(0,1fr) 48px;gap:8px;align-items:center">
+    <button class="secondary" type="button" id="faseAddressMinus" aria-label="Decrease address">−</button>
+    <input class="field" id="faseAddressNumber" type="number" min="0" max="255" step="1" value="0" inputmode="numeric" style="text-align:center;font-size:24px;font-weight:800">
+    <button class="secondary" type="button" id="faseAddressPlus" aria-label="Increase address">＋</button>
+   </div>
+   <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:16px" id="faseDipSwitches">
+    ${[2,8,32,128,1,4,16,64].map(value=>'<button type="button" class="secondary fase-dip" data-value="'+value+'" aria-pressed="false" style="padding:12px 5px;display:grid;gap:5px;justify-items:center;border:1px solid var(--line)"><span style="font-size:11px;color:var(--muted)">VALUE</span><strong style="font-size:19px">'+value+'</strong><span class="fase-dip-state" style="font-size:12px;font-weight:850">OFF</span></button>').join('')}
+   </div>
+   <div class="result" id="faseAddressResult" aria-live="polite" style="margin-top:14px;padding:12px;background:#0b1524;border:1px solid #356b60;border-radius:12px"><strong>Address: 0</strong><div class="sub">All switches OFF</div></div>
+   <div class="entryactions" style="margin-top:12px"><button type="button" class="secondary" id="faseAddressReset">Reset to 0</button><button type="button" class="secondary" id="faseAddressCopy">Copy switch settings</button></div>
+  </div>
+  <div class="notice"><b>Switch layout:</b> the values are arranged to match the Fase diagram supplied: top row 2, 8, 32, 128; bottom row 1, 4, 16, 64. Switch ON means its value is added to the address.</div>
+  <div class="notice">Important: this is an eight-bit binary address calculator based on the pictured switch weights. Confirm the exact device model, address range, switch orientation and manufacturer instructions before setting an installed device. Some equipment reserves particular addresses or uses a different switch layout.</div>`;
+  const $a=id=>document.getElementById(id),weights=[1,2,4,8,16,32,64,128];let dipCopy='';
+  function updateFromNumber(){
+   let n=Number($a('faseAddressNumber').value);
+   if(!Number.isInteger(n)||n<0||n>255){$a('faseAddressResult').innerHTML='<strong>Enter a whole address from 0 to 255</strong>';dipCopy='';return}
+   document.querySelectorAll('.fase-dip').forEach(b=>{const on=(n&Number(b.dataset.value))!==0;b.setAttribute('aria-pressed',String(on));b.style.background=on?'linear-gradient(145deg,#1b493f,#17362f)':'#24344b';b.style.borderColor=on?'var(--mint)':'var(--line)';b.querySelector('.fase-dip-state').textContent=on?'ON':'OFF';b.querySelector('.fase-dip-state').style.color=on?'var(--mint)':'var(--muted)'});
+   const onValues=weights.filter(v=>(n&v)!==0),offValues=weights.filter(v=>(n&v)===0);
+   $a('faseAddressResult').innerHTML='<strong>Address: '+n+'</strong><div class="sub" style="margin-top:5px">ON: '+(onValues.length?onValues.join(', '):'None')+'<br>OFF: '+(offValues.length?offValues.join(', '):'None')+'</div>';
+   dipCopy='Address '+n+'\\nON: '+(onValues.length?onValues.join(', '):'None')+'\\nOFF: '+(offValues.length?offValues.join(', '):'None');
+  }
+  function updateFromSwitches(){let n=0;document.querySelectorAll('.fase-dip[aria-pressed="true"]').forEach(b=>n+=Number(b.dataset.value));$a('faseAddressNumber').value=n;updateFromNumber()}
+  $a('faseAddressNumber').addEventListener('input',updateFromNumber);
+  $a('faseAddressMinus').addEventListener('click',()=>{$a('faseAddressNumber').value=Math.max(0,(Number($a('faseAddressNumber').value)||0)-1);updateFromNumber()});
+  $a('faseAddressPlus').addEventListener('click',()=>{$a('faseAddressNumber').value=Math.min(255,(Number($a('faseAddressNumber').value)||0)+1);updateFromNumber()});
+  document.querySelectorAll('.fase-dip').forEach(b=>b.addEventListener('click',()=>{b.setAttribute('aria-pressed',String(b.getAttribute('aria-pressed')!=='true'));updateFromSwitches()}));
+  $a('faseAddressReset').addEventListener('click',()=>{$a('faseAddressNumber').value=0;updateFromNumber()});
+  $a('faseAddressCopy').addEventListener('click',()=>{if(!dipCopy)return;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(dipCopy).then(()=>toast('Switch settings copied.')).catch(()=>alert(dipCopy));else alert(dipCopy)});
+  updateFromNumber();
+ }else if(key==='spacing'){
   content.innerHTML=`<p>Detector coverage calculator based on the point-detector recommendations in BS 5839-1:2025, clause 21.2. Enter the room or corridor dimensions and select the detector type.</p>
   <div class="panel" style="padding:12px;margin:0 0 10px">
    <div class="formgrid">
