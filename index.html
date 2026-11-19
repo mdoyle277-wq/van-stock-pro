@@ -973,27 +973,72 @@ function openFireAlarmTool(key){
   content.innerHTML=`<p>Enter an address from <b>0 to 255</b>. The calculator shows which of the eight weighted switches must be ON. You can also tap the switches to calculate an address manually.</p>
   <div class="panel" style="padding:12px;margin:0 0 10px;background:#d7d7d7">
    <div style="background:#fff;border-radius:10px;padding:8px">
-    <div style="font-size:12px;font-weight:800;color:#222;text-align:center;margin:0 0 5px">Apollo XPERT address card – switch positions</div>
-    <svg viewBox="0 0 640 230" role="img" aria-label="Apollo XPERT address card illustration with eight numbered address pips arranged in two rows" style="display:block;width:100%;height:auto">
-     <path d="M18 38 Q8 115 18 192 L145 192 L158 174 L610 174 L610 56 L158 56 L145 38 Z" fill="#f8f8f8" stroke="#222" stroke-width="4" stroke-linejoin="round"/>
-     <path d="M145 38 L145 56 L160 56 L160 174 L145 174 L145 192" fill="#d0d0d0" stroke="#222" stroke-width="3"/>
-     <path d="M185 68 L185 162 M185 68 L222 68 M185 162 L222 162" stroke="#222" stroke-width="3" fill="none"/>
-     <rect x="245" y="84" width="58" height="66" rx="9" fill="#dedede" stroke="#222" stroke-width="3"/>
-     <g class="fase-card-pip" data-value="2"><circle cx="350" cy="98" r="18" fill="#fff" stroke="#3b9de8" stroke-width="4"/><circle cx="350" cy="98" r="7" fill="#fff" stroke="#3b9de8" stroke-width="3"/></g>
-     <g class="fase-card-pip" data-value="8"><circle cx="420" cy="98" r="18" fill="#fff" stroke="#3b9de8" stroke-width="4"/><circle cx="420" cy="98" r="7" fill="#fff" stroke="#3b9de8" stroke-width="3"/></g>
-     <g class="fase-card-pip" data-value="32"><circle cx="490" cy="98" r="18" fill="#fff" stroke="#3b9de8" stroke-width="4"/><circle cx="490" cy="98" r="7" fill="#fff" stroke="#3b9de8" stroke-width="3"/></g>
-     <g class="fase-card-pip" data-value="128"><circle cx="560" cy="98" r="18" fill="#fff" stroke="#3b9de8" stroke-width="4"/><circle cx="560" cy="98" r="7" fill="#fff" stroke="#3b9de8" stroke-width="3"/></g>
-     <g class="fase-card-pip" data-value="1"><circle cx="320" cy="148" r="18" fill="#fff" stroke="#3b9de8" stroke-width="4"/><circle cx="320" cy="148" r="7" fill="#fff" stroke="#3b9de8" stroke-width="3"/></g>
-     <g class="fase-card-pip" data-value="4"><circle cx="390" cy="148" r="18" fill="#fff" stroke="#3b9de8" stroke-width="4"/><circle cx="390" cy="148" r="7" fill="#fff" stroke="#3b9de8" stroke-width="3"/></g>
-     <g class="fase-card-pip" data-value="16"><circle cx="460" cy="148" r="18" fill="#fff" stroke="#3b9de8" stroke-width="4"/><circle cx="460" cy="148" r="7" fill="#fff" stroke="#3b9de8" stroke-width="3"/></g>
-     <g class="fase-card-pip" data-value="64"><circle cx="530" cy="148" r="18" fill="#fff" stroke="#3b9de8" stroke-width="4"/><circle cx="530" cy="148" r="7" fill="#fff" stroke="#3b9de8" stroke-width="3"/></g>
-     <g fill="#222" font-size="16" font-weight="700" text-anchor="middle">
-      <text class="fase-card-label" x="350" y="73">2</text><text class="fase-card-label" x="420" y="73">8</text><text class="fase-card-label" x="490" y="73">32</text><text class="fase-card-label" x="560" y="73">128</text>
-      <text class="fase-card-label" x="320" y="123">1</text><text class="fase-card-label" x="390" y="123">4</text><text class="fase-card-label" x="460" y="123">16</text><text class="fase-card-label" x="530" y="123">64</text>
+    <div style="font-size:12px;font-weight:800;color:#222;text-align:center;margin:0 0 5px">Apollo-style 7-way DIL switch</div>
+    <svg viewBox="0 0 640 300" role="img" aria-label="Apollo-style seven-way DIL switch with numbered switch positions and binary values" style="display:block;width:100%;height:auto">
+     <defs>
+      <linearGradient id="apolloSwitchBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fdfdfd"/><stop offset="1" stop-color="#d8d8d8"/></linearGradient>
+      <linearGradient id="apolloSwitchTrack" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#17191d"/><stop offset=".5" stop-color="#30343a"/><stop offset="1" stop-color="#101216"/></linearGradient>
+      <linearGradient id="apolloSwitchCap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f0f0f0"/><stop offset="1" stop-color="#bfc3c7"/></linearGradient>
+     </defs>
+     <rect x="18" y="16" width="604" height="268" rx="24" fill="#333b43" stroke="#15191e" stroke-width="5"/>
+     <rect x="36" y="34" width="568" height="232" rx="16" fill="#20262d" stroke="#f6f6f6" stroke-width="4"/>
+     <text x="62" y="65" fill="#fff" font-size="18" font-weight="800">ON</text>
+     <text x="578" y="65" fill="#cfd5db" font-size="13" text-anchor="end">7-WAY DIL SWITCH</text>
+     <rect x="54" y="78" width="532" height="132" rx="15" fill="#11151a" stroke="#68717a" stroke-width="3"/>
+     <g class="fase-card-switch" data-value="1">
+      <rect x="88" y="91" width="48" height="105" rx="8" fill="url(#apolloSwitchTrack)" stroke="#050709" stroke-width="2"/>
+      <rect x="93" y="98" width="38" height="90" rx="6" fill="#8f1717" opacity=".95"/>
+      <rect class="fase-card-switch-cap" x="93" y="145" width="38" height="42" rx="6" fill="url(#apolloSwitchCap)" stroke="#aeb4ba" stroke-width="1.5"/>
+      <rect x="97" y="149" width="30" height="7" rx="3" fill="#fff" opacity=".7"/>
+      <text x="112" y="232" fill="#fff" font-size="19" font-weight="800" text-anchor="middle">1</text>
+      <text x="112" y="253" fill="#aeb9c5" font-size="13" font-weight="700" text-anchor="middle">1</text>
+     </g><g class="fase-card-switch" data-value="2">
+      <rect x="164" y="91" width="48" height="105" rx="8" fill="url(#apolloSwitchTrack)" stroke="#050709" stroke-width="2"/>
+      <rect x="169" y="98" width="38" height="90" rx="6" fill="#8f1717" opacity=".95"/>
+      <rect class="fase-card-switch-cap" x="169" y="145" width="38" height="42" rx="6" fill="url(#apolloSwitchCap)" stroke="#aeb4ba" stroke-width="1.5"/>
+      <rect x="173" y="149" width="30" height="7" rx="3" fill="#fff" opacity=".7"/>
+      <text x="188" y="232" fill="#fff" font-size="19" font-weight="800" text-anchor="middle">2</text>
+      <text x="188" y="253" fill="#aeb9c5" font-size="13" font-weight="700" text-anchor="middle">2</text>
+     </g><g class="fase-card-switch" data-value="4">
+      <rect x="240" y="91" width="48" height="105" rx="8" fill="url(#apolloSwitchTrack)" stroke="#050709" stroke-width="2"/>
+      <rect x="245" y="98" width="38" height="90" rx="6" fill="#8f1717" opacity=".95"/>
+      <rect class="fase-card-switch-cap" x="245" y="145" width="38" height="42" rx="6" fill="url(#apolloSwitchCap)" stroke="#aeb4ba" stroke-width="1.5"/>
+      <rect x="249" y="149" width="30" height="7" rx="3" fill="#fff" opacity=".7"/>
+      <text x="264" y="232" fill="#fff" font-size="19" font-weight="800" text-anchor="middle">3</text>
+      <text x="264" y="253" fill="#aeb9c5" font-size="13" font-weight="700" text-anchor="middle">4</text>
+     </g><g class="fase-card-switch" data-value="8">
+      <rect x="316" y="91" width="48" height="105" rx="8" fill="url(#apolloSwitchTrack)" stroke="#050709" stroke-width="2"/>
+      <rect x="321" y="98" width="38" height="90" rx="6" fill="#8f1717" opacity=".95"/>
+      <rect class="fase-card-switch-cap" x="321" y="145" width="38" height="42" rx="6" fill="url(#apolloSwitchCap)" stroke="#aeb4ba" stroke-width="1.5"/>
+      <rect x="325" y="149" width="30" height="7" rx="3" fill="#fff" opacity=".7"/>
+      <text x="340" y="232" fill="#fff" font-size="19" font-weight="800" text-anchor="middle">4</text>
+      <text x="340" y="253" fill="#aeb9c5" font-size="13" font-weight="700" text-anchor="middle">8</text>
+     </g><g class="fase-card-switch" data-value="16">
+      <rect x="392" y="91" width="48" height="105" rx="8" fill="url(#apolloSwitchTrack)" stroke="#050709" stroke-width="2"/>
+      <rect x="397" y="98" width="38" height="90" rx="6" fill="#8f1717" opacity=".95"/>
+      <rect class="fase-card-switch-cap" x="397" y="145" width="38" height="42" rx="6" fill="url(#apolloSwitchCap)" stroke="#aeb4ba" stroke-width="1.5"/>
+      <rect x="401" y="149" width="30" height="7" rx="3" fill="#fff" opacity=".7"/>
+      <text x="416" y="232" fill="#fff" font-size="19" font-weight="800" text-anchor="middle">5</text>
+      <text x="416" y="253" fill="#aeb9c5" font-size="13" font-weight="700" text-anchor="middle">16</text>
+     </g><g class="fase-card-switch" data-value="32">
+      <rect x="468" y="91" width="48" height="105" rx="8" fill="url(#apolloSwitchTrack)" stroke="#050709" stroke-width="2"/>
+      <rect x="473" y="98" width="38" height="90" rx="6" fill="#8f1717" opacity=".95"/>
+      <rect class="fase-card-switch-cap" x="473" y="145" width="38" height="42" rx="6" fill="url(#apolloSwitchCap)" stroke="#aeb4ba" stroke-width="1.5"/>
+      <rect x="477" y="149" width="30" height="7" rx="3" fill="#fff" opacity=".7"/>
+      <text x="492" y="232" fill="#fff" font-size="19" font-weight="800" text-anchor="middle">6</text>
+      <text x="492" y="253" fill="#aeb9c5" font-size="13" font-weight="700" text-anchor="middle">32</text>
+     </g><g class="fase-card-switch" data-value="64">
+      <rect x="544" y="91" width="48" height="105" rx="8" fill="url(#apolloSwitchTrack)" stroke="#050709" stroke-width="2"/>
+      <rect x="549" y="98" width="38" height="90" rx="6" fill="#8f1717" opacity=".95"/>
+      <rect class="fase-card-switch-cap" x="549" y="145" width="38" height="42" rx="6" fill="url(#apolloSwitchCap)" stroke="#aeb4ba" stroke-width="1.5"/>
+      <rect x="553" y="149" width="30" height="7" rx="3" fill="#fff" opacity=".7"/>
+      <text x="568" y="232" fill="#fff" font-size="19" font-weight="800" text-anchor="middle">7</text>
+      <text x="568" y="253" fill="#aeb9c5" font-size="13" font-weight="700" text-anchor="middle">64</text>
      </g>
+     <text x="320" y="279" fill="#cbd3dc" font-size="12" text-anchor="middle">Switch number · address value</text>
     </svg>
    </div>
-   <div style="font-size:12px;color:#333;text-align:center;margin-top:6px">Blue pips disappear for each value included in the selected address.</div>
+   <div style="font-size:12px;color:#333;text-align:center;margin-top:6px">The physical switches move to ON (up) or OFF (down) as the address changes.</div>
   </div>
   <div class="panel" style="padding:14px;margin:0 0 10px">
    <label class="fieldlabel" for="faseAddressNumber">Address number</label>
@@ -1008,14 +1053,14 @@ function openFireAlarmTool(key){
    <div class="result" id="faseAddressResult" aria-live="polite" style="margin-top:14px;padding:12px;background:#0b1524;border:1px solid #356b60;border-radius:12px"><strong>Address: 0</strong><div class="sub">All switches OFF</div></div>
    <div class="entryactions" style="margin-top:12px"><button type="button" class="secondary" id="faseAddressReset">Reset to 0</button><button type="button" class="secondary" id="faseAddressCopy">Copy switch settings</button></div>
   </div>
-  <div class="notice"><b>Switch layout:</b> the values are arranged to match the Fase diagram supplied: top row 2, 8, 32, 128; bottom row 1, 4, 16, 64. Switch ON means its value is added to the address.</div>
+  <div class="notice"><b>Apollo 7-way DIL layout:</b> switch positions 1–7 carry values 1, 2, 4, 8, 16, 32 and 64. ON (up) adds that value to the address. The calculator retains 128 as an eighth binary value for addresses 128–255; it is not shown as an eighth physical switch.</div>
   <div class="notice">Important: this is an eight-bit binary address calculator based on the pictured switch weights. Confirm the exact device model, address range, switch orientation and manufacturer instructions before setting an installed device. Some equipment reserves particular addresses or uses a different switch layout.</div>`;
   const $a=id=>document.getElementById(id),weights=[1,2,4,8,16,32,64,128];let dipCopy='';
   function updateFromNumber(){
    let n=Number($a('faseAddressNumber').value);
    if(!Number.isInteger(n)||n<0||n>255){$a('faseAddressResult').innerHTML='<strong>Enter a whole address from 0 to 255</strong>';dipCopy='';return}
    document.querySelectorAll('.fase-dip').forEach(b=>{const on=(n&Number(b.dataset.value))!==0;b.setAttribute('aria-pressed',String(on));b.style.background=on?'linear-gradient(145deg,#1b493f,#17362f)':'#24344b';b.style.borderColor=on?'var(--mint)':'var(--line)';b.querySelector('.fase-dip-state').textContent=on?'ON':'OFF';b.querySelector('.fase-dip-state').style.color=on?'var(--mint)':'var(--muted)'});
-   document.querySelectorAll('.fase-card-pip').forEach(pip=>{pip.style.display=(n&Number(pip.dataset.value))!==0?'none':''});
+   document.querySelectorAll('.fase-card-switch').forEach(sw=>{const on=(n&Number(sw.dataset.value))!==0;const cap=sw.querySelector('.fase-card-switch-cap');cap.setAttribute('y',on?'98':'145');cap.style.fill=on?'#f7f7f7':'url(#apolloSwitchCap)';});
    const onValues=weights.filter(v=>(n&v)!==0),offValues=weights.filter(v=>(n&v)===0);
    $a('faseAddressResult').innerHTML='<strong>Address: '+n+'</strong><div class="sub" style="margin-top:5px">ON: '+(onValues.length?onValues.join(', '):'None')+'<br>OFF: '+(offValues.length?offValues.join(', '):'None')+'</div>';
    dipCopy='Address '+n+'\\nON: '+(onValues.length?onValues.join(', '):'None')+'\\nOFF: '+(offValues.length?offValues.join(', '):'None');
