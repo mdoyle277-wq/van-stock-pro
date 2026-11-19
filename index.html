@@ -970,8 +970,9 @@ function openFireAlarmTool(key){
  const panel=$('fireAlarmToolPanel'),content=$('fireAlarmToolContent');
  $('fireAlarmToolTitle').textContent=guide.title;
  if(key==='address'){
-  content.innerHTML=`<p>Enter an address from <b>0 to 255</b>. The calculator shows which of the eight weighted switches must be ON. You can also tap the switches to calculate an address manually.</p>
-  <div class="panel" style="padding:12px;margin:0 0 10px;background:#d7d7d7">
+  content.innerHTML=`<p>Enter an address from <b>0 to 127</b>. The calculator shows which of the eight weighted switches must be ON. You can also tap the switches to calculate an address manually.</p>
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:start;margin:0 0 10px">
+  <div class="panel" style="padding:7px;margin:0;background:#d7d7d7;min-width:0">
    <div style="background:#fff;border-radius:10px;padding:8px">
     <div style="font-size:12px;font-weight:800;color:#222;text-align:center;margin:0 0 5px">Apollo-style 7-way DIL switch</div>
     <svg viewBox="0 0 640 300" role="img" aria-label="Apollo-style seven-way DIL switch with numbered switch positions and binary values" style="display:block;width:100%;height:auto">
@@ -1038,29 +1039,48 @@ function openFireAlarmTool(key){
      <text x="320" y="279" fill="#cbd3dc" font-size="12" text-anchor="middle">Switch number · address value</text>
     </svg>
    </div>
-   <div style="font-size:12px;color:#333;text-align:center;margin-top:6px">The physical switches move to ON (up) or OFF (down) as the address changes.</div>
+   <div style="font-size:11px;color:#333;text-align:center;margin-top:5px">Apollo 7-way DIL switch</div>
+  </div>
+  <div class="panel" style="padding:7px;margin:0;background:#e7e7e7;min-width:0">
+   <div style="background:#fff;border-radius:8px;padding:4px">
+    <svg viewBox="0 0 420 300" role="img" aria-label="Apollo seven-position PIP address card showing numbered positions and address values" style="display:block;width:100%;height:auto">
+     <rect x="7" y="7" width="406" height="286" rx="12" fill="#f4f1e8" stroke="#252525" stroke-width="5"/>
+     <rect x="16" y="16" width="388" height="268" rx="7" fill="none" stroke="#777" stroke-width="1.5"/>
+     <text x="210" y="39" text-anchor="middle" font-size="15" font-weight="900" fill="#202020">APOLLO ADDRESS</text>
+     <text x="210" y="56" text-anchor="middle" font-size="10" font-weight="700" fill="#555">7-WAY PIP REFERENCE CARD</text>
+     <line x1="25" y1="67" x2="395" y2="67" stroke="#777" stroke-width="1.5"/>
+     ${[1,2,3,4,5,6,7].map((v,i)=>{const x=48+i*54;return '<g class="fase-pip" data-value="'+v+'"><text x="'+x+'" y="91" text-anchor="middle" font-size="14" font-weight="900" fill="#222">'+v+'</text><circle class="fase-pip-dot" cx="'+x+'" cy="139" r="15" fill="#fff" stroke="#252525" stroke-width="2.5"/><circle cx="'+x+'" cy="139" r="5" fill="#c9c9c9"/><text x="'+x+'" y="188" text-anchor="middle" font-size="12" font-weight="800" fill="#333">'+(2**i)+'</text><text class="fase-pip-state" x="'+x+'" y="211" text-anchor="middle" font-size="10" font-weight="900" fill="#555">OFF</text></g>';}).join('')}
+     <line x1="25" y1="226" x2="395" y2="226" stroke="#aaa" stroke-width="1"/>
+     <text x="210" y="247" text-anchor="middle" font-size="10" font-weight="700" fill="#444">PIP / ADDRESS VALUE</text>
+     <text id="fasePipCardAddress" x="210" y="271" text-anchor="middle" font-size="19" font-weight="900" fill="#111">ADDRESS 0</text>
+    </svg>
+   </div>
+   <div style="font-size:11px;color:#333;text-align:center;margin-top:5px">Apollo PIP address card</div>
+  </div>
   </div>
   <div class="panel" style="padding:14px;margin:0 0 10px">
    <label class="fieldlabel" for="faseAddressNumber">Address number</label>
    <div style="display:grid;grid-template-columns:48px minmax(0,1fr) 48px;gap:8px;align-items:center">
     <button class="secondary" type="button" id="faseAddressMinus" aria-label="Decrease address">−</button>
-    <input class="field" id="faseAddressNumber" type="number" min="0" max="255" step="1" value="0" inputmode="numeric" style="text-align:center;font-size:24px;font-weight:800">
+    <input class="field" id="faseAddressNumber" type="number" min="0" max="127" step="1" value="0" inputmode="numeric" style="text-align:center;font-size:24px;font-weight:800">
     <button class="secondary" type="button" id="faseAddressPlus" aria-label="Increase address">＋</button>
    </div>
    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:16px" id="faseDipSwitches">
-    ${[2,8,32,128,1,4,16,64].map(value=>'<button type="button" class="secondary fase-dip" data-value="'+value+'" aria-pressed="false" style="padding:12px 5px;display:grid;gap:5px;justify-items:center;border:1px solid var(--line)"><span style="font-size:11px;color:var(--muted)">VALUE</span><strong style="font-size:19px">'+value+'</strong><span class="fase-dip-state" style="font-size:12px;font-weight:850">OFF</span></button>').join('')}
+    ${[1,2,4,8,16,32,64].map(value=>'<button type="button" class="secondary fase-dip" data-value="'+value+'" aria-pressed="false" style="padding:12px 5px;display:grid;gap:5px;justify-items:center;border:1px solid var(--line)"><span style="font-size:11px;color:var(--muted)">VALUE</span><strong style="font-size:19px">'+value+'</strong><span class="fase-dip-state" style="font-size:12px;font-weight:850">OFF</span></button>').join('')}
    </div>
    <div class="result" id="faseAddressResult" aria-live="polite" style="margin-top:14px;padding:12px;background:#0b1524;border:1px solid #356b60;border-radius:12px"><strong>Address: 0</strong><div class="sub">All switches OFF</div></div>
    <div class="entryactions" style="margin-top:12px"><button type="button" class="secondary" id="faseAddressReset">Reset to 0</button><button type="button" class="secondary" id="faseAddressCopy">Copy switch settings</button></div>
   </div>
-  <div class="notice"><b>Apollo 7-way DIL layout:</b> switch positions 1–7 carry values 1, 2, 4, 8, 16, 32 and 64. ON (up) adds that value to the address. The calculator retains 128 as an eighth binary value for addresses 128–255; it is not shown as an eighth physical switch.</div>
-  <div class="notice">Important: this is an eight-bit binary address calculator based on the pictured switch weights. Confirm the exact device model, address range, switch orientation and manufacturer instructions before setting an installed device. Some equipment reserves particular addresses or uses a different switch layout.</div>`;
-  const $a=id=>document.getElementById(id),weights=[1,2,4,8,16,32,64,128];let dipCopy='';
+  <div class="notice"><b>Apollo 7-way DIL layout:</b> switch positions 1–7 carry values 1, 2, 4, 8, 16, 32 and 64. ON (up) adds that value to the address. There is no eighth 128 switch on this seven-way layout.</div>
+  <div class="notice">Important: This is a seven-bit visual reference. Confirm the exact Apollo device model, permitted address range, switch orientation and manufacturer instructions before setting an installed device.</div>`;
+  const $a=id=>document.getElementById(id),weights=[1,2,4,8,16,32,64];let dipCopy='';
   function updateFromNumber(){
    let n=Number($a('faseAddressNumber').value);
-   if(!Number.isInteger(n)||n<0||n>255){$a('faseAddressResult').innerHTML='<strong>Enter a whole address from 0 to 255</strong>';dipCopy='';return}
+   if(!Number.isInteger(n)||n<0||n>127){$a('faseAddressResult').innerHTML='<strong>Enter a whole address from 0 to 255</strong>';dipCopy='';return}
    document.querySelectorAll('.fase-dip').forEach(b=>{const on=(n&Number(b.dataset.value))!==0;b.setAttribute('aria-pressed',String(on));b.style.background=on?'linear-gradient(145deg,#1b493f,#17362f)':'#24344b';b.style.borderColor=on?'var(--mint)':'var(--line)';b.querySelector('.fase-dip-state').textContent=on?'ON':'OFF';b.querySelector('.fase-dip-state').style.color=on?'var(--mint)':'var(--muted)'});
    document.querySelectorAll('.fase-card-switch').forEach(sw=>{const on=(n&Number(sw.dataset.value))!==0;const cap=sw.querySelector('.fase-card-switch-cap');cap.setAttribute('y',on?'98':'145');cap.style.fill=on?'#f7f7f7':'url(#apolloSwitchCap)';});
+   document.querySelectorAll('.fase-pip').forEach(pip=>{const on=(n&Number(pip.dataset.value))!==0;const dot=pip.querySelector('.fase-pip-dot');dot.setAttribute('fill',on?'#c82020':'#fff');dot.setAttribute('stroke',on?'#8f1010':'#252525');pip.querySelector('.fase-pip-state').textContent=on?'ON':'OFF';pip.querySelector('.fase-pip-state').setAttribute('fill',on?'#a20f0f':'#555');});
+   const cardAddress=document.getElementById('fasePipCardAddress');if(cardAddress)cardAddress.textContent='ADDRESS '+n;
    const onValues=weights.filter(v=>(n&v)!==0),offValues=weights.filter(v=>(n&v)===0);
    $a('faseAddressResult').innerHTML='<strong>Address: '+n+'</strong><div class="sub" style="margin-top:5px">ON: '+(onValues.length?onValues.join(', '):'None')+'<br>OFF: '+(offValues.length?offValues.join(', '):'None')+'</div>';
    dipCopy='Address '+n+'\\nON: '+(onValues.length?onValues.join(', '):'None')+'\\nOFF: '+(offValues.length?offValues.join(', '):'None');
