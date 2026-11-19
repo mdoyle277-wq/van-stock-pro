@@ -1132,19 +1132,22 @@ async function refreshAccessPanel() {
         workspace.id === row.workspace_id && workspace.created_by !== userId
       )
     );
-    // A shared workspace role takes precedence over the account's own
-    // auto-created personal workspace role.
-    const selected = sharedMemberships.find(row => ["owner", "admin"].includes(row.role))
-      || (personalMembership && ["owner", "admin"].includes(personalMembership.role)
-        ? personalMembership
-        : null);
+    // Always take the invited/shared workspace role first, even when it is
+    // "member". Otherwise a member's own auto-created personal workspace
+    // (where they are owner) incorrectly overrides the role granted by you.
+    const sharedMembership = sharedMemberships[0] || null;
+    const selected = sharedMembership || personalMembership || mine[0] || null;
     if (!selected) {
-      accessPanel.hidden = true; activeWorkspaceId = null;
-      activeWorkspaceRole = sharedMemberships[0]?.role || personalMembership?.role || mine[0]?.role || null;
+      accessPanel.hidden = true; activeWorkspaceId = null; activeWorkspaceRole = null;
       return;
     }
     activeWorkspaceId = selected.workspace_id;
     activeWorkspaceRole = selected.role;
+    // Only owners and admins can see/manage this panel.
+    if (!["owner", "admin"].includes(String(selected.role || "").toLowerCase())) {
+      accessPanel.hidden = true;
+      return;
+    }
     accessPanel.hidden = false;
     accessRoleLabel.textContent = selected.role.toUpperCase();
     const adminOption = $("accessRole")?.querySelector('option[value="admin"]');
