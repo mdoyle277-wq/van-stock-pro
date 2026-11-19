@@ -1161,7 +1161,10 @@ async function refreshAccessPanel() {
     accessBody.replaceChildren();
     const accessData = await refreshPendingRegistrations();
     const accessMembers = Array.isArray(accessData?.members) ? accessData.members : [];
-    for (const member of members || []) {
+    // A workspace can contain legacy duplicate membership rows. Render each
+    // Supabase user ID once so repeated rows never appear in the access list.
+    const uniqueMembers = [...new Map((members || []).map(member => [member.user_id, member])).values()];
+    for (const member of uniqueMembers) {
       const tr = document.createElement("tr");
       const emailCell = document.createElement("td");
       const accountDetails = (accessMembers || []).find(user => user.user_id === member.user_id);
@@ -1179,12 +1182,12 @@ async function refreshAccessPanel() {
       } else actionCell.textContent = "You";
       tr.append(emailCell, roleCell, dateCell, actionCell); accessBody.append(tr);
     }
-    if (!members?.length) {
+    if (!uniqueMembers.length) {
       const tr = document.createElement("tr"); const td = document.createElement("td");
       td.colSpan = 4; td.textContent = "No members found."; tr.append(td); accessBody.append(tr);
     }
     const pendingTotal = Array.isArray(accessData?.pending) ? accessData.pending.length : 0;
-    accessNotice("Workspace access loaded. " + (members?.length || 0) + " authorised account(s), " + pendingTotal + " pending registration(s).", "success");
+    accessNotice("Workspace access loaded. " + uniqueMembers.length + " authorised account(s), " + pendingTotal + " pending registration(s).", "success");
   } catch (error) {
     accessPanel.hidden = false;
     accessNotice("Could not load user access: " + (error?.message || "Unknown error") + ". Check the workspace_members table and its access policies.", "error");
