@@ -1048,7 +1048,7 @@ function isUuid(value) {
 async function refreshPendingRegistrations() {
   const pendingBody = $("pendingRegistrationsBody");
   const pendingCount = $("pendingRegistrationCount");
-  if (!pendingBody || !activeWorkspaceId) return 0;
+  if (!pendingBody || !activeWorkspaceId) return null;
   const { data, error } = await supabase.functions.invoke("manage-workspace-access", {
     body: { action: "list", workspaceId: activeWorkspaceId }
   });
@@ -1062,7 +1062,7 @@ async function refreshPendingRegistrations() {
     empty.className = "notice";
     empty.textContent = "No new registrations are waiting for approval.";
     pendingBody.append(empty);
-    return 0;
+    return data;
   }
   for (const user of pending) {
     const card = document.createElement("div");
