@@ -1017,7 +1017,7 @@ function openFireAlarmTool(key){
     const input=$('faseAddressNumber');if(input)input.value=n;
     const ons=weights.slice(0,cfg.bits).filter(v=>(n&v)!==0),offs=weights.slice(0,cfg.bits).filter(v=>(n&v)===0);
     $('faseAddressResult').innerHTML='<strong style="font-size:22px;color:#49e0b0">Address: '+n+'</strong><div class="sub" style="margin-top:5px">ON / removed: '+(ons.length?ons.join(', '):'None')+'<br>OFF / fitted: '+(offs.length?offs.join(', '):'None')+'</div>';
-    content.querySelectorAll('[data-bit]').forEach(el=>{const on=(n&Number(el.dataset.bit))!==0;el.setAttribute('aria-pressed',String(on));if(cfg.kind==='card'){el.style.opacity=on?'.45':'1';el.querySelectorAll('circle').forEach(c=>{c.style.stroke=on?'#a7b5c5':'#3b9bd6';c.style.fill=on?'#fff':'#eaf6ff'})}});
+    content.querySelectorAll('[data-bit]').forEach(el=>{const on=(n&Number(el.dataset.bit))!==0;el.setAttribute('aria-pressed',String(on));if(cfg.kind==='card'){el.style.opacity=on?'.45':'1';el.querySelectorAll('circle').forEach(c=>{c.style.stroke=on?'#a7b5c5':'#3b9bd6';c.style.fill=on?'#fff':'#eaf6ff'})}else{const rects=el.querySelectorAll('rect'),cap=rects[1],label=el.querySelector('text');if(cap){cap.setAttribute('y',on?'164':'42');cap.style.fill=on?'#258fc7':'#9b9b9b'}if(label)label.setAttribute('y',on?'196':'74')}});
     copyText=title+'\\nAddress: '+n+'\\nON / removed: '+(ons.length?ons.join(', '):'None')+'\\nOFF / fitted: '+(offs.length?offs.join(', '):'None');
    }
    content.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{const next=b.dataset.mode;if(next===activeMode)return;activeMode=next;address=Math.min(address,modes[next].max);draw()}));
