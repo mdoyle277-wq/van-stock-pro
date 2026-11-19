@@ -12,6 +12,11 @@ const status = $("cloudMessage");
 const sessionLabel = $("cloudSession");
 const signInButton = $("cloudSignIn");
 const signUpButton = $("cloudSignUp");
+const forgotPasswordButton = $("cloudForgotPassword");
+const passwordResetPanel = $("cloudPasswordResetPanel");
+const newPasswordInput = $("cloudNewPassword");
+const confirmPasswordInput = $("cloudConfirmPassword");
+const saveNewPasswordButton = $("cloudSaveNewPassword");
 const signOutButton = $("cloudSignOut");
 const setupButton = $("cloudWorkspace");
 const previewButton = $("cloudPreview");
@@ -107,6 +112,43 @@ async function checkSchema() {
   }
   return true;
 }
+async function sendPasswordReset() {
+  const mail = (email.value || "").trim();
+  if (!mail) { message("Enter your registered email address first.", "warning"); email.focus(); return; }
+  if (forgotPasswordButton) forgotPasswordButton.disabled = true;
+  try {
+    const redirectTo = window.location.origin + window.location.pathname;
+    const { error } = await supabase.auth.resetPasswordForEmail(mail, { redirectTo });
+    if (error) throw error;
+    message("If an account exists for that email, Supabase will send a password reset link. Check your inbox and spam folder.", "success");
+  } catch (error) {
+    message(error?.message || "Could not send the password reset email.", "error");
+  } finally {
+    if (forgotPasswordButton) forgotPasswordButton.disabled = false;
+  }
+}
+async function saveNewPassword() {
+  const next = newPasswordInput?.value || "";
+  const confirm = confirmPasswordInput?.value || "";
+  if (next.length < 8) { message("Choose a password with at least 8 characters.", "warning"); return; }
+  if (next !== confirm) { message("The passwords do not match.", "warning"); return; }
+  if (saveNewPasswordButton) saveNewPasswordButton.disabled = true;
+  try {
+    const { error } = await supabase.auth.updateUser({ password: next });
+    if (error) throw error;
+    if (passwordResetPanel) passwordResetPanel.hidden = true;
+    if (newPasswordInput) newPasswordInput.value = "";
+    if (confirmPasswordInput) confirmPasswordInput.value = "";
+    message("Your password has been updated. You can now use it to sign in.", "success");
+  } catch (error) {
+    message(error?.message || "Could not update your password.", "error");
+  } finally {
+    if (saveNewPasswordButton) saveNewPasswordButton.disabled = false;
+  }
+}
+forgotPasswordButton?.addEventListener("click", sendPasswordReset);
+saveNewPasswordButton?.addEventListener("click", saveNewPassword);
+
 async function runAuth(action) {
   const mail = (email.value || "").trim();
   const pass = password.value || "";
@@ -959,6 +1001,11 @@ window.__VSP_CATEGORY_STORE = {
 
 supabase.auth.onAuthStateChange((event, session) => {
   setSession(session);
+  if (event === "PASSWORD_RECOVERY" && passwordResetPanel) {
+    passwordResetPanel.hidden = false;
+    message("Password reset link verified. Enter and confirm your new password below.", "success");
+    newPasswordInput?.focus();
+  }
   // Supabase restores an existing login on page refresh using INITIAL_SESSION.
   // Load that account's cloud stock after the auth callback returns so refresh
   // never leaves the user looking at local starter/browser stock.
