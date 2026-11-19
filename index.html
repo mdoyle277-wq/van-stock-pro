@@ -195,6 +195,15 @@ body:not(.cloud-admin) #supplierImportPanel{display:none!important}
 /* App code backup/restore is reserved for workspace owners and admins. */
 body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 
+/* Fail-closed UI: only accounts whose selected shared-workspace role is
+   owner/admin receive the cloud-admin class from cloud-auth.js. */
+body:not(.cloud-admin) #userAccessPanel,
+body:not(.cloud-admin) #supplierToolsMenu,
+body:not(.cloud-admin) #supplierPanel,
+body:not(.cloud-admin) #supplierEditorPanel,
+body:not(.cloud-admin) #supplierImportPanel,
+body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
+
 /* Collapsible workspace access controls, matching the backup dropdown style. */
 .access-dropdown{border:1px solid var(--line);border-radius:13px;background:rgba(8,17,30,.42);overflow:hidden}
 .access-dropdown>summary{list-style:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 13px;min-height:58px;cursor:pointer;font-weight:800}
