@@ -52,7 +52,7 @@
  }
  async function loadSaved(){
   try{const saved=await dbGet();if(!saved){$('loadStatus').textContent='No saved guide on this device. Choose your PDF above.';return}
-   $('loadStatus').textContent='Restoring saved guide…';loadedBytes=new Uint8Array(saved.bytes);pageTexts=saved.index||[];pdfDoc=await pdfjsLib.getDocument({data:loadedBytes}).promise;enableSearch();$('loadStatus').textContent='Ready: '+(saved.name||'Notifier Black Book')+' · '+pdfDoc.numPages+' pages saved on this device.';renderResults([], '');
+   $('loadStatus').textContent='Restoring saved guide…';loadedBytes=new Uint8Array(saved.bytes);pageTexts=saved.index||[];pdfDoc=await pdfjsLib.getDocument({data:loadedBytes}).promise;enableSearch();$('loadStatus').textContent='Ready: '+(saved.name||'Notifier Black Book')+' · '+pdfDoc.numPages+' pages saved on this device.';$('searchStatus').textContent='Search all '+pdfDoc.numPages+' pages by keyword or phrase.';$('results').innerHTML='<div class="empty">Guide restored. Enter a search term above.</div>';
   }catch(e){$('loadStatus').textContent='Could not restore saved guide: '+e.message}
  }
  function enableSearch(){$('query').disabled=false;$('searchBtn').disabled=false}
