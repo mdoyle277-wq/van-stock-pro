@@ -972,7 +972,7 @@ function openFireAlarmTool(key){
  if(key==='address'){
   const modes={
    apollo7:{name:'Apollo DIL Switch 7',kind:'dil',bits:7,max:127,defaultValue:0,description:'Seven-position Apollo DIL switch. Each switch adds its printed binary value to the address.'},
-   apollo8:{name:'Apollo DIL Switch 8',kind:'dil8',bits:8,max:255,defaultValue:4,description:'Eight-position Apollo DIL switch. For address 4, switch 3 is ON and every other switch is OFF.'},
+   apollo8:{name:'Apollo DIL Switch 8',kind:'dil8',bits:8,max:254,defaultValue:4,description:'Eight-position Apollo DIL switch. For address 4, switch 3 is ON and every other switch is OFF.'},
    xpert:{name:'Universal XPert Address Card',kind:'card',bits:8,max:254,defaultValue:0,description:'XPert 7, XPert 8 and Universal address cards. XPert 7 cards: ignore the 128 pip.'}
   };
   let activeMode='apollo8',address=modes.apollo8.defaultValue,copyText='';
