@@ -54,6 +54,11 @@ function setSession(session) {
     try {
       const cached = localStorage.getItem("van-stock-pro-items-v1");
       const cachedItems = cached ? JSON.parse(cached) : null;
+      // Keep the last downloaded/saved stock snapshot isolated by workspace,
+      // so signing into a different account cannot display the previous space.
+      if (previousUserId && stockWorkspaceId && Array.isArray(cachedItems)) {
+        localStorage.setItem("van-stock-pro-workspace-cache-v1-" + stockWorkspaceId, cached);
+      }
       // Never replace a non-empty account archive with the empty list written
       // while switching accounts.
       // Only archive stock when switching away from a known signed-in account.
@@ -422,6 +427,7 @@ async function initialiseCloudStock() {
       // Always hydrate from cloud; the explicit recovery flag makes the
       // zero-stock phone case visible to the user and confirms no local upload.
       window.__VSP_APPLY_CLOUD_STOCK(cloudItems);
+      try { localStorage.setItem("van-stock-pro-workspace-cache-v1-" + stockWorkspaceId, JSON.stringify(cloudItems)); } catch {}
       message(restoringZeroPhone
         ? "RECOVERED FROM CLOUD BACKUP — this phone had zero stock. Restored and verified " + cloudItems.length + " shared item(s)."
         : "Shared workspace cloud stock loaded and verified: " + cloudItems.length + " item(s).", "success");
@@ -452,10 +458,28 @@ async function initialiseCloudStock() {
     if (currentSession?.user?.id === userId) {
       const cachedWorkspace=localStorage.getItem("van-stock-pro-workspace-"+userId);
       if(cachedWorkspace&&/^[0-9a-f-]{36}$/i.test(cachedWorkspace)){
-        stockWorkspaceId=cachedWorkspace;stockSyncReady=true;
-        document.body.classList.remove("cloud-loading");
-        message("OFFLINE MODE — your existing local stock is available. New job and battery records will be saved on this device and uploaded when signal returns.","warning");
-        updateSyncStatus("offline");
+        stockWorkspaceId=cachedWorkspace;
+        // Offline use is restricted to the exact workspace snapshot previously
+        // downloaded on this device; never reuse another workspace's live cache.
+        try {
+          const workspaceCache = localStorage.getItem("van-stock-pro-workspace-cache-v1-" + cachedWorkspace);
+          const parsedWorkspaceCache = workspaceCache ? JSON.parse(workspaceCache) : null;
+          if (Array.isArray(parsedWorkspaceCache)) {
+            window.__VSP_APPLY_CLOUD_STOCK(parsedWorkspaceCache);
+            stockSyncReady=true;
+            document.body.classList.remove("cloud-loading");
+            message("OFFLINE MODE — loaded this workspace's last downloaded cloud snapshot (" + parsedWorkspaceCache.length + " items). Changes will sync when online.","warning");
+            updateSyncStatus("offline");
+          } else {
+            stockSyncReady=false;clearCloudLoadingWithEmptyStock();
+            message("OFFLINE MODE — this workspace has no saved cloud snapshot on this device yet. Connect once to download its stock.","warning");
+            updateSyncStatus("offline");
+          }
+        } catch {
+          stockSyncReady=false;clearCloudLoadingWithEmptyStock();
+          message("OFFLINE MODE — this workspace's saved snapshot could not be read. Connect to reload its cloud data.","error");
+          updateSyncStatus("error");
+        }
       }else{
         stockSyncReady=false;clearCloudLoadingWithEmptyStock();
         updateSyncStatus("error", error?.message || "Cloud connection could not be established.");
