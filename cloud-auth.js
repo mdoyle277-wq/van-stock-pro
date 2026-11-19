@@ -538,12 +538,19 @@ async function initialiseCloudStock() {
         // downloaded on this device; never reuse another workspace's live cache.
         try {
           const workspaceCache = localStorage.getItem("van-stock-pro-workspace-cache-v1-" + cachedWorkspace);
+          const pendingSnapshot = localStorage.getItem(stockWorkspacePendingSnapshotKey(cachedWorkspace));
           const parsedWorkspaceCache = workspaceCache ? JSON.parse(workspaceCache) : null;
-          if (Array.isArray(parsedWorkspaceCache)) {
-            window.__VSP_APPLY_CLOUD_STOCK(parsedWorkspaceCache);
+          const parsedPendingSnapshot = pendingSnapshot ? JSON.parse(pendingSnapshot) : null;
+          const pendingForWorkspace = Array.isArray(parsedPendingSnapshot) &&
+            localStorage.getItem(stockWorkspacePendingKey(cachedWorkspace)) === "1";
+          const offlineItems = pendingForWorkspace ? parsedPendingSnapshot : parsedWorkspaceCache;
+          if (Array.isArray(offlineItems)) {
+            window.__VSP_APPLY_CLOUD_STOCK(offlineItems);
             stockSyncReady=!!stockWorkspaceOwnerId;
             document.body.classList.remove("cloud-loading");
-            message("OFFLINE MODE — loaded this workspace's last downloaded cloud snapshot (" + parsedWorkspaceCache.length + " items). Changes will sync when online.","warning");
+            message(pendingForWorkspace
+              ? "OFFLINE MODE — restored this workspace's unsynced phone changes (" + offlineItems.length + " items). They will upload when online."
+              : "OFFLINE MODE — loaded this workspace's last downloaded cloud snapshot (" + offlineItems.length + " items). Changes will sync when online.","warning");
             updateSyncStatus("offline");
           } else {
             stockSyncReady=false;clearCloudLoadingWithEmptyStock();
