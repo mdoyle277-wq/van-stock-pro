@@ -46,6 +46,19 @@ function cloudStockErrorDetail(error) {
 function setSession(session) {
   const previousUserId = currentSession?.user?.id || null;
   const nextUserId = session?.user?.id || null;
+  // Before clearing or changing the signed-in account, preserve any stock
+  // edits that have not yet been confirmed in the cloud under their exact
+  // workspace. A later sign-in can safely finish that upload.
+  if (previousUserId && stockWorkspaceId && hasPendingStockChanges(previousUserId)) {
+    try {
+      const pendingLocal = localStorage.getItem("van-stock-pro-items-v1");
+      if (pendingLocal && Array.isArray(JSON.parse(pendingLocal))) {
+        localStorage.setItem(stockWorkspacePendingSnapshotKey(stockWorkspaceId), pendingLocal);
+        localStorage.setItem(stockWorkspacePendingKey(stockWorkspaceId), "1");
+      }
+    } catch {}
+    if (stockSyncTimer) { window.clearTimeout(stockSyncTimer); stockSyncTimer = null; }
+  }
   currentSession = session;
   if (previousUserId !== nextUserId || !nextUserId) {
     document.body.classList.remove("cloud-admin");
@@ -193,9 +206,29 @@ let stockSyncReady = false;
 function stockPendingKey(userId = currentSession?.user?.id) {
   return userId ? "van-stock-pro-stock-pending-v1-" + userId : null;
 }
+function stockWorkspacePendingKey(workspaceId) {
+  return workspaceId ? "van-stock-pro-workspace-pending-v1-" + workspaceId : null;
+}
+function stockWorkspacePendingSnapshotKey(workspaceId) {
+  return workspaceId ? "van-stock-pro-workspace-pending-snapshot-v1-" + workspaceId : null;
+}
 function hasPendingStockChanges(userId = currentSession?.user?.id) {
-  try { const key = stockPendingKey(userId); return !!key && localStorage.getItem(key) === "1"; }
-  catch { return false; }
+  try {
+    const userKey = stockPendingKey(userId);
+    const workspaceKey = stockWorkspacePendingKey(stockWorkspaceId);
+    return (!!userKey && localStorage.getItem(userKey) === "1") ||
+      (!!workspaceKey && localStorage.getItem(workspaceKey) === "1");
+  } catch { return false; }
+}
+function clearPendingStockChanges(userId, workspaceId) {
+  try {
+    const userKey = stockPendingKey(userId);
+    const workspaceKey = stockWorkspacePendingKey(workspaceId);
+    const snapshotKey = stockWorkspacePendingSnapshotKey(workspaceId);
+    if (userKey) localStorage.removeItem(userKey);
+    if (workspaceKey) localStorage.removeItem(workspaceKey);
+    if (snapshotKey) localStorage.removeItem(snapshotKey);
+  } catch {}
 }
 
 function updateSyncStatus(state, detail) {
@@ -417,6 +450,37 @@ async function initialiseCloudStock() {
     try { localStorage.setItem("van-stock-pro-workspace-cache-v1-" + stockWorkspaceId, JSON.stringify(cloudItems)); } catch {}
     if (typeof window.__VSP_APPLY_CLOUD_STOCK !== "function") throw new Error("Stock screen is not ready to receive cloud data.");
 
+    // A workspace may have phone-side edits awaiting upload from a previous
+    // offline session or an interrupted account switch. Prefer that exact
+    // workspace's pending snapshot over the older cloud download.
+    let pendingItems = null;
+    try {
+      const pendingKey = stockWorkspacePendingKey(stockWorkspaceId);
+      const snapshotKey = stockWorkspacePendingSnapshotKey(stockWorkspaceId);
+      const pendingRaw = snapshotKey ? localStorage.getItem(snapshotKey) : null;
+      const parsedPending = pendingRaw ? JSON.parse(pendingRaw) : null;
+      if (Array.isArray(parsedPending) && ((pendingKey && localStorage.getItem(pendingKey) === "1") || hasPendingStockChanges(userId))) {
+        pendingItems = parsedPending;
+      }
+    } catch {}
+    if (pendingItems) {
+      window.__VSP_APPLY_CLOUD_STOCK(pendingItems);
+      if (navigator.onLine !== false) {
+        try {
+          await writeCloudStock(pendingItems);
+          if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspace.id) return;
+          try { localStorage.setItem("van-stock-pro-workspace-cache-v1-" + stockWorkspaceId, JSON.stringify(pendingItems)); } catch {}
+          clearPendingStockChanges(userId, stockWorkspaceId);
+          message("Recovered and synced " + pendingItems.length + " pending phone change(s) to this workspace's cloud.", "success");
+        } catch (pendingError) {
+          if (currentSession?.user?.id !== userId) return;
+          message("Your latest changes are safe on this phone for this workspace. Cloud sync is waiting: " + (pendingError?.message || "connection unavailable"), "warning");
+        }
+      } else {
+        message("Loaded this workspace's pending phone changes. They will upload when the connection returns.", "warning");
+      }
+    }
+
     // Owner/admin recovery check: if this phone has an empty inventory or all
     // quantities have fallen to zero, use the verified shared cloud inventory
     // as the source of truth on login. Never upload the empty phone cache here.
@@ -431,13 +495,15 @@ async function initialiseCloudStock() {
     const ownerOrAdmin = ["owner", "admin"].includes(String(workspace.role || "").toLowerCase());
     const restoringZeroPhone = ownerOrAdmin && phoneStockIsZero && cloudItems.length > 0;
 
-    if (cloudItems.length) {
+    if (pendingItems) {
+      // Pending phone changes were already restored and, where possible, synced above.
+    } else if (cloudItems.length) {
       // Always hydrate from cloud; the explicit recovery flag makes the
       // zero-stock phone case visible to the user and confirms no local upload.
       window.__VSP_APPLY_CLOUD_STOCK(cloudItems);
       message(restoringZeroPhone
         ? "RECOVERED FROM CLOUD BACKUP — this phone had zero stock. Restored and verified " + cloudItems.length + " shared item(s)."
-        : "Shared workspace cloud stock loaded and verified: " + cloudItems.length + " item(s).", "success");
+        : "Workspace cloud stock loaded and verified: " + cloudItems.length + " item(s).", "success");
     } else if (workspace.role === "owner" && workspace.isPersonal) {
       // Import only the cache archived for this exact account on sign-in.
       // Never read the shared browser stock key for a newly invited user.
@@ -514,7 +580,7 @@ async function runStockSync() {
     if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId) return;
     // Keep the offline snapshot aligned with the most recent verified upload.
     try { localStorage.setItem("van-stock-pro-workspace-cache-v1-" + workspaceId, JSON.stringify(items)); } catch {}
-    try { localStorage.removeItem(stockPendingKey(userId)); } catch {}
+    clearPendingStockChanges(userId, workspaceId);
     await syncOfflineQueue();
     try { localStorage.setItem("van-stock-pro-last-sync-" + userId, new Date().toISOString()); } catch {}
     updateSyncStatus(readOfflineQueue(userId).length ? "pending" : "synced");
@@ -547,10 +613,20 @@ window.addEventListener("focus",()=>{
   syncOfflineQueue();
 });
 window.addEventListener("vsp:stock-changed", () => {
-  if (!stockSyncReady) return;
+  if (!stockSyncReady || !currentSession?.user || !stockWorkspaceId) return;
+  // Mark and snapshot every edit immediately, even while online. This protects
+  // the latest phone copy if the user signs out or the app closes before upload.
+  try {
+    const raw = localStorage.getItem("van-stock-pro-items-v1");
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (Array.isArray(parsed)) {
+      localStorage.setItem(stockWorkspacePendingSnapshotKey(stockWorkspaceId), raw);
+      localStorage.setItem(stockWorkspacePendingKey(stockWorkspaceId), "1");
+      localStorage.setItem(stockPendingKey(), "1");
+    }
+  } catch {}
   if (navigator.onLine === false) {
-    try { localStorage.setItem(stockPendingKey(), "1"); } catch {}
-    updateSyncStatus("offline", "Stock changes are saved on this device and will upload when connection returns.");
+    updateSyncStatus("offline", "Changes are saved on this phone in this workspace and will upload when connection returns.");
     return;
   }
   if (stockSyncTimer) window.clearTimeout(stockSyncTimer);
