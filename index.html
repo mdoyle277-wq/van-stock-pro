@@ -970,87 +970,66 @@ function openFireAlarmTool(key){
  const panel=$('fireAlarmToolPanel'),content=$('fireAlarmToolContent');
  $('fireAlarmToolTitle').textContent=guide.title;
  if(key==='address'){
-  content.innerHTML=`<p>Enter an address from <b>0 to 127</b>. The calculator shows which of the seven weighted switches must be ON. You can also tap the switches to calculate an address manually.</p>
-  <div style="display:flex;flex-direction:column;gap:10px;margin:0 0 10px">
-  <div class="panel" style="padding:7px;margin:0;background:#d7d7d7;min-width:0">
-   <div style="background:#fff;border-radius:10px;padding:8px">
-    <div style="font-size:12px;font-weight:800;color:#222;text-align:center;margin:0 0 5px">Apollo-style 7-way DIL switch</div>
-    <svg viewBox="0 0 640 300" role="img" aria-label="Apollo seven-way DIL switch addressing diagram" style="display:block;width:100%;height:auto">
-      <rect x="4" y="4" width="632" height="292" rx="18" fill="#303e46"/>
-      <rect x="58" y="48" width="524" height="196" rx="24" fill="none" stroke="#fff" stroke-width="8"/>
-      <g font-family="Arial,sans-serif" font-weight="800" text-anchor="middle">
-       ${[1,2,3,4,5,6,7].map((v,i)=>{const x=118+i*67;return '<g class="fase-card-switch" data-value="'+(2**i)+'"><rect x="'+(x-17)+'" y="80" width="34" height="166" rx="17" fill="#fff"/><rect class="fase-card-switch-cap" x="'+(x-17)+'" y="75" width="34" height="36" rx="11" fill="#fff"/><text x="'+x+'" y="100" font-size="18" fill="#303e46">'+v+'</text></g>';}).join('')}
-      </g>
-     </svg>
-   </div>
-   <div style="font-size:11px;color:#333;text-align:center;margin-top:5px">Apollo 7-way DIL switch</div>
-  </div>
-  <div class="panel" style="padding:7px;margin:0;background:#e7e7e7;min-width:0">
-   <div style="background:#fff;border-radius:8px;padding:4px">
-    <svg viewBox="0 0 640 300" role="img" aria-label="Apollo address PIP card with seven weighted PIP positions" style="display:block;width:100%;height:auto">
-     <rect x="5" y="5" width="630" height="290" rx="24" fill="#e7e7e7" stroke="#9a9a9a" stroke-width="3"/>
-     <path d="M35 42 H570 L605 76 V224 L570 258 H35 Z" fill="#fff" stroke="#222" stroke-width="5"/>
-     <path d="M75 66 H118 V234 H75" fill="none" stroke="#222" stroke-width="5"/>
-     <rect x="150" y="88" width="64" height="124" rx="14" fill="#ddd" stroke="#222" stroke-width="5"/>
-     <text x="365" y="37" font-size="20" font-weight="800" fill="#222" text-anchor="middle">APOLLO ADDRESS CARD — SWITCH POSITIONS</text>
-     ${[1,4,16,64,2,8,32].map((v,i)=>{const row=i<4?0:1,col=i<4?i:i-4,x=row===0?270+col*100:320+col*100,y=row===0?112:218;return '<g class="fase-pip" data-value="'+v+'"><ellipse class="fase-pip-dot" cx="'+x+'" cy="'+y+'" rx="24" ry="34" fill="#fff" stroke="#399bd8" stroke-width="8"/><ellipse cx="'+x+'" cy="'+y+'" rx="8" ry="15" fill="none" stroke="#399bd8" stroke-width="5"/><text x="'+(x-31)+'" y="'+(y+48)+'" font-size="17" font-weight="800" fill="#222">'+v+'</text></g>';}).join('')}
-     <text id="fasePipCardAddress" x="350" y="282" text-anchor="middle" font-size="18" font-weight="900" fill="#222">ADDRESS 0</text>
-    </svg>
-   </div>
-   <div style="font-size:11px;color:#333;text-align:center;margin-top:5px">Apollo PIP address card</div>
-  </div>
-  </div>
-  <div class="panel" style="padding:14px;margin:0 0 10px">
-   <label class="fieldlabel" for="faseAddressNumber">Address number</label>
-   <div style="display:grid;grid-template-columns:48px minmax(0,1fr) 48px;gap:8px;align-items:center">
-    <button class="secondary" type="button" id="faseAddressMinus" aria-label="Decrease address">−</button>
-    <input class="field" id="faseAddressNumber" type="number" min="0" max="127" step="1" value="0" inputmode="numeric" style="text-align:center;font-size:24px;font-weight:800">
-    <button class="secondary" type="button" id="faseAddressPlus" aria-label="Increase address">＋</button>
-   </div>
-   <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:16px" id="faseDipSwitches">
-    ${[1,2,4,8,16,32,64].map(value=>'<button type="button" class="secondary fase-dip" data-value="'+value+'" aria-pressed="false" style="padding:12px 5px;display:grid;gap:5px;justify-items:center;border:1px solid var(--line)"><span style="font-size:11px;color:var(--muted)">VALUE</span><strong style="font-size:19px">'+value+'</strong><span class="fase-dip-state" style="font-size:12px;font-weight:850">OFF</span></button>').join('')}
-   </div>
-   <div class="result" id="faseAddressResult" aria-live="polite" style="margin-top:14px;padding:12px;background:#0b1524;border:1px solid #356b60;border-radius:12px"><strong>Address: 0</strong><div class="sub">All switches OFF</div></div>
-   <div class="entryactions" style="margin-top:12px"><button type="button" class="secondary" id="faseAddressReset">Reset to 0</button><button type="button" class="secondary" id="faseAddressCopy">Copy switch settings</button></div>
-  </div>
-  <div class="notice"><b>Apollo 7-way DIL layout:</b> switch positions 1–7 carry values 1, 2, 4, 8, 16, 32 and 64. ON (up) adds that value to the address. There is no eighth 128 switch on this seven-way layout.</div>
-  <div class="notice">Important: This is a seven-bit visual reference. Confirm the exact Apollo device model, permitted address range, switch orientation and manufacturer instructions before setting an installed device.</div>`;
-  const $a=id=>document.getElementById(id),weights=[1,2,4,8,16,32,64];let dipCopy='';
-  function updateFromNumber(){
-   let n=Number($a('faseAddressNumber').value);
-   if(!Number.isInteger(n)||n<0||n>127){$a('faseAddressResult').innerHTML='<strong>Enter a whole address from 0 to 127</strong>';dipCopy='';return}
-   document.querySelectorAll('.fase-dip').forEach(b=>{const on=(n&Number(b.dataset.value))!==0;b.setAttribute('aria-pressed',String(on));b.style.background=on?'linear-gradient(145deg,#1b493f,#17362f)':'#24344b';b.style.borderColor=on?'var(--mint)':'var(--line)';b.querySelector('.fase-dip-state').textContent=on?'ON':'OFF';b.querySelector('.fase-dip-state').style.color=on?'var(--mint)':'var(--muted)'});
-   // Reset every physical switch on each calculation, then turn ON only bits present in the address.
-   document.querySelectorAll('.fase-card-switch').forEach(sw=>{
-    const on=(n&Number(sw.dataset.value))!==0;
-    const cap=sw.querySelector('.fase-card-switch-cap');
-    const number=sw.querySelector('text');
-    // ON = red slider at the top; OFF = blue slider at the bottom.
-    cap.setAttribute('y',on?'75':'210');
-    cap.style.fill=on?'#d92727':'#258fc7';
-    number.setAttribute('y',on?'100':'235');
-    number.style.fill='#fff';
-    sw.setAttribute('data-state',on?'on':'off');
-   });
-   // The address card uses removable PIPs: hide the complete blue PIP when its value is included.
-   document.querySelectorAll('.fase-pip').forEach(pip=>{
-    const included=(n&Number(pip.dataset.value))!==0;
-    pip.querySelectorAll('ellipse').forEach(ellipse=>{ellipse.style.visibility=included?'hidden':'visible';});
-    pip.setAttribute('data-state',included?'removed':'fitted');
-   });
-   const cardAddress=document.getElementById('fasePipCardAddress');if(cardAddress)cardAddress.textContent='ADDRESS '+n;
-   const onValues=weights.filter(v=>(n&v)!==0),offValues=weights.filter(v=>(n&v)===0);
-   $a('faseAddressResult').innerHTML='<strong>Address: '+n+'</strong><div class="sub" style="margin-top:5px">ON: '+(onValues.length?onValues.join(', '):'None')+'<br>OFF: '+(offValues.length?offValues.join(', '):'None')+'</div>';
-   dipCopy='Address '+n+'\\nON: '+(onValues.length?onValues.join(', '):'None')+'\\nOFF: '+(offValues.length?offValues.join(', '):'None');
+  const modes={
+   apollo7:{name:'Apollo DIL Switch 7',kind:'dil',bits:7,max:127,defaultValue:0,description:'Seven-position Apollo DIL switch. Each switch adds its printed binary value to the address.'},
+   apollo8:{name:'Apollo DIL Switch 8',kind:'dil8',bits:8,max:255,defaultValue:4,description:'Eight-position Apollo DIL switch. For address 4, switch 3 is ON and every other switch is OFF.'},
+   xpert:{name:'Universal XPert Address Card',kind:'card',bits:8,max:254,defaultValue:0,description:'XPert 7, XPert 8 and Universal address cards. XPert 7 cards: ignore the 128 pip.'}
+  };
+  let activeMode='apollo8',address=modes.apollo8.defaultValue,copyText='';
+  const weights=[1,2,4,8,16,32,64,128];
+  function renderDiagram(mode,n){
+   const cfg=modes[mode],bits=cfg.bits;
+   if(cfg.kind==='card'){
+    const points=[{v:2,x:390,y:76},{v:8,x:470,y:76},{v:32,x:550,y:76},{v:128,x:630,y:76},{v:1,x:350,y:178},{v:4,x:430,y:178},{v:16,x:510,y:178},{v:64,x:590,y:178}];
+    return '<svg viewBox="0 0 720 270" role="img" aria-label="Universal XPert address card with eight weighted PIP positions" style="display:block;width:100%;height:auto"><rect x="3" y="3" width="714" height="264" rx="18" fill="#dce8f8"/><path d="M32 36 Q32 20 50 20 H680 Q694 20 694 36 V232 Q694 248 678 248 H50 Q32 248 32 232 Z" fill="#fff" stroke="#20252b" stroke-width="4"/><path d="M52 48 H220 V218 H52 Z" fill="#fff" stroke="#20252b" stroke-width="3"/><rect x="248" y="72" width="54" height="120" rx="12" fill="#dce8f8" stroke="#20252b" stroke-width="3"/>'+points.map(p=>{const on=(n&p.v)!==0;return '<g role="button" tabindex="0" data-bit="'+p.v+'" aria-label="PIP '+p.v+' '+(on?'removed':'fitted')+'" style="cursor:pointer"><circle cx="'+p.x+'" cy="'+p.y+'" r="19" fill="'+(on?'#fff':'#eaf6ff')+'" stroke="'+(on?'#a7b5c5':'#3b9bd6')+'" stroke-width="5" '+(on?'stroke-dasharray="4 4"':'')+'/><circle cx="'+p.x+'" cy="'+p.y+'" r="7" fill="none" stroke="'+(on?'#a7b5c5':'#3b9bd6')+'" stroke-width="3"/><text x="'+p.x+'" y="'+(p.y+37)+'" text-anchor="middle" font-size="17" font-weight="800" fill="#20252b">'+p.v+'</text></g>';}).join('')+'<text x="360" y="258" text-anchor="middle" font-size="13" font-weight="800" fill="#263746">UNIVERSAL XPert ADDRESS CARD</text></svg>';
+   }
+   const count=bits,viewW=count===7?640:720,spacing=count===7?82:78,startX=count===7?92:82;
+   const switches=weights.slice(0,count).map((v,i)=>{
+    const x=startX+i*spacing,on=(n&v)!==0;
+    const capY=on?164:42,capFill=on?'#258fc7':'#9b9b9b',labelFill='#fff';
+    return '<g role="button" tabindex="0" data-bit="'+v+'" aria-label="Switch '+(i+1)+' value '+v+' '+(on?'ON':'OFF')+'" style="cursor:pointer"><rect x="'+(x-17)+'" y="48" width="34" height="160" rx="17" fill="#fff"/><rect x="'+(x-21)+'" y="'+capY+'" width="42" height="48" rx="13" fill="'+capFill+'"/><text x="'+x+'" y="'+(capY+32)+'" text-anchor="middle" font-size="22" font-weight="800" fill="'+labelFill+'">'+(i+1)+'</text><text x="'+x+'" y="232" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">'+v+'</text></g>';
+   }).join('');
+   return '<svg viewBox="0 0 '+viewW+' 270" role="img" aria-label="Apollo '+bits+' way DIL switch addressing diagram" style="display:block;width:100%;height:auto"><rect x="3" y="3" width="'+(viewW-6)+'" height="264" rx="18" fill="#303e46"/><rect x="35" y="25" width="'+(viewW-70)+'" height="220" rx="22" fill="none" stroke="#fff" stroke-width="7"/>'+switches+'<text x="'+(viewW/2)+'" y="260" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">TAP A SWITCH TO CHANGE ITS SETTING</text></svg>';
   }
-  function updateFromSwitches(){let n=0;document.querySelectorAll('.fase-dip[aria-pressed="true"]').forEach(b=>n+=Number(b.dataset.value));$a('faseAddressNumber').value=n;updateFromNumber()}
-  $a('faseAddressNumber').addEventListener('input',updateFromNumber);
-  $a('faseAddressMinus').addEventListener('click',()=>{$a('faseAddressNumber').value=Math.max(0,(Number($a('faseAddressNumber').value)||0)-1);updateFromNumber()});
-  $a('faseAddressPlus').addEventListener('click',()=>{$a('faseAddressNumber').value=Math.min(255,(Number($a('faseAddressNumber').value)||0)+1);updateFromNumber()});
-  document.querySelectorAll('.fase-dip').forEach(b=>b.addEventListener('click',()=>{b.setAttribute('aria-pressed',String(b.getAttribute('aria-pressed')!=='true'));updateFromSwitches()}));
-  $a('faseAddressReset').addEventListener('click',()=>{$a('faseAddressNumber').value=0;updateFromNumber()});
-  $a('faseAddressCopy').addEventListener('click',()=>{if(!dipCopy)return;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(dipCopy).then(()=>toast('Switch settings copied.')).catch(()=>alert(dipCopy));else alert(dipCopy)});
-  updateFromNumber();
+  function draw(){
+   const cfg=modes[activeMode],onValues=weights.slice(0,cfg.bits).filter(v=>(address&v)!==0),offValues=weights.slice(0,cfg.bits).filter(v=>(address&v)===0);
+   const title=cfg.name;
+   content.innerHTML='<div style="display:flex;gap:7px;flex-wrap:wrap;margin:0 0 12px">'+
+    '<button type="button" class="'+(activeMode==='apollo7'?'':'secondary')+'" data-mode="apollo7">Apollo DIL 7</button>'+
+    '<button type="button" class="'+(activeMode==='apollo8'?'':'secondary')+'" data-mode="apollo8">Apollo DIL 8</button>'+
+    '<button type="button" class="'+(activeMode==='xpert'?'':'secondary')+'" data-mode="xpert">XPert / Universal card</button></div>'+
+    '<div class="panel" style="padding:12px;margin:0 0 10px;background:'+(cfg.kind==='card'?'#dce8f8':'#303e46')+';color:'+(cfg.kind==='card'?'#263746':'#fff')+';border:0;border-radius:12px">'+
+    '<div style="font-weight:850;text-align:center;margin:0 0 8px;color:'+(cfg.kind==='card'?'#263746':'#fff')+'">'+title+'</div>'+renderDiagram(activeMode,address)+'</div>'+
+    '<p class="sub" style="margin:0 0 12px">'+cfg.description+'</p>'+
+    '<div class="panel" style="padding:14px;margin:0 0 10px">'+
+    '<label class="fieldlabel" for="faseAddressNumber">Address number (0–'+cfg.max+')</label>'+
+    '<div style="display:grid;grid-template-columns:48px minmax(0,1fr) 48px;gap:8px;align-items:center">'+
+    '<button class="secondary" type="button" id="faseAddressMinus" aria-label="Decrease address">−</button>'+
+    '<input class="field" id="faseAddressNumber" type="number" min="0" max="'+cfg.max+'" step="1" value="'+address+'" inputmode="numeric" style="text-align:center;font-size:26px;font-weight:850;background:#dce8f8;color:#17212b;border:2px solid #3d9bd5;border-radius:60px;min-height:64px">'+
+    '<button class="secondary" type="button" id="faseAddressPlus" aria-label="Increase address">＋</button></div>'+
+    '<div id="faseAddressResult" aria-live="polite" style="margin-top:13px;padding:12px;background:#0b1524;border:1px solid #356b60;border-radius:12px;color:#eef4ff"><strong style="font-size:22px;color:#49e0b0">Address: '+address+'</strong><div class="sub" style="margin-top:5px">ON: '+(onValues.length?onValues.join(', '):'None')+'<br>OFF: '+(offValues.length?offValues.join(', '):'None')+'</div></div>'+
+    '<div class="entryactions" style="margin-top:12px"><button type="button" class="secondary" id="faseAddressReset">Reset</button><button type="button" class="secondary" id="faseAddressCopy">Copy switch settings</button></div></div>'+
+    (activeMode==='xpert'?'<div class="notice"><b>XPert card note:</b> The 128 pip is for future address setting on XPert 8 cards using CoreProtocol®. Ignore the 128 pip when using an XPert 7 card. This tool follows the displayed 0–254 address range.</div>':'<div class="notice"><b>Switch values:</b> '+weights.slice(0,cfg.bits).join(', ')+'. ON adds the printed value to the address. Tap a switch in the diagram or enter a number above.</div>')+
+    '<div class="notice">Reference aid only. Check the exact detector/base/card model and manufacturer instructions before changing an installed device address.</div>';
+   function update(n){
+    if(!Number.isInteger(n)||n<0||n>cfg.max){$('faseAddressResult').innerHTML='<strong>Enter a whole address from 0 to '+cfg.max+'</strong>';copyText='';return}
+    address=n;
+    const input=$('faseAddressNumber');if(input)input.value=n;
+    const ons=weights.slice(0,cfg.bits).filter(v=>(n&v)!==0),offs=weights.slice(0,cfg.bits).filter(v=>(n&v)===0);
+    $('faseAddressResult').innerHTML='<strong style="font-size:22px;color:#49e0b0">Address: '+n+'</strong><div class="sub" style="margin-top:5px">ON / removed: '+(ons.length?ons.join(', '):'None')+'<br>OFF / fitted: '+(offs.length?offs.join(', '):'None')+'</div>';
+    content.querySelectorAll('[data-bit]').forEach(el=>{const on=(n&Number(el.dataset.bit))!==0;el.setAttribute('aria-pressed',String(on));if(cfg.kind==='card'){el.style.opacity=on?'.45':'1';el.querySelectorAll('circle').forEach(c=>{c.style.stroke=on?'#a7b5c5':'#3b9bd6';c.style.fill=on?'#fff':'#eaf6ff'})}});
+    copyText=title+'\\nAddress: '+n+'\\nON / removed: '+(ons.length?ons.join(', '):'None')+'\\nOFF / fitted: '+(offs.length?offs.join(', '):'None');
+   }
+   content.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{const next=b.dataset.mode;if(next===activeMode)return;activeMode=next;address=Math.min(address,modes[next].max);draw()}));
+   $('faseAddressNumber').addEventListener('input',()=>{const n=Number($('faseAddressNumber').value);update(n)});
+   $('faseAddressMinus').addEventListener('click',()=>update(Math.max(0,address-1)));
+   $('faseAddressPlus').addEventListener('click',()=>update(Math.min(cfg.max,address+1)));
+   $('faseAddressReset').addEventListener('click',()=>update(0));
+   $('faseAddressCopy').addEventListener('click',()=>{if(!copyText)return;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(copyText).then(()=>toast('Address settings copied.')).catch(()=>alert(copyText));else alert(copyText)});
+   content.querySelectorAll('[data-bit]').forEach(el=>{const toggle=()=>update((address&Number(el.dataset.bit))!==0?address-Number(el.dataset.bit):address+Number(el.dataset.bit));el.addEventListener('click',toggle);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle()}})});
+   update(address);
+  }
+  draw();
  }else if(key==='spacing'){
   content.innerHTML=`<p>Detector coverage calculator based on the point-detector recommendations in BS 5839-1:2025, clause 21.2. Enter the room or corridor dimensions and select the detector type.</p>
   <div class="panel" style="padding:12px;margin:0 0 10px">
