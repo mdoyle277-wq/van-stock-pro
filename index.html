@@ -300,6 +300,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <button class="secondary" type="button" data-fire-tool="bs5839-1">BS 5839-1:2025</button>
 <button class="secondary" type="button" data-fire-tool="bs5839-6" style="grid-column:1/-1">BS 5839-6</button>
 <button class="secondary" type="button" data-fire-tool="address">Address / DIP switch calculator</button>
+<button class="secondary" type="button" id="notifierBlackBookBtn" style="grid-column:1/-1">📘 Search Notifier Black Book</button>
 </div></details>
 <details class="home-group home-template-manager" id="jobNoteTemplatesMenu" style="grid-column:1/-1;width:100%;margin-top:2px">
 <summary>📝 Job note templates</summary>
@@ -1107,6 +1108,7 @@ function openFireAlarmTool(key){
  panel.hidden=false;panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
 document.querySelectorAll('[data-fire-tool]').forEach(button=>button.addEventListener('click',()=>openFireAlarmTool(button.dataset.fireTool)));
+$('notifierBlackBookBtn').addEventListener('click',()=>window.open('notifier-black-book.html','_blank','noopener'));
 $('closeFireAlarmTool').addEventListener('click',()=>$('fireAlarmToolPanel').hidden=true);
 
 $('closeJobSiteHistory').addEventListener('click',()=>$('jobSiteHistoryPanel').hidden=true);
