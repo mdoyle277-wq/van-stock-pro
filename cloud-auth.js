@@ -190,6 +190,13 @@ let stockSyncTimer = null;
 let stockSyncBusy = false;
 let stockSyncAgain = false;
 let stockSyncReady = false;
+function stockPendingKey(userId = currentSession?.user?.id) {
+  return userId ? "van-stock-pro-stock-pending-v1-" + userId : null;
+}
+function hasPendingStockChanges(userId = currentSession?.user?.id) {
+  try { const key = stockPendingKey(userId); return !!key && localStorage.getItem(key) === "1"; }
+  catch { return false; }
+}
 
 function updateSyncStatus(state, detail) {
   const panel = $("syncStatusPanel");
@@ -454,12 +461,14 @@ async function runStockSync() {
     if(navigator.onLine===false)return;
     await writeCloudStock(items);
     if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId) return;
+    try { localStorage.removeItem(stockPendingKey(userId)); } catch {}
     await syncOfflineQueue();
     try { localStorage.setItem("van-stock-pro-last-sync-" + userId, new Date().toISOString()); } catch {}
     updateSyncStatus(readOfflineQueue(userId).length ? "pending" : "synced");
     message("Cloud stock saved and verified: " + items.length + " item(s).", "success");
   } catch (error) {
     if (currentSession?.user?.id === userId) {
+      if (isNetworkFailure(error)) { try { localStorage.setItem(stockPendingKey(userId), "1"); } catch {} }
       updateSyncStatus(isNetworkFailure(error) ? "offline" : "error", error?.message || "Cloud save failed.");
       message("CLOUD SAVE FAILED — your local stock is still on this device. " + cloudStockErrorDetail(error), "error");
     }
@@ -469,11 +478,28 @@ async function runStockSync() {
     else stockSyncAgain = false;
   }
 }
-window.addEventListener("online",()=>{updateSyncStatus("connecting");if(stockSyncReady){runStockSync();syncOfflineQueue()}else if(currentSession?.user?.id){initialiseCloudStock()}});
+window.addEventListener("online",()=>{
+  updateSyncStatus("connecting");
+  if(stockSyncReady){
+    if(hasPendingStockChanges())runStockSync();
+    else initialiseCloudStock();
+    syncOfflineQueue();
+  }else if(currentSession?.user?.id){initialiseCloudStock()}
+});
 window.addEventListener("offline",()=>updateSyncStatus("offline","No internet connection. Changes are kept on this device until signal returns."));
-window.addEventListener("focus",()=>{if(stockSyncReady&&navigator.onLine!==false){runStockSync();syncOfflineQueue()}});
+window.addEventListener("focus",()=>{
+  if(!stockSyncReady||navigator.onLine===false||stockSyncTimer!==null||stockSyncBusy)return;
+  if(hasPendingStockChanges())runStockSync();
+  else initialiseCloudStock();
+  syncOfflineQueue();
+});
 window.addEventListener("vsp:stock-changed", () => {
   if (!stockSyncReady) return;
+  if (navigator.onLine === false) {
+    try { localStorage.setItem(stockPendingKey(), "1"); } catch {}
+    updateSyncStatus("offline", "Stock changes are saved on this device and will upload when connection returns.");
+    return;
+  }
   if (stockSyncTimer) window.clearTimeout(stockSyncTimer);
   updateSyncStatus("syncing");
   message("Saving stock to the cloud…", "info");
