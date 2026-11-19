@@ -325,9 +325,18 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
   <div class="entryactions" style="margin-top:10px">
     <button type="button" id="cloudSignIn">Sign in</button>
     <button type="button" class="secondary" id="cloudSignUp">Register</button>
+    <button type="button" class="secondary" id="cloudForgotPassword">Forgot password?</button>
     <button type="button" class="secondary" id="cloudWorkspace" hidden>Set up workspace</button>
     <button type="button" class="secondary" id="cloudPreview" hidden>Preview local stock migration</button>
     <button type="button" class="secondary" id="cloudSignOut" hidden>Sign out</button>
+  </div>
+  <div id="cloudPasswordResetPanel" hidden style="margin-top:12px">
+    <div class="sub" style="margin-bottom:8px">Choose a new password for your account.</div>
+    <label class="fieldlabel" for="cloudNewPassword">New password</label>
+    <input class="field" id="cloudNewPassword" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters">
+    <label class="fieldlabel" for="cloudConfirmPassword" style="margin-top:8px">Confirm new password</label>
+    <input class="field" id="cloudConfirmPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Enter the password again">
+    <div class="entryactions" style="margin-top:10px"><button type="button" id="cloudSaveNewPassword">Save new password</button></div>
   </div>
   <div class="notice" id="cloudSession" role="status">Not signed in</div>
   <div class="notice" id="cloudMessage" role="status" aria-live="polite">Sign in with the account you created in Supabase. If email confirmation is required, confirm it first. Stock has not been uploaded.</div>
