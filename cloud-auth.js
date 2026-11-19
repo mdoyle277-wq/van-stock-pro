@@ -280,6 +280,7 @@ async function getMyStockWorkspace() {
   const { data: workspaces, error: workspaceError } = await supabase.from("workspaces")
     .select("id, created_by").in("id", ids);
   if (workspaceError) throw workspaceError;
+    if (refreshSequence !== accessRefreshSequence) return;
   if (currentSession?.user?.id !== userId) throw new Error("The signed-in account changed while loading workspaces.");
   // Prefer the workspace this account was invited into. Newly registered
   // users may also own an automatically-created personal workspace; choosing
@@ -1046,6 +1047,8 @@ const accessBody = $("accessMembersBody");
 const accessRoleLabel = $("accessRoleLabel");
 let activeWorkspaceId = null;
 let activeWorkspaceRole = null;
+// Prevent overlapping access refreshes from appending the same members twice.
+let accessRefreshSequence = 0;
 function accessNotice(text, kind = "info") {
   if (!accessMessage) return;
   accessMessage.textContent = text;
@@ -1110,6 +1113,7 @@ async function refreshPendingRegistrations() {
 }
 
 async function refreshAccessPanel() {
+  const refreshSequence = ++accessRefreshSequence;
   if (!accessPanel || !currentSession?.user) {
     if (accessPanel) accessPanel.hidden = true;
     activeWorkspaceId = null; activeWorkspaceRole = null; return;
@@ -1120,6 +1124,7 @@ async function refreshAccessPanel() {
       .select("workspace_id, role, created_at").eq("user_id", userId)
       .order("created_at", { ascending: true }).limit(50);
     if (mineError) throw mineError;
+    if (refreshSequence !== accessRefreshSequence) return;
     if (!mine?.length) {
       accessPanel.hidden = true; activeWorkspaceId = null; activeWorkspaceRole = null; return;
     }
@@ -1158,8 +1163,10 @@ async function refreshAccessPanel() {
       .select("user_id, role, created_at").eq("workspace_id", activeWorkspaceId)
       .order("created_at", { ascending: true });
     if (listError) throw listError;
+    if (refreshSequence !== accessRefreshSequence) return;
     accessBody.replaceChildren();
     const accessData = await refreshPendingRegistrations();
+    if (refreshSequence !== accessRefreshSequence) return;
     const accessMembers = Array.isArray(accessData?.members) ? accessData.members : [];
     // A workspace can contain legacy duplicate membership rows. Render each
     // Supabase user ID once so repeated rows never appear in the access list.
@@ -1189,6 +1196,7 @@ async function refreshAccessPanel() {
     const pendingTotal = Array.isArray(accessData?.pending) ? accessData.pending.length : 0;
     accessNotice("Workspace access loaded. " + uniqueMembers.length + " authorised account(s), " + pendingTotal + " pending registration(s).", "success");
   } catch (error) {
+    if (refreshSequence !== accessRefreshSequence) return;
     accessPanel.hidden = false;
     accessNotice("Could not load user access: " + (error?.message || "Unknown error") + ". Check the workspace_members table and its access policies.", "error");
   }
