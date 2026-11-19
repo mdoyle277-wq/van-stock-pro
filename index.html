@@ -1020,8 +1020,20 @@ function openFireAlarmTool(key){
    let n=Number($a('faseAddressNumber').value);
    if(!Number.isInteger(n)||n<0||n>127){$a('faseAddressResult').innerHTML='<strong>Enter a whole address from 0 to 127</strong>';dipCopy='';return}
    document.querySelectorAll('.fase-dip').forEach(b=>{const on=(n&Number(b.dataset.value))!==0;b.setAttribute('aria-pressed',String(on));b.style.background=on?'linear-gradient(145deg,#1b493f,#17362f)':'#24344b';b.style.borderColor=on?'var(--mint)':'var(--line)';b.querySelector('.fase-dip-state').textContent=on?'ON':'OFF';b.querySelector('.fase-dip-state').style.color=on?'var(--mint)':'var(--muted)'});
-   document.querySelectorAll('.fase-card-switch').forEach(sw=>{const on=(n&Number(sw.dataset.value))!==0;const cap=sw.querySelector('.fase-card-switch-cap');cap.style.fill=on?'#d92727':'#fff';sw.querySelector('text').style.fill=on?'#fff':'#303e46';});
-   document.querySelectorAll('.fase-pip').forEach(pip=>{const on=(n&Number(pip.dataset.value))!==0;const dot=pip.querySelector('.fase-pip-dot');dot.setAttribute('fill',on?'#c82020':'#fff');dot.setAttribute('stroke',on?'#8f1010':'#399bd8');});
+   // Reset every physical switch on each calculation, then turn ON only bits present in the address.
+   document.querySelectorAll('.fase-card-switch').forEach(sw=>{
+    const on=(n&Number(sw.dataset.value))!==0;
+    const cap=sw.querySelector('.fase-card-switch-cap');
+    cap.style.fill=on?'#d92727':'#fff';
+    sw.querySelector('text').style.fill=on?'#fff':'#303e46';
+    sw.setAttribute('data-state',on?'on':'off');
+   });
+   // The address card uses removable PIPs: hide the complete blue PIP when its value is included.
+   document.querySelectorAll('.fase-pip').forEach(pip=>{
+    const included=(n&Number(pip.dataset.value))!==0;
+    pip.querySelectorAll('ellipse').forEach(ellipse=>{ellipse.style.visibility=included?'hidden':'visible';});
+    pip.setAttribute('data-state',included?'removed':'fitted');
+   });
    const cardAddress=document.getElementById('fasePipCardAddress');if(cardAddress)cardAddress.textContent='ADDRESS '+n;
    const onValues=weights.filter(v=>(n&v)!==0),offValues=weights.filter(v=>(n&v)===0);
    $a('faseAddressResult').innerHTML='<strong>Address: '+n+'</strong><div class="sub" style="margin-top:5px">ON: '+(onValues.length?onValues.join(', '):'None')+'<br>OFF: '+(offValues.length?offValues.join(', '):'None')+'</div>';
