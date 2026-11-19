@@ -60,7 +60,7 @@
  $('loadBtn').addEventListener('click',async()=>{
   const file=$('pdfFile').files[0];if(!file)return;if(file.size>80*1024*1024){$('loadStatus').textContent='This PDF is larger than the 80 MB limit for this browser tool.';return}
   $('loadBtn').disabled=true;$('loadStatus').textContent='Reading PDF…';$('results').innerHTML='<div class="empty">Building searchable index…</div>';setProgress(0,1);
-  try{loadedBytes=new Uint8Array(await file.arrayBuffer());const data=await buildIndex(loadedBytes);await dbPut({bytes:Array.from(data.bytes),index:data.index,numberOfPages:data.numberOfPages,name:file.name});enableSearch();$('loadStatus').textContent='Ready: '+file.name+' · '+data.numberOfPages+' pages. Saved on this device.';$('searchStatus').textContent='Search all '+data.numberOfPages+' pages by keyword or phrase.';$('results').innerHTML='<div class="empty">Guide loaded. Enter a search term above.</div>'}
+  try{loadedBytes=new Uint8Array(await file.arrayBuffer());const data=await buildIndex(loadedBytes);await dbPut({bytes:data.bytes,index:data.index,numberOfPages:data.numberOfPages,name:file.name});enableSearch();$('loadStatus').textContent='Ready: '+file.name+' · '+data.numberOfPages+' pages. Saved on this device.';$('searchStatus').textContent='Search all '+data.numberOfPages+' pages by keyword or phrase.';$('results').innerHTML='<div class="empty">Guide loaded. Enter a search term above.</div>'}
   catch(e){$('loadStatus').textContent='Could not load the PDF: '+e.message}
   finally{$('loadBtn').disabled=false;$('progress').hidden=true}
  });
