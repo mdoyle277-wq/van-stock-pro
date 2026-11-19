@@ -281,15 +281,22 @@ async function getMyStockWorkspace() {
     .select("id, created_by").in("id", ids);
   if (workspaceError) throw workspaceError;
   if (currentSession?.user?.id !== userId) throw new Error("The signed-in account changed while loading workspaces.");
-  // Prefer a personal workspace if one exists. If the account only has a
-  // shared workspace membership, owner_user_id + RLS still isolate its rows.
+  // Prefer the workspace this account was invited into. Newly registered
+  // users may also own an automatically-created personal workspace; choosing
+  // that workspace would incorrectly show them as OWNER instead of their
+  // approved role in the main team workspace.
+  const sharedMembership = memberships.find(row =>
+    (workspaces || []).some(workspace =>
+      workspace.id === row.workspace_id && workspace.created_by !== userId
+    ) && row.role !== "viewer"
+  );
   const personal = (workspaces || []).find(row => row.created_by === userId);
   const personalMembership = personal
     ? memberships.find(row => row.workspace_id === personal.id)
     : null;
-  const membership = personalMembership?.role !== "viewer" && personalMembership
-    ? personalMembership
-    : memberships.find(row => row.role !== "viewer");
+  const membership = sharedMembership ||
+    (personalMembership?.role !== "viewer" ? personalMembership : null) ||
+    memberships.find(row => row.role !== "viewer");
   if (!membership) throw new Error("This account has view-only access and cannot change stock.");
   return { id: membership.workspace_id, role: membership.role, isPersonal: !!personal && membership.workspace_id === personal.id };
 }
@@ -1120,12 +1127,21 @@ async function refreshAccessPanel() {
     if (workspaceError) throw workspaceError;
     const personal = (workspaces || []).find(row => row.created_by === userId);
     const personalMembership = personal ? mine.find(row => row.workspace_id === personal.id) : null;
-    const selected = personalMembership && ["owner", "admin"].includes(personalMembership.role)
-      ? personalMembership
-      : mine.find(row => ["owner", "admin"].includes(row.role));
+    const sharedMemberships = mine.filter(row =>
+      (workspaces || []).some(workspace =>
+        workspace.id === row.workspace_id && workspace.created_by !== userId
+      )
+    );
+    // A shared workspace role takes precedence over the account's own
+    // auto-created personal workspace role.
+    const selected = sharedMemberships.find(row => ["owner", "admin"].includes(row.role))
+      || (personalMembership && ["owner", "admin"].includes(personalMembership.role)
+        ? personalMembership
+        : null);
     if (!selected) {
       accessPanel.hidden = true; activeWorkspaceId = null;
-      activeWorkspaceRole = mine[0]?.role || null; return;
+      activeWorkspaceRole = sharedMemberships[0]?.role || personalMembership?.role || mine[0]?.role || null;
+      return;
     }
     activeWorkspaceId = selected.workspace_id;
     activeWorkspaceRole = selected.role;
