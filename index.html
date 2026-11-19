@@ -342,13 +342,16 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
     </summary>
     <div class="access-dropdown-content">
       <div class="notice" id="accessMessage" role="status" aria-live="polite">Loading workspace members…</div>
-      <div class="formgrid" style="margin-top:12px">
-        <div class="full"><label class="fieldlabel" for="accessUserId">New user's Supabase User ID</label><input class="field" id="accessUserId" autocomplete="off" placeholder="Paste the user's UUID from Supabase Authentication → Users"></div>
-        <div><label class="fieldlabel" for="accessRole">Permission level</label><select class="field" id="accessRole"><option value="member">Member — can use and edit stock</option><option value="viewer">Viewer — read-only access</option><option value="admin">Admin — manage stock and basic users</option></select></div>
-        <div style="display:flex;align-items:end"><button type="button" id="accessAddUser">Authorise user</button></div>
+      <div style="margin-top:14px">
+        <div class="panelhead" style="margin-bottom:6px">
+          <h2>Pending registrations</h2>
+          <span class="pill" id="pendingRegistrationCount">0</span>
+        </div>
+        <div class="notice">New accounts appear here automatically after registration. Approve confirmed email addresses and choose Member, Viewer or Admin access. Only the workspace owner can grant Admin access.</div>
+        <div id="pendingRegistrationsBody"><div class="notice">Loading registrations…</div></div>
       </div>
-      <div class="notice">The person must create and confirm their Van Stock Pro account first. Copy their User ID from Supabase → Authentication → Users. Email invitations are not enabled yet; passwords and service keys are never exposed here.</div>
-      <div class="tablewrap" style="margin-top:12px"><table style="min-width:520px"><thead><tr><th>Account User ID</th><th>Role</th><th>Added</th><th>Action</th></tr></thead><tbody id="accessMembersBody"><tr><td colspan="4">Loading…</td></tr></tbody></table></div>
+      <div class="panelhead" style="margin:18px 0 8px"><h2>Authorised users</h2></div>
+      <div class="tablewrap"><table style="min-width:520px"><thead><tr><th>Account User ID</th><th>Role</th><th>Added</th><th>Action</th></tr></thead><tbody id="accessMembersBody"><tr><td colspan="4">Loading…</td></tr></tbody></table></div>
     </div>
   </details>
 </section>
