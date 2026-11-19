@@ -1097,7 +1097,7 @@ async function refreshPendingRegistrations() {
     card.append(details, controls);
     pendingBody.append(card);
   }
-  return pending.length;
+  return data;
 }
 
 async function refreshAccessPanel() {
@@ -1138,11 +1138,14 @@ async function refreshAccessPanel() {
       .order("created_at", { ascending: true });
     if (listError) throw listError;
     accessBody.replaceChildren();
+    const accessData = await refreshPendingRegistrations();
+    const accessMembers = Array.isArray(accessData?.members) ? accessData.members : [];
     for (const member of members || []) {
       const tr = document.createElement("tr");
-      const idCell = document.createElement("td");
-      idCell.textContent = member.user_id;
-      idCell.style.cssText = "font-family:monospace;font-size:11px;overflow-wrap:anywhere";
+      const emailCell = document.createElement("td");
+      const accountDetails = (accessMembers || []).find(user => user.user_id === member.user_id);
+      emailCell.textContent = accountDetails?.email || "(email unavailable)";
+      emailCell.style.cssText = "overflow-wrap:anywhere;font-weight:600";
       const roleCell = document.createElement("td"); roleCell.textContent = member.role;
       const dateCell = document.createElement("td");
       dateCell.textContent = member.created_at ? new Date(member.created_at).toLocaleDateString() : "—";
@@ -1153,13 +1156,13 @@ async function refreshAccessPanel() {
         remove.addEventListener("click", () => removeWorkspaceMember(member.user_id, remove));
         actionCell.append(remove);
       } else actionCell.textContent = "You";
-      tr.append(idCell, roleCell, dateCell, actionCell); accessBody.append(tr);
+      tr.append(emailCell, roleCell, dateCell, actionCell); accessBody.append(tr);
     }
     if (!members?.length) {
       const tr = document.createElement("tr"); const td = document.createElement("td");
       td.colSpan = 4; td.textContent = "No members found."; tr.append(td); accessBody.append(tr);
     }
-    const pendingTotal = await refreshPendingRegistrations();
+    const pendingTotal = Array.isArray(accessData?.pending) ? accessData.pending.length : 0;
     accessNotice("Workspace access loaded. " + (members?.length || 0) + " authorised account(s), " + pendingTotal + " pending registration(s).", "success");
   } catch (error) {
     accessPanel.hidden = false;
