@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>Notifier Black Book — Search</title>
+<style>
+:root{--bg:#0b1220;--panel:#121d2e;--panel2:#19263a;--line:#29384e;--text:#eef4ff;--muted:#91a3bc;--mint:#49e0b0;--blue:#68a8ff;--amber:#ffbf69}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top right,#152641 0,#0b1220 52%);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}.wrap{max-width:1000px;margin:auto;padding:18px}.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}.top h1{font-size:22px;margin:0}.sub{color:var(--muted);font-size:13px}.panel{background:linear-gradient(145deg,rgba(25,38,58,.97),rgba(17,28,44,.97));border:1px solid var(--line);border-radius:16px;padding:16px;margin:0 0 14px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}button,.btn{cursor:pointer;border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:750;background:var(--mint);color:#071a19}button.secondary{background:#24344b;color:var(--text);border:1px solid var(--line)}input{font:inherit;background:#0b1524;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:12px;width:100%;min-width:0}input:focus{outline:2px solid #49e0b055;border-color:var(--mint)}.search{flex:1 1 260px}.status{margin-top:10px;color:var(--muted);font-size:13px}.results{display:grid;gap:9px;margin-top:12px}.result{border:1px solid var(--line);border-radius:12px;background:#0d1828;padding:12px}.result h3{font-size:14px;margin:0 0 5px;color:var(--mint)}.snippet{font-size:13px;color:#d8e3f3;white-space:pre-wrap;overflow-wrap:anywhere}.meta{font-size:11px;color:var(--muted);margin-top:7px}.empty{padding:26px;text-align:center;color:var(--muted)}#viewer{display:none;margin-top:12px}#pageCanvas{display:block;width:100%;height:auto;background:white;border-radius:8px}mark{background:#ffdb70;color:#1b2430;border-radius:2px}.progress{height:7px;background:#26364c;border-radius:9px;overflow:hidden;margin-top:10px}.progress span{display:block;height:100%;width:0;background:var(--mint);transition:width .15s}.warning{border-left:3px solid var(--amber);padding-left:10px}.small{font-size:11px;color:var(--muted)}@media(max-width:600px){.wrap{padding:12px}.panel{padding:13px}.top h1{font-size:19px}.row>*{flex:1 1 100%}button{width:100%}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header class="top"><button class="secondary" id="backBtn" style="width:auto">← Back to Van Stock Pro</button><div><h1>📘 Notifier Black Book</h1><div class="sub">Fire Detection and Alarm Systems · 2023 EMEA edition</div></div></header>
+<section class="panel">
+ <strong>Load your PDF once on this device</strong>
+ <p class="sub">Choose the Notifier Black Book PDF you downloaded. The guide and its searchable text index are saved in this browser on this device only, not uploaded to the Van Stock Pro cloud or shared with other workspaces.</p>
+ <div class="row"><input id="pdfFile" type="file" accept="application/pdf,.pdf"><button id="loadBtn" disabled>Load / replace guide</button></div>
+ <div class="progress" id="progress" hidden><span id="progressBar"></span></div>
+ <div class="status" id="loadStatus" role="status">Checking for a saved guide…</div>
+ <div class="small warning" style="margin-top:10px">This tool indexes the PDF you provide. It does not reproduce or replace the licensed Notifier publication. Always check the original page and current manufacturer instructions.</div>
+</section>
+<section class="panel">
+ <strong>Search the guide</strong>
+ <div class="row" style="margin-top:10px"><input class="search" id="query" type="search" placeholder="Search e.g. beam detector, void, MCP, sounder, battery…" disabled><button id="searchBtn" disabled>Search</button></div>
+ <div class="status" id="searchStatus">Load the PDF to enable searching.</div>
+ <div id="results" class="results"><div class="empty">No guide loaded yet.</div></div>
+</section>
+<section class="panel" id="viewer">
+ <div class="row" style="justify-content:space-between"><strong id="pageTitle">Page preview</strong><button class="secondary" id="closeViewer" style="width:auto">Close page</button></div>
+ <div class="row" style="margin:10px 0"><button class="secondary" id="prevPage" style="width:auto">← Previous</button><button class="secondary" id="nextPage" style="width:auto">Next →</button><span class="sub" id="pageCount"></span></div>
+ <canvas id="pageCanvas"></canvas>
+</section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(()=> {
+ const $=id=>document.getElementById(id), DB='vsp-notifier-black-book', STORE='guide', KEY='pdf';
+ let pdfDoc=null,pageTexts=[],currentPage=1,loadedBytes=null;
+ if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+ $('backBtn').addEventListener('click',()=>{location.href='index.html'});
+ function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB,1);req.onupgradeneeded=()=>req.result.createObjectStore(STORE);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+ async function dbGet(){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readonly'),r=tx.objectStore(STORE).get(KEY);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);tx.oncomplete=()=>db.close()})}
+ async function dbPut(value){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(value,KEY);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}})}
+ function setProgress(done,total){$('progress').hidden=false;$('progressBar').style.width=Math.round(done/total*100)+'%'}
+ async function buildIndex(bytes){
+  if(!window.pdfjsLib)throw new Error('PDF reader could not load. Check your internet connection and refresh this page.');
+  pdfDoc=await pdfjsLib.getDocument({data:bytes}).promise;pageTexts=[];const total=pdfDoc.numPages;
+  for(let n=1;n<=total;n++){const page=await pdfDoc.getPage(n),tc=await page.getTextContent();const text=tc.items.map(x=>x.str).join(' ').replace(/\s+/g,' ').trim();pageTexts.push(text);setProgress(n,total);$('loadStatus').textContent='Indexing page '+n+' of '+total+'…'}
+  return {bytes,index:pageTexts,numberOfPages:total,name:'Notifier Black Book'}
+ }
+ async function loadSaved(){
+  try{const saved=await dbGet();if(!saved){$('loadStatus').textContent='No saved guide on this device. Choose your PDF above.';return}
+   $('loadStatus').textContent='Restoring saved guide…';loadedBytes=new Uint8Array(saved.bytes);pageTexts=saved.index||[];pdfDoc=await pdfjsLib.getDocument({data:loadedBytes}).promise;enableSearch();$('loadStatus').textContent='Ready: '+(saved.name||'Notifier Black Book')+' · '+pdfDoc.numPages+' pages saved on this device.';renderResults([], '');
+  }catch(e){$('loadStatus').textContent='Could not restore saved guide: '+e.message}
+ }
+ function enableSearch(){$('query').disabled=false;$('searchBtn').disabled=false}
+ $('pdfFile').addEventListener('change',()=>{$('loadBtn').disabled=!$('pdfFile').files.length});
+ $('loadBtn').addEventListener('click',async()=>{
+  const file=$('pdfFile').files[0];if(!file)return;if(file.size>80*1024*1024){$('loadStatus').textContent='This PDF is larger than the 80 MB limit for this browser tool.';return}
+  $('loadBtn').disabled=true;$('loadStatus').textContent='Reading PDF…';$('results').innerHTML='<div class="empty">Building searchable index…</div>';setProgress(0,1);
+  try{loadedBytes=new Uint8Array(await file.arrayBuffer());const data=await buildIndex(loadedBytes);await dbPut({bytes:Array.from(data.bytes),index:data.index,numberOfPages:data.numberOfPages,name:file.name});enableSearch();$('loadStatus').textContent='Ready: '+file.name+' · '+data.numberOfPages+' pages. Saved on this device.';$('searchStatus').textContent='Search all '+data.numberOfPages+' pages by keyword or phrase.';$('results').innerHTML='<div class="empty">Guide loaded. Enter a search term above.</div>'}
+  catch(e){$('loadStatus').textContent='Could not load the PDF: '+e.message}
+  finally{$('loadBtn').disabled=false;$('progress').hidden=true}
+ });
+ function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+ function snippet(text,q){const lower=text.toLowerCase(),at=lower.indexOf(q.toLowerCase());if(at<0)return text.slice(0,260);const start=Math.max(0,at-125),end=Math.min(text.length,at+q.length+180);return (start?'…':'')+text.slice(start,end)+(end<text.length?'…':'')}
+ function renderResults(matches,q){if(!matches.length){$('results').innerHTML='<div class="empty">No matches found. Try a shorter or different keyword.</div>';return}
+  $('results').innerHTML=matches.map(m=>'<article class="result"><h3>Page '+m.page+' · '+esc(m.title||'Notifier Black Book')+'</h3><div class="snippet">'+esc(snippet(m.text,q))+'</div><div class="row" style="margin-top:8px"><button class="secondary" style="width:auto" data-open-page="'+m.page+'">View original page</button></div></article>').join('');
+  $('results').querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>showPage(Number(b.dataset.openPage))));
+ }
+ function search(){const q=$('query').value.trim();if(!q)return;$('searchStatus').textContent='Searching '+pageTexts.length+' pages…';const terms=q.toLowerCase().split(/\s+/).filter(Boolean);const matches=[];
+  pageTexts.forEach((text,i)=>{const lower=text.toLowerCase();const hits=terms.filter(t=>lower.includes(t)).length;if(hits===terms.length)matches.push({page:i+1,text,score:hits*100+Math.min(50,lower.split(terms[0]).length-1)});});
+  matches.sort((a,b)=>b.score-a.score);$('searchStatus').textContent=matches.length+' matching page'+(matches.length===1?'':'s')+' for “'+q+'”.';renderResults(matches.slice(0,60),q);
+ }
+ $('searchBtn').addEventListener('click',search);$('query').addEventListener('keydown',e=>{if(e.key==='Enter')search()});
+ async function showPage(n){if(!pdfDoc)return;currentPage=Math.max(1,Math.min(pdfDoc.numPages,n));const page=await pdfDoc.getPage(currentPage),viewport=page.getViewport({scale:1.5}),canvas=$('pageCanvas'),ctx=canvas.getContext('2d');canvas.width=viewport.width;canvas.height=viewport.height;await page.render({canvasContext:ctx,viewport}).promise;$('pageTitle').textContent='Original PDF · page '+currentPage;$('pageCount').textContent=currentPage+' / '+pdfDoc.numPages;$('viewer').style.display='block';$('viewer').scrollIntoView({behavior:'smooth',block:'start'})}
+ $('prevPage').addEventListener('click',()=>showPage(currentPage-1));$('nextPage').addEventListener('click',()=>showPage(currentPage+1));$('closeViewer').addEventListener('click',()=>$('viewer').style.display='none');
+ loadSaved();
+})();
+</script>
+</body>
+</html>
