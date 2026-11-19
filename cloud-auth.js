@@ -342,8 +342,15 @@ async function writeCloudStock(items) {
   const { data: existing, error: readError } = await supabase.from("stock_items")
     .select("legacy_id").eq("workspace_id", workspaceId).eq("owner_user_id", userId);
   if (readError) throw readError;
+  if (!items.length && (existing || []).length) {
+    throw new Error("EMPTY STOCK SYNC BLOCKED — the cloud inventory already contains stock. No records were deleted. Reload cloud stock before trying again.");
+  }
   const keep = new Set(items.map(item => String(item.id)));
   const remove = (existing || []).map(row => String(row.legacy_id)).filter(id => !keep.has(id));
+  const maxSafeRemovals = Math.max(3, Math.ceil((existing || []).length * 0.25));
+  if (remove.length > maxSafeRemovals) {
+    throw new Error("BULK STOCK REMOVAL BLOCKED — " + remove.length + " cloud records are missing from this device. No records were deleted. Restore/reload the cloud inventory and review the differences first.");
+  }
   if (remove.length) {
     const { error } = await supabase.from("stock_items").delete()
       .eq("workspace_id", workspaceId).eq("owner_user_id", userId).in("legacy_id", remove);
@@ -434,7 +441,8 @@ async function runStockSync() {
   const workspaceId = stockWorkspaceId;
   try {
     const raw = localStorage.getItem("van-stock-pro-items-v1");
-    const items = raw == null ? [] : JSON.parse(raw);
+    if (raw == null) throw new Error("Local stock cache is missing. Cloud stock was left untouched; reload the saved cloud inventory before syncing.");
+    const items = JSON.parse(raw);
     if (!Array.isArray(items)) throw new Error("Saved local stock is not a valid list.");
     if(navigator.onLine===false)return;
     await writeCloudStock(items);
