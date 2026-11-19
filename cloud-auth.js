@@ -288,16 +288,18 @@ async function getMyStockWorkspace() {
   const sharedMembership = memberships.find(row =>
     (workspaces || []).some(workspace =>
       workspace.id === row.workspace_id && workspace.created_by !== userId
-    ) && row.role !== "viewer"
+    )
   );
   const personal = (workspaces || []).find(row => row.created_by === userId);
   const personalMembership = personal
     ? memberships.find(row => row.workspace_id === personal.id)
     : null;
-  const membership = sharedMembership ||
-    (personalMembership?.role !== "viewer" ? personalMembership : null) ||
-    memberships.find(row => row.role !== "viewer");
-  if (!membership) throw new Error("This account has view-only access and cannot change stock.");
+  // Never fall back to personal-owner rights when an invited shared role is
+  // viewer: the granted shared role is authoritative for this app.
+  const membership = sharedMembership || personalMembership || memberships[0] || null;
+  if (!membership || membership.role === "viewer") {
+    throw new Error("This account has view-only access and cannot change stock.");
+  }
   return { id: membership.workspace_id, role: membership.role, isPersonal: !!personal && membership.workspace_id === personal.id };
 }
 async function writeCloudStock(items) {
