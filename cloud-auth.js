@@ -404,9 +404,28 @@ async function initialiseCloudStock() {
     }
     const cloudItems = stockRowsToItems(cloudRows || []);
     if (typeof window.__VSP_APPLY_CLOUD_STOCK !== "function") throw new Error("Stock screen is not ready to receive cloud data.");
+
+    // Owner/admin recovery check: if this phone has an empty inventory or all
+    // quantities have fallen to zero, use the verified shared cloud inventory
+    // as the source of truth on login. Never upload the empty phone cache here.
+    let phoneStock = [];
+    try {
+      const rawPhoneStock = localStorage.getItem("van-stock-pro-items-v1");
+      const parsedPhoneStock = rawPhoneStock ? JSON.parse(rawPhoneStock) : [];
+      phoneStock = Array.isArray(parsedPhoneStock) ? parsedPhoneStock : [];
+    } catch {}
+    const phoneStockTotal = phoneStock.reduce((sum, item) => sum + Math.max(0, Number(item?.qty) || 0), 0);
+    const phoneStockIsZero = phoneStock.length === 0 || phoneStockTotal === 0;
+    const ownerOrAdmin = ["owner", "admin"].includes(String(workspace.role || "").toLowerCase());
+    const restoringZeroPhone = ownerOrAdmin && phoneStockIsZero && cloudItems.length > 0;
+
     if (cloudItems.length) {
+      // Always hydrate from cloud; the explicit recovery flag makes the
+      // zero-stock phone case visible to the user and confirms no local upload.
       window.__VSP_APPLY_CLOUD_STOCK(cloudItems);
-      message("Shared workspace cloud stock loaded and verified: " + cloudItems.length + " item(s).", "success");
+      message(restoringZeroPhone
+        ? "RECOVERED FROM CLOUD BACKUP — this phone had zero stock. Restored and verified " + cloudItems.length + " shared item(s)."
+        : "Shared workspace cloud stock loaded and verified: " + cloudItems.length + " item(s).", "success");
     } else if (workspace.role === "owner" && workspace.isPersonal) {
       // Import only the cache archived for this exact account on sign-in.
       // Never read the shared browser stock key for a newly invited user.
