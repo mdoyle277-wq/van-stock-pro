@@ -987,13 +987,13 @@ function openFireAlarmTool(key){
   </div>
   <div class="panel" style="padding:7px;margin:0;background:#e7e7e7;min-width:0">
    <div style="background:#fff;border-radius:8px;padding:4px">
-    <svg viewBox="0 0 640 300" role="img" aria-label="Apollo address PIP card with eight weighted PIP positions" style="display:block;width:100%;height:auto">
+    <svg viewBox="0 0 640 300" role="img" aria-label="Apollo address PIP card with seven weighted PIP positions" style="display:block;width:100%;height:auto">
      <rect x="5" y="5" width="630" height="290" rx="24" fill="#e7e7e7" stroke="#9a9a9a" stroke-width="3"/>
      <path d="M35 42 H570 L605 76 V224 L570 258 H35 Z" fill="#fff" stroke="#222" stroke-width="5"/>
      <path d="M75 66 H118 V234 H75" fill="none" stroke="#222" stroke-width="5"/>
      <rect x="150" y="88" width="64" height="124" rx="14" fill="#ddd" stroke="#222" stroke-width="5"/>
      <text x="365" y="37" font-size="20" font-weight="800" fill="#222" text-anchor="middle">APOLLO ADDRESS CARD — SWITCH POSITIONS</text>
-     ${[1,4,16,64,2,8,32,128].map((v,i)=>{const row=i<4?0:1,col=i%4,x=270+col*100,y=row===0?112:218;return '<g class="fase-pip" data-value="'+v+'"><ellipse class="fase-pip-dot" cx="'+x+'" cy="'+y+'" rx="24" ry="34" fill="#fff" stroke="#399bd8" stroke-width="8"/><ellipse cx="'+x+'" cy="'+y+'" rx="8" ry="15" fill="none" stroke="#399bd8" stroke-width="5"/><text x="'+(x-31)+'" y="'+(y+48)+'" font-size="17" font-weight="800" fill="#222">'+v+'</text></g>';}).join('')}
+     ${[1,4,16,64,2,8,32].map((v,i)=>{const row=i<4?0:1,col=i<4?i:i-4,x=row===0?270+col*100:320+col*100,y=row===0?112:218;return '<g class="fase-pip" data-value="'+v+'"><ellipse class="fase-pip-dot" cx="'+x+'" cy="'+y+'" rx="24" ry="34" fill="#fff" stroke="#399bd8" stroke-width="8"/><ellipse cx="'+x+'" cy="'+y+'" rx="8" ry="15" fill="none" stroke="#399bd8" stroke-width="5"/><text x="'+(x-31)+'" y="'+(y+48)+'" font-size="17" font-weight="800" fill="#222">'+v+'</text></g>';}).join('')}
      <text id="fasePipCardAddress" x="350" y="282" text-anchor="middle" font-size="18" font-weight="900" fill="#222">ADDRESS 0</text>
     </svg>
    </div>
@@ -1018,10 +1018,10 @@ function openFireAlarmTool(key){
   const $a=id=>document.getElementById(id),weights=[1,2,4,8,16,32,64];let dipCopy='';
   function updateFromNumber(){
    let n=Number($a('faseAddressNumber').value);
-   if(!Number.isInteger(n)||n<0||n>127){$a('faseAddressResult').innerHTML='<strong>Enter a whole address from 0 to 255</strong>';dipCopy='';return}
+   if(!Number.isInteger(n)||n<0||n>127){$a('faseAddressResult').innerHTML='<strong>Enter a whole address from 0 to 127</strong>';dipCopy='';return}
    document.querySelectorAll('.fase-dip').forEach(b=>{const on=(n&Number(b.dataset.value))!==0;b.setAttribute('aria-pressed',String(on));b.style.background=on?'linear-gradient(145deg,#1b493f,#17362f)':'#24344b';b.style.borderColor=on?'var(--mint)':'var(--line)';b.querySelector('.fase-dip-state').textContent=on?'ON':'OFF';b.querySelector('.fase-dip-state').style.color=on?'var(--mint)':'var(--muted)'});
    document.querySelectorAll('.fase-card-switch').forEach(sw=>{const on=(n&Number(sw.dataset.value))!==0;const cap=sw.querySelector('.fase-card-switch-cap');cap.style.fill=on?'#d92727':'#fff';sw.querySelector('text').style.fill=on?'#fff':'#303e46';});
-   document.querySelectorAll('.fase-pip').forEach(pip=>{const on=(n&Number(pip.dataset.value))!==0;const dot=pip.querySelector('.fase-pip-dot');dot.setAttribute('fill',on?'#c82020':'#fff');dot.setAttribute('stroke',on?'#8f1010':'#252525');pip.querySelector('.fase-pip-state').textContent=on?'ON':'OFF';pip.querySelector('.fase-pip-state').setAttribute('fill',on?'#a20f0f':'#555');});
+   document.querySelectorAll('.fase-pip').forEach(pip=>{const on=(n&Number(pip.dataset.value))!==0;const dot=pip.querySelector('.fase-pip-dot');dot.setAttribute('fill',on?'#c82020':'#fff');dot.setAttribute('stroke',on?'#8f1010':'#399bd8');});
    const cardAddress=document.getElementById('fasePipCardAddress');if(cardAddress)cardAddress.textContent='ADDRESS '+n;
    const onValues=weights.filter(v=>(n&v)!==0),offValues=weights.filter(v=>(n&v)===0);
    $a('faseAddressResult').innerHTML='<strong>Address: '+n+'</strong><div class="sub" style="margin-top:5px">ON: '+(onValues.length?onValues.join(', '):'None')+'<br>OFF: '+(offValues.length?offValues.join(', '):'None')+'</div>';
