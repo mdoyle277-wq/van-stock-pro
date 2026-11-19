@@ -385,7 +385,10 @@ async function initialiseCloudStock() {
     if (currentSession?.user?.id !== userId) return;
     stockWorkspaceId = workspace.id;
     stockWorkspaceOwnerId = workspace.ownerUserId;
-    try{localStorage.setItem("van-stock-pro-workspace-"+userId,workspace.id)}catch{}
+    try {
+      localStorage.setItem("van-stock-pro-workspace-" + userId, workspace.id);
+      localStorage.setItem("van-stock-pro-workspace-owner-v1-" + workspace.id, workspace.ownerUserId);
+    } catch {}
     // Only workspace owners/admins may access app-code backup and restore.
     document.body.classList.toggle("cloud-admin", ["owner", "admin"].includes(String(workspace.role || "").toLowerCase()));
     const { data: cloudRows, error } = await supabase.from("stock_items")
@@ -456,6 +459,7 @@ async function initialiseCloudStock() {
       const cachedWorkspace=localStorage.getItem("van-stock-pro-workspace-"+userId);
       if(cachedWorkspace&&/^[0-9a-f-]{36}$/i.test(cachedWorkspace)){
         stockWorkspaceId=cachedWorkspace;
+        try { stockWorkspaceOwnerId = localStorage.getItem("van-stock-pro-workspace-owner-v1-" + cachedWorkspace); } catch { stockWorkspaceOwnerId = null; }
         // Offline use is restricted to the exact workspace snapshot previously
         // downloaded on this device; never reuse another workspace's live cache.
         try {
@@ -463,7 +467,7 @@ async function initialiseCloudStock() {
           const parsedWorkspaceCache = workspaceCache ? JSON.parse(workspaceCache) : null;
           if (Array.isArray(parsedWorkspaceCache)) {
             window.__VSP_APPLY_CLOUD_STOCK(parsedWorkspaceCache);
-            stockSyncReady=true;
+            stockSyncReady=!!stockWorkspaceOwnerId;
             document.body.classList.remove("cloud-loading");
             message("OFFLINE MODE — loaded this workspace's last downloaded cloud snapshot (" + parsedWorkspaceCache.length + " items). Changes will sync when online.","warning");
             updateSyncStatus("offline");
