@@ -123,7 +123,7 @@ async function runAuth(action) {
       if (data.session) { await refreshAccessPanel(); await initialiseCloudStock(); }
       message(data.session
         ? "Account created and signed in. Next, initialise your Van Stock Pro workspace."
-        : "Account created. Check your email to confirm the account, then sign in here.");
+        : "Registration created. Check your email to confirm it, then sign in. A workspace owner can approve your access from Manage App Access.");
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({ email: mail, password: pass });
       if (error) throw error;
