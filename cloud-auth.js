@@ -446,6 +446,7 @@ async function initialiseCloudStock() {
         await writeCloudStock(local);
         if (currentSession?.user?.id !== userId) return;
         window.__VSP_APPLY_CLOUD_STOCK(local);
+        try { localStorage.setItem("van-stock-pro-workspace-cache-v1-" + stockWorkspaceId, JSON.stringify(local)); } catch {}
         message("Your archived stock was copied to the workspace cloud list and verified: " + local.length + " item(s).", "success");
       } else {
         window.__VSP_APPLY_CLOUD_STOCK([]);
