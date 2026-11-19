@@ -54,11 +54,6 @@ function setSession(session) {
     try {
       const cached = localStorage.getItem("van-stock-pro-items-v1");
       const cachedItems = cached ? JSON.parse(cached) : null;
-      // Keep the last downloaded/saved stock snapshot isolated by workspace,
-      // so signing into a different account cannot display the previous space.
-      if (previousUserId && stockWorkspaceId && Array.isArray(cachedItems)) {
-        localStorage.setItem("van-stock-pro-workspace-cache-v1-" + stockWorkspaceId, cached);
-      }
       // Never replace a non-empty account archive with the empty list written
       // while switching accounts.
       // Only archive stock when switching away from a known signed-in account.
@@ -407,6 +402,9 @@ async function initialiseCloudStock() {
       throw new Error("Account isolation check failed: the database returned stock owned by another account. No stock was displayed or changed.");
     }
     const cloudItems = stockRowsToItems(cloudRows || []);
+    // Cache the verified cloud snapshot for this exact workspace, including an
+    // empty list, so offline fallback can never resurrect another workspace's data.
+    try { localStorage.setItem("van-stock-pro-workspace-cache-v1-" + stockWorkspaceId, JSON.stringify(cloudItems)); } catch {}
     if (typeof window.__VSP_APPLY_CLOUD_STOCK !== "function") throw new Error("Stock screen is not ready to receive cloud data.");
 
     // Owner/admin recovery check: if this phone has an empty inventory or all
@@ -427,7 +425,6 @@ async function initialiseCloudStock() {
       // Always hydrate from cloud; the explicit recovery flag makes the
       // zero-stock phone case visible to the user and confirms no local upload.
       window.__VSP_APPLY_CLOUD_STOCK(cloudItems);
-      try { localStorage.setItem("van-stock-pro-workspace-cache-v1-" + stockWorkspaceId, JSON.stringify(cloudItems)); } catch {}
       message(restoringZeroPhone
         ? "RECOVERED FROM CLOUD BACKUP — this phone had zero stock. Restored and verified " + cloudItems.length + " shared item(s)."
         : "Shared workspace cloud stock loaded and verified: " + cloudItems.length + " item(s).", "success");
@@ -503,6 +500,8 @@ async function runStockSync() {
     if(navigator.onLine===false)return;
     await writeCloudStock(items);
     if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspaceId) return;
+    // Keep the offline snapshot aligned with the most recent verified upload.
+    try { localStorage.setItem("van-stock-pro-workspace-cache-v1-" + workspaceId, JSON.stringify(items)); } catch {}
     try { localStorage.removeItem(stockPendingKey(userId)); } catch {}
     await syncOfflineQueue();
     try { localStorage.setItem("van-stock-pro-last-sync-" + userId, new Date().toISOString()); } catch {}
