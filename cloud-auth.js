@@ -998,6 +998,61 @@ function accessNotice(text, kind = "info") {
 function isUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
+async function refreshPendingRegistrations() {
+  const pendingBody = $("pendingRegistrationsBody");
+  const pendingCount = $("pendingRegistrationCount");
+  if (!pendingBody || !activeWorkspaceId) return 0;
+  const { data, error } = await supabase.functions.invoke("manage-workspace-access", {
+    body: { action: "list", workspaceId: activeWorkspaceId }
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  const pending = Array.isArray(data?.pending) ? data.pending : [];
+  pendingBody.replaceChildren();
+  if (pendingCount) pendingCount.textContent = String(pending.length);
+  if (!pending.length) {
+    const empty = document.createElement("div");
+    empty.className = "notice";
+    empty.textContent = "No new registrations are waiting for approval.";
+    pendingBody.append(empty);
+    return 0;
+  }
+  for (const user of pending) {
+    const card = document.createElement("div");
+    card.style.cssText = "display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)";
+    const details = document.createElement("div");
+    details.style.cssText = "min-width:0;overflow-wrap:anywhere";
+    const mail = document.createElement("strong");
+    mail.textContent = user.email || "Unknown email";
+    const meta = document.createElement("div");
+    meta.className = "sub";
+    meta.textContent = "Registered " + (user.created_at ? new Date(user.created_at).toLocaleDateString() : "date unavailable") + (user.email_confirmed_at ? " · Email confirmed" : " · Email not confirmed");
+    details.append(mail, meta);
+    const controls = document.createElement("div");
+    controls.style.cssText = "display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end";
+    const role = document.createElement("select");
+    role.className = "field";
+    role.style.cssText = "width:auto;min-width:115px;padding:8px";
+    for (const [value, label] of [["member","Member"],["viewer","Viewer"],["admin","Admin"]]) {
+      if (value === "admin" && activeWorkspaceRole !== "owner") continue;
+      const option = document.createElement("option");
+      option.value = value; option.textContent = label; role.append(option);
+    }
+    const approve = document.createElement("button");
+    approve.type = "button"; approve.className = "smallbtn"; approve.textContent = "Approve";
+    approve.disabled = !user.email_confirmed_at;
+    approve.title = user.email_confirmed_at ? "Approve this registration" : "The user must confirm their email first";
+    approve.addEventListener("click", () => reviewRegistration(user.user_id, role.value, "approve", approve));
+    const reject = document.createElement("button");
+    reject.type = "button"; reject.className = "danger smallbtn"; reject.textContent = "Reject";
+    reject.addEventListener("click", () => reviewRegistration(user.user_id, "member", "reject", reject));
+    controls.append(role, approve, reject);
+    card.append(details, controls);
+    pendingBody.append(card);
+  }
+  return pending.length;
+}
+
 async function refreshAccessPanel() {
   if (!accessPanel || !currentSession?.user) {
     if (accessPanel) accessPanel.hidden = true;
@@ -1057,7 +1112,8 @@ async function refreshAccessPanel() {
       const tr = document.createElement("tr"); const td = document.createElement("td");
       td.colSpan = 4; td.textContent = "No members found."; tr.append(td); accessBody.append(tr);
     }
-    accessNotice("Workspace access loaded. " + (members?.length || 0) + " authorised account(s).", "success");
+    const pendingTotal = await refreshPendingRegistrations();
+    accessNotice("Workspace access loaded. " + (members?.length || 0) + " authorised account(s), " + pendingTotal + " pending registration(s).", "success");
   } catch (error) {
     accessPanel.hidden = false;
     accessNotice("Could not load user access: " + (error?.message || "Unknown error") + ". Check the workspace_members table and its access policies.", "error");
@@ -1076,27 +1132,23 @@ async function removeWorkspaceMember(userId, button) {
     button.disabled = false;
   }
 }
-$("accessAddUser")?.addEventListener("click", async () => {
+async function reviewRegistration(userId, role, action, button) {
   if (!activeWorkspaceId || !["owner", "admin"].includes(activeWorkspaceRole)) return;
-  const userId = ($("accessUserId")?.value || "").trim();
-  const role = $("accessRole")?.value || "member";
-  if (!isUuid(userId)) return accessNotice("Enter a valid Supabase User ID (UUID).", "warning");
-  if (userId === currentSession?.user?.id) return accessNotice("You are already a member of this workspace.", "warning");
-  if (!["member", "viewer", "admin"].includes(role)) return accessNotice("Choose a valid permission level.", "warning");
-  if (activeWorkspaceRole === "admin" && !["member", "viewer"].includes(role))
-    return accessNotice("Admins can only authorise members or viewers.", "warning");
-  const button = $("accessAddUser"); button.disabled = true;
+  if (action === "reject" && !confirm("Reject this registration? The account will remain, but it will not receive access to this workspace.")) return;
+  button.disabled = true;
   try {
-    const { error } = await supabase.from("workspace_members").insert({
-      workspace_id: activeWorkspaceId, user_id: userId, role
+    const { data, error } = await supabase.functions.invoke("manage-workspace-access", {
+      body: { action, workspaceId: activeWorkspaceId, userId, role }
     });
     if (error) throw error;
-    $("accessUserId").value = "";
-    accessNotice("User authorised as " + role + ".", "success"); await refreshAccessPanel();
+    if (data?.error) throw new Error(data.error);
+    accessNotice(data?.message || "Registration updated.", "success");
+    await refreshAccessPanel();
   } catch (error) {
-    accessNotice("Could not authorise this user: " + (error?.message || "Check that the account exists and the database policies are installed."), "error");
-  } finally { button.disabled = false; }
-});
+    accessNotice("Could not update registration: " + (error?.message || "Unknown error"), "error");
+    button.disabled = false;
+  }
+}
 
 // Restore the saved session only after the access-management panel is initialised.
 const { data: initial } = await supabase.auth.getSession();
