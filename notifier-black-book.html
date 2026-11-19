@@ -46,7 +46,7 @@
  function setProgress(done,total){$('progress').hidden=false;$('progressBar').style.width=Math.round(done/total*100)+'%'}
  async function buildIndex(bytes){
   if(!window.pdfjsLib)throw new Error('PDF reader could not load. Check your internet connection and refresh this page.');
-  pdfDoc=await pdfjsLib.getDocument({data:bytes}).promise;pageTexts=[];const total=pdfDoc.numPages;
+  pdfDoc=await pdfjsLib.getDocument({data:bytes.slice()}).promise;pageTexts=[];const total=pdfDoc.numPages;
   for(let n=1;n<=total;n++){const page=await pdfDoc.getPage(n),tc=await page.getTextContent();const text=tc.items.map(x=>x.str).join(' ').replace(/\s+/g,' ').trim();pageTexts.push(text);setProgress(n,total);$('loadStatus').textContent='Indexing page '+n+' of '+total+'…'}
   return {bytes,index:pageTexts,numberOfPages:total,name:'Notifier Black Book'}
  }
