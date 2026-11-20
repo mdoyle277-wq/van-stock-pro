@@ -371,6 +371,12 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
         <div class="notice">New accounts appear here automatically after registration. Approve confirmed email addresses and choose Member, Viewer or Admin access. Only the workspace owner can grant Admin access.</div>
         <div id="pendingRegistrationsBody"><div class="notice">Loading registrations…</div></div>
       </div>
+
+      <div class="panelhead" style="margin:20px 0 8px">
+        <div><h2>Currently logged-in users</h2><div class="sub">Live account activity in this workspace</div></div>
+        <span class="pill" id="activeUsersCount">0 online</span>
+      </div>
+      <div class="tablewrap"><table style="min-width:680px"><thead><tr><th>Email account</th><th>Workspace</th><th>Role</th><th>Last activity</th><th>Status</th></tr></thead><tbody id="activeUsersBody"><tr><td colspan="5">Waiting for live user status…</td></tr></tbody></table></div>
       <div class="panelhead" style="margin:18px 0 8px"><h2>Authorised users</h2></div>
       <div class="tablewrap"><table style="min-width:520px"><thead><tr><th>Email Address</th><th>Role</th><th>Added</th><th>Action</th></tr></thead><tbody id="accessMembersBody"><tr><td colspan="4">Loading…</td></tr></tbody></table></div>
     </div>
