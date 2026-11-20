@@ -1277,7 +1277,7 @@ async function startAppPresence(workspaceId, role) {
   const user = currentSession.user;
   const sessionId = user.id + "-" + (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
   const channel = supabase.channel("vsp-active-users-" + workspaceId, {
-    config: { presence: { key: sessionId } }
+    config: { presence: { key: sessionId }, private: true }
   });
   appPresenceChannel = channel;
   appPresenceWorkspaceId = workspaceId;
