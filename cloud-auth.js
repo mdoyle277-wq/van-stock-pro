@@ -1281,12 +1281,33 @@ async function startAppPresence(workspaceId, role) {
   });
   appPresenceChannel = channel;
   appPresenceWorkspaceId = workspaceId;
+  if (activeUsersBody) {
+    activeUsersBody.replaceChildren();
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 5; td.textContent = "Connecting to live user status…";
+    tr.append(td); activeUsersBody.append(tr);
+  }
+  // Explicitly provide the current signed-in JWT before joining the private channel.
+  if (currentSession.access_token) await supabase.realtime.setAuth(currentSession.access_token);
   channel.on("presence", { event: "sync" }, renderActiveUsers);
-  channel.subscribe(async status => {
-    if (status !== "SUBSCRIBED" || currentSession?.user?.id !== user.id) return;
+  channel.subscribe(async (status, err) => {
+    if (currentSession?.user?.id !== user.id || appPresenceChannel !== channel) return;
+    if (status !== "SUBSCRIBED") {
+      if (activeUsersBody) {
+        activeUsersBody.replaceChildren();
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 5;
+        td.textContent = "Live status connection failed (" + status + "): " + (err?.message || "Check Supabase Realtime policies and settings.");
+        tr.append(td); activeUsersBody.append(tr);
+      }
+      if (activeUsersCount) activeUsersCount.textContent = "Offline";
+      return;
+    }
     const track = async () => {
       if (appPresenceChannel !== channel || currentSession?.user?.id !== user.id) return;
-      await channel.track({
+      const result = await channel.track({
         user_id: user.id,
         email: user.email || "",
         role: role || "member",
@@ -1295,6 +1316,16 @@ async function startAppPresence(workspaceId, role) {
         session_id: sessionId,
         last_seen: new Date().toISOString()
       });
+      if (result !== "ok") {
+        if (activeUsersBody) {
+          activeUsersBody.replaceChildren();
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          td.colSpan = 5; td.textContent = "Connected, but could not publish login status: " + String(result);
+          tr.append(td); activeUsersBody.append(tr);
+        }
+      }
+      renderActiveUsers();
     };
     await track();
     if (appPresenceRefreshTimer) clearInterval(appPresenceRefreshTimer);
