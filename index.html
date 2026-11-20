@@ -1983,6 +1983,15 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
   $('vspEBAlarmNote').textContent='Panel base alarm: '+v.alarm+'mA; connected wired equipment is added below.';
  }
  setPanelCurrents();
+ $('vspOpenEnforcerBcalc')?.addEventListener('click',()=>{overlay.hidden=false;document.body.style.overflow='hidden';updateBell()});
+ function close(){overlay.hidden=true;document.body.style.overflow=''}
+ $('vspEBCalcClose').addEventListener('click',close);
+ overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!overlay.hidden)close()});
+ overlay.querySelectorAll('input[name="vspEBBellType"],input[name="vspEBGrade"]').forEach(el=>el.addEventListener('change',updateBell));
+ $('vspEBPanel').addEventListener('change',()=>{setPanelCurrents();calculate()});
+ overlay.querySelectorAll('[id$="Qty"],[id$="Standby"],[id$="Alarm"]').forEach(el=>el.addEventListener('input',calculate));
+ $('vspEBBellModel').addEventListener('change',updateBell);
  $('vspEBCalculate').addEventListener('click',calculate);
  $('vspEBReset').addEventListener('click',()=>{
   $('vspEBPanel').value='V9';
