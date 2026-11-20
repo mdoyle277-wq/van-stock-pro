@@ -325,6 +325,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <div class="sub" id="historyJobNoteTemplateStatus" style="margin-top:2px">Your private templates.</div>
 </div></details>
 <button class="secondary" id="vspOpenBatteryCalculator" type="button" style="grid-column:1/-1;width:100%;min-height:48px;margin-top:2px;padding:13px 12px;text-align:left;font-size:13px;font-weight:850;border-radius:14px;background:linear-gradient(145deg,rgba(25,38,58,.98),rgba(17,28,44,.98));border:1px solid var(--line);color:var(--text)">🔋 Battery calculator</button>
+<button class="secondary" id="vspOpenEnforcerBcalc" type="button" style="grid-column:1/-1;width:100%;min-height:48px;margin-top:2px;padding:13px 12px;text-align:left;font-size:13px;font-weight:850;border-radius:14px;background:linear-gradient(145deg,rgba(25,38,58,.98),rgba(17,28,44,.98));border:1px solid var(--line);color:var(--text)">🔋 Enforcer V9 / V10 / V11 battery calculator</button>
 <button class="secondary" id="vspOpenVoltDropCalculator" type="button" style="grid-column:1/-1;width:100%;min-height:48px;margin-top:2px;padding:13px 12px;text-align:left;font-size:13px;font-weight:850;border-radius:14px;background:linear-gradient(145deg,rgba(25,38,58,.98),rgba(17,28,44,.98));border:1px solid var(--line);color:var(--text)">⚡ Voltage drop calculator</button>
 </div></header>
 <section class="panel" id="cloudStatus" style="margin:0 0 16px">
@@ -1855,6 +1856,123 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
  $('vspVdropCalculate').addEventListener('click',calculate);
  $('vspVdropReset').addEventListener('click',()=>{$('vspVdropSystem').value='dc';$('vspVdropVoltage').value='12';$('vspVdropCurrent').value='';$('vspVdropLength').value='';$('vspVdropArea').value='1.5';$('vspVdropMaterial').value='copper';$('vspVdropTemp').value='70';$('vspVdropResult').innerHTML='<div class="sub">Enter the circuit details and calculate the estimated voltage drop.</div>';lastText=''});
  $('vspVdropCopy').addEventListener('click',()=>{if(!lastText){calculate();if(!lastText)return}if(navigator.clipboard?.writeText)navigator.clipboard.writeText(lastText).then(()=>alert('Voltage drop calculation copied.')).catch(()=>alert('Could not copy. Please calculate again and copy manually.'));else alert(lastText)});
+})();
+</script>
+
+
+<style id="vspEnforcerBatteryCalculatorStyles20261120">
+#vspEnforcerBcalcOverlay{position:fixed;inset:0;z-index:100052;background:#030812dd;display:flex;align-items:center;justify-content:center;padding:12px}
+#vspEnforcerBcalcOverlay[hidden]{display:none!important}
+#vspEnforcerBcalcOverlay .vsp-ebcalc{width:min(760px,100%);max-height:92dvh;overflow:auto;background:#101b2d;color:var(--text);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 20px 70px #000b}
+#vspEnforcerBcalcOverlay .vsp-ebcalc-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+#vspEnforcerBcalcOverlay h2{font-size:19px;margin:0}
+#vspEnforcerBcalcOverlay .vsp-ebcalc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#vspEnforcerBcalcOverlay .vsp-ebcalc-card{background:#0b1524;border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px}
+#vspEnforcerBcalcOverlay .vsp-ebcalc-result{background:#0b1524;border:1px solid #356b60;border-radius:13px;padding:13px;margin-top:13px}
+#vspEnforcerBcalcOverlay .vsp-ebcalc-result strong{font-size:25px;color:var(--mint)}
+#vspEnforcerBcalcOverlay .vsp-ebcalc-note{font-size:12px;color:var(--muted);margin-top:9px;line-height:1.45}
+#vspEnforcerBcalcOverlay .vsp-ebcalc-row{display:flex;justify-content:space-between;gap:12px;margin:6px 0;font-size:13px}
+#vspEnforcerBcalcOverlay .vsp-ebcalc-tag{display:inline-block;padding:4px 8px;border-radius:99px;background:#26344a;color:#c9d8ec;font-size:11px;font-weight:800}
+#vspEnforcerBcalcOverlay .vsp-ebcalc-warning{border:1px solid #8a642e;background:#3a2c1c;color:#ffe0aa;border-radius:10px;padding:10px;font-size:12px;line-height:1.4;margin-top:10px}
+@media(max-width:520px){#vspEnforcerBcalcOverlay .vsp-ebcalc-grid{grid-template-columns:1fr}#vspEnforcerBcalcOverlay .vsp-ebcalc{padding:13px}}
+</style>
+<script id="vspEnforcerBatteryCalculator20261120">
+(function(){
+ if(document.getElementById('vspEnforcerBcalcOverlay'))return;
+ const overlay=document.createElement('div');
+ overlay.id='vspEnforcerBcalcOverlay';
+ overlay.hidden=true;
+ overlay.innerHTML='<section class="vsp-ebcalc" role="dialog" aria-modal="true" aria-labelledby="vspEBcalcTitle">'+
+ '<div class="vsp-ebcalc-head"><div><div class="eyebrow">Intruder alarm engineer tool</div><h2 id="vspEBcalcTitle">🔋 Pyronix Enforcer battery calculator</h2></div><button type="button" class="secondary" id="vspEBcalcClose">✕ Close</button></div>'+
+ '<div class="sub" style="margin-bottom:12px">Select the Enforcer panel and bell arrangement. The calculator adds the panel load and, for a wired bell only, the selected bell-box load.</div>'+
+ '<div class="vsp-ebcalc-card"><div class="fieldlabel">1. Enforcer panel version</div><div style="display:flex;gap:8px;flex-wrap:wrap"><label><input type="radio" name="vspEBPanel" value="V9" checked> V9</label><label><input type="radio" name="vspEBPanel" value="V10"> V10</label><label><input type="radio" name="vspEBPanel" value="V11"> V11</label></div><div class="vsp-ebcalc-note" id="vspEBPanelSource">Pyronix battery-backup CIE current reference: 90mA. Confirm the exact panel revision and installation manual.</div></div>'+
+ '<div class="vsp-ebcalc-grid" style="margin-top:10px"><label><span class="fieldlabel">Panel standby current (mA)</span><input class="field" id="vspEBPanelStandby" type="number" min="0" step="0.1" value="90" readonly><span class="vsp-ebcalc-note">90mA battery-backup CIE reference.</span></label><label><span class="fieldlabel">Panel alarm current (mA)</span><input class="field" id="vspEBPanelAlarm" type="number" min="0" step="0.1" placeholder="Verified Pyronix figure only"><span class="vsp-ebcalc-note">Separate panel alarm current is not identified in the Pyronix documents reviewed. Do not substitute a measured or assumed value.</span></label></div>'+
+ '<div class="vsp-ebcalc-card"><div class="fieldlabel">2. External bell-box arrangement</div><div style="display:flex;gap:14px;flex-wrap:wrap"><label><input type="radio" name="vspEBBellType" value="Wireless" checked> Wireless bell</label><label><input type="radio" name="vspEBBellType" value="Wired"> Wired bell</label></div><div id="vspEBWiredFields" hidden style="margin-top:10px"><label><span class="fieldlabel">Wired bell-box model</span><select class="field" id="vspEBBellModel"><option value="Deltabell E">Pyronix Deltabell E</option><option value="Deltabell Plus">Pyronix Deltabell Plus</option><option value="Deltabell X">Pyronix Deltabell X</option><option value="Decibell">Pyronix Decibell</option><option value="Decibell E">Pyronix Decibell E</option><option value="Orisec ES520">Orisec ES520</option></select></label><div id="vspEBGradeWrap" hidden style="margin-top:10px"><span class="fieldlabel">Orisec grade</span><div style="display:flex;gap:14px"><label><input type="radio" name="vspEBGrade" value="Grade 2" checked> Grade 2</label><label><input type="radio" name="vspEBGrade" value="Grade 3"> Grade 3</label></div></div><div class="vsp-ebcalc-card" style="margin-top:10px"><div class="fieldlabel">Selected bell-box current</div><div class="vsp-ebcalc-row"><span>Standby / quiescent</span><b id="vspEBBellStandby">30mA</b></div><div class="vsp-ebcalc-row"><span>Alarm</span><b id="vspEBBellAlarm">250mA</b></div><div class="vsp-ebcalc-note" id="vspEBBellSource">Pyronix Deltabell E installation documentation. Confirm exact model/revision.</div></div></div><div id="vspEBWirelessNote" class="vsp-ebcalc-note">Wireless bell selected: no separate wired bell-box current is added to the Enforcer battery calculation.</div></div>'+
+ '<div class="vsp-ebcalc-card"><div class="fieldlabel">3. Battery and autonomy calculation</div><div class="vsp-ebcalc-row"><span>Battery capacity</span><b>2,200mAh (only option)</b></div><div class="vsp-ebcalc-row"><span>Standby period</span><b>12-hour autonomy period*</b></div><div class="vsp-ebcalc-row"><span>Alarm allowance</span><b>2 × 15 minutes</b></div><div class="vsp-ebcalc-row"><span>Ageing allowance</span><b>25% (× 1.25)</b></div><div class="vsp-ebcalc-note">Calculation basis: 11.5 hours standby plus 30 minutes total alarm within the 12-hour period, then a 1.25 capacity factor, following the informative BS 9263 Annex C example discussed for this calculator.</div></div>'+
+ '<div class="vsp-ebcalc-result" id="vspEBResult" aria-live="polite"><div class="sub">Enter a verified panel alarm current to complete the calculation.</div></div>'+
+ '<div class="vsp-ebcalc-warning" id="vspEBWarning">Panel alarm current is currently unavailable from the Pyronix specifications reviewed. A final battery pass/fail result will remain blocked until a verified manufacturer figure is entered. Do not use a site-measured or guessed value.</div>'+
+ '<div class="vsp-ebcalc-note">Bell-box values shown are from the product/installation documents previously reviewed: Deltabell E 30/250mA; Deltabell Plus 73/300mA; Deltabell X 90/300mA; Decibell 30/440mA; Decibell E up to 50/150mA; Orisec ES520 48/210mA Grade 2 or 48/280mA Grade 3. Decibell E figures are maxima. Orisec optional accessories may add further load. Verify exact model and configuration before relying on the result.</div>'+
+ '<div class="vsp-ebcalc-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px"><button type="button" id="vspEBCalculate">Calculate</button><button type="button" class="secondary" id="vspEBReset">Reset</button><button type="button" class="secondary" id="vspEBCopy">Copy calculation</button></div>'+
+ '</section>';
+ document.body.appendChild(overlay);
+ const $=id=>document.getElementById(id);
+ const bellData={
+  'Deltabell E':{standby:30,alarm:250,source:'Pyronix Deltabell E installation documentation.'},
+  'Deltabell Plus':{standby:73,alarm:300,source:'Pyronix Deltabell Plus installation documentation.'},
+  'Deltabell X':{standby:90,alarm:300,source:'Pyronix Deltabell X product documentation.'},
+  'Decibell':{standby:30,alarm:440,source:'Pyronix Decibell installation documentation; standby may increase by 10mA with backup battery connected.'},
+  'Decibell E':{standby:50,alarm:150,source:'Pyronix Decibell E product documentation; figures are stated as up to.'},
+  'Orisec ES520':{standby:48,alarm:210,source:'Orisec ES520 installation instructions; Grade 2 SAB.'}
+ };
+ const checked=name=>overlay.querySelector('input[name="'+name+'"]:checked')?.value||'';
+ let lastText='';
+ function bellType(){return checked('vspEBBellType')}
+ function updateBell(){
+  const wired=bellType()==='Wired';
+  $('vspEBWiredFields').hidden=!wired;
+  $('vspEBWirelessNote').hidden=wired;
+  const model=$('vspEBBellModel').value;
+  $('vspEBGradeWrap').hidden=!(wired&&model==='Orisec ES520');
+  const grade=checked('vspEBGrade');
+  const d=bellData[model];
+  const alarm=model==='Orisec ES520'&&grade==='Grade 3'?280:d.alarm;
+  $('vspEBBellStandby').textContent=d.standby+'mA';
+  $('vspEBBellAlarm').textContent=alarm+'mA';
+  $('vspEBBellSource').textContent=d.source+(model==='Orisec ES520'?' Grade '+(grade==='Grade 3'?'3':'2')+' SAB.':'');
+  calculate();
+ }
+ function calculate(){
+  const pStandby=Number($('vspEBPanelStandby').value);
+  const pAlarmText=$('vspEBPanelAlarm').value;
+  const pAlarm=Number(pAlarmText);
+  const wired=bellType()==='Wired';
+  const model=$('vspEBBellModel').value;
+  const d=bellData[model];
+  const bAlarm=model==='Orisec ES520'&&checked('vspEBGrade')==='Grade 3'?280:d.alarm;
+  const bStandby=wired?d.standby:0;
+  const bAlarmUsed=wired?bAlarm:0;
+  const valid=pAlarmText!==''&&Number.isFinite(pAlarm)&&pAlarm>=0&&Number.isFinite(pStandby)&&pStandby>=0;
+  const combinedStandby=pStandby+bStandby;
+  const combinedAlarm=(valid?pAlarm:0)+bAlarmUsed;
+  const required=valid?1.25*((combinedStandby*11.5)+(combinedAlarm*0.5)):0;
+  const result=$('vspEBResult');
+  if(!valid){
+   result.innerHTML='<div class="sub">Calculation not complete: a verified Pyronix panel alarm current is required. The selected bell loads are shown above but no pass/fail result is produced.</div>';
+   lastText='';
+   return;
+  }
+  const remaining=2200-required;
+  result.innerHTML='<div class="sub">Enforcer '+checked('vspEBPanel')+' · '+(wired?model:'Wireless bell')+'</div>'+
+   '<div style="margin:5px 0 2px"><strong>'+required.toFixed(1)+'mAh</strong></div><div class="sub">Required capacity including 25% ageing allowance</div>'+
+   '<div style="margin-top:10px;font-size:13px;line-height:1.7">Panel standby: '+pStandby+'mA · Bell standby: '+bStandby+'mA<br>Panel alarm: '+pAlarm+'mA · Bell alarm: '+bAlarmUsed+'mA<br>Standby consumption (11.5h): '+(combinedStandby*11.5).toFixed(1)+'mAh<br>Alarm consumption (30 min): '+(combinedAlarm*.5).toFixed(1)+'mAh<br>Nominal capacity remaining: '+remaining.toFixed(1)+'mAh<br><b>'+(remaining>=0?'Within nominal 2,200mAh capacity':'Exceeds nominal 2,200mAh capacity')+'</b></div>';
+  lastText='Pyronix Enforcer battery calculation\nPanel: Enforcer '+checked('vspEBPanel')+'\nBell arrangement: '+(wired?model:'Wireless bell')+'\nPanel standby: '+pStandby+'mA\nPanel alarm: '+pAlarm+'mA (manufacturer-verified input)\nBell standby: '+bStandby+'mA\nBell alarm: '+bAlarmUsed+'mA\nStandby duration: 11.5 hours\nAlarm duration: 30 minutes total (2 x 15 minutes)\nAgeing factor: 1.25\nRequired capacity: '+required.toFixed(1)+'mAh\nNominal battery capacity: 2200mAh\nNominal capacity remaining: '+remaining.toFixed(1)+'mAh\nVerify applicable standards, manufacturer documents, battery discharge data and exact equipment configuration.';
+  $('vspEBWarning').hidden=true;
+ }
+ $('vspOpenEnforcerBcalc')?.addEventListener('click',()=>{overlay.hidden=false;document.body.style.overflow='hidden';updateBell()});
+ function close(){overlay.hidden=true;document.body.style.overflow=''}
+ $('vspEBCalcClose').addEventListener('click',close);
+ overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!overlay.hidden)close()});
+ overlay.querySelectorAll('input[name="vspEBPanel"],input[name="vspEBBellType"],input[name="vspEBGrade"]').forEach(el=>el.addEventListener('change',()=>{if(el.name==='vspEBPanel'){$('vspEBPanelSource').textContent='Pyronix battery-backup CIE current reference: 90mA. Confirm the exact Enforcer '+checked('vspEBPanel')+' panel revision and installation manual.'}updateBell()}));
+ $('vspEBBellModel').addEventListener('change',updateBell);
+ $('vspEBPanelAlarm').addEventListener('input',calculate);
+ $('vspEBCalculate').addEventListener('click',calculate);
+ $('vspEBReset').addEventListener('click',()=>{
+  $('vspEBPanelAlarm').value='';
+  $('vspEBBellModel').value='Deltabell E';
+  overlay.querySelector('input[name="vspEBPanel"][value="V9"]').checked=true;
+  overlay.querySelector('input[name="vspEBBellType"][value="Wireless"]').checked=true;
+  overlay.querySelector('input[name="vspEBGrade"][value="Grade 2"]').checked=true;
+  $('vspEBPanelSource').textContent='Pyronix battery-backup CIE current reference: 90mA. Confirm the exact panel revision and installation manual.';
+  $('vspEBWarning').hidden=false;
+  updateBell();
+ });
+ $('vspEBCopy').addEventListener('click',()=>{
+  if(!lastText){calculate();if(!lastText)return}
+  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(lastText).then(()=>alert('Enforcer battery calculation copied.')).catch(()=>alert('Could not copy. Please try again.'));
+  else alert(lastText);
+ });
+ updateBell();
 })();
 </script>
 
