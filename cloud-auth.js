@@ -1275,8 +1275,9 @@ async function startAppPresence(workspaceId, role) {
   if (appPresenceChannel && appPresenceWorkspaceId === workspaceId) return;
   await stopAppPresence();
   const user = currentSession.user;
+  const sessionId = user.id + "-" + (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
   const channel = supabase.channel("vsp-active-users-" + workspaceId, {
-    config: { presence: { key: user.id + "-" + (crypto.randomUUID?.() || String(Date.now())) } }
+    config: { presence: { key: sessionId } }
   });
   appPresenceChannel = channel;
   appPresenceWorkspaceId = workspaceId;
@@ -1291,7 +1292,7 @@ async function startAppPresence(workspaceId, role) {
         role: role || "member",
         workspace_id: workspaceId,
         workspace_name: "Van Stock Pro",
-        session_id: channel.presenceKey,
+        session_id: sessionId,
         last_seen: new Date().toISOString()
       });
     };
