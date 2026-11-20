@@ -1366,7 +1366,7 @@ async function refreshPendingRegistrations() {
   }
   for (const user of pending) {
     const card = document.createElement("div");
-    card.style.cssText = "display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)";
+    card.style.cssText = "display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-items:start;padding:12px 0;border-bottom:1px solid var(--line)";
     const details = document.createElement("div");
     details.style.cssText = "min-width:0;overflow-wrap:anywhere";
     const mail = document.createElement("strong");
@@ -1427,12 +1427,11 @@ async function refreshAccessPanel() {
         workspace.id === row.workspace_id && workspace.created_by !== userId
       )
     );
-    // The two authorised administrators manage their own personal space.
-    // Ordinary invited users continue to see only their granted shared role.
+    // Prefer the shared team workspace for every invited account, including
+    // administrators. Otherwise an admin's auto-created personal workspace
+    // can incorrectly make them appear as OWNER with unrelated pending users.
     const sharedMembership = sharedMemberships[0] || null;
-    const selected = isAuthorisedWorkspaceAdmin(currentSession.user) && personalMembership
-      ? personalMembership
-      : sharedMembership || personalMembership || mine[0] || null;
+    const selected = sharedMembership || personalMembership || mine[0] || null;
     if (!selected) {
       accessPanel.hidden = true; activeWorkspaceId = null; activeWorkspaceRole = null;
       return;
