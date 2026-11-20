@@ -1366,9 +1366,9 @@ async function refreshPendingRegistrations() {
   }
   for (const user of pending) {
     const card = document.createElement("div");
-    card.style.cssText = "display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-items:start;padding:12px 0;border-bottom:1px solid var(--line)";
+    card.style.cssText = "display:flex;flex-direction:column;width:100%;min-width:0;gap:10px;align-items:stretch;padding:12px 0;border-bottom:1px solid var(--line)";
     const details = document.createElement("div");
-    details.style.cssText = "min-width:0;overflow-wrap:anywhere";
+    details.style.cssText = "display:block;width:100%;min-width:0;overflow-wrap:anywhere;word-break:break-word";
     const mail = document.createElement("strong");
     mail.textContent = user.email || "Unknown email";
     const meta = document.createElement("div");
@@ -1376,7 +1376,7 @@ async function refreshPendingRegistrations() {
     meta.textContent = "Registered " + (user.created_at ? new Date(user.created_at).toLocaleDateString() : "date unavailable") + (user.email_confirmed_at ? " · Email confirmed" : " · Email not confirmed");
     details.append(mail, meta);
     const controls = document.createElement("div");
-    controls.style.cssText = "display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end";
+    controls.style.cssText = "display:flex;width:100%;min-width:0;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-start";
     const role = document.createElement("select");
     role.className = "field";
     role.style.cssText = "width:auto;min-width:115px;padding:8px";
@@ -1427,11 +1427,14 @@ async function refreshAccessPanel() {
         workspace.id === row.workspace_id && workspace.created_by !== userId
       )
     );
-    // Prefer the shared team workspace for every invited account, including
-    // administrators. Otherwise an admin's auto-created personal workspace
-    // can incorrectly make them appear as OWNER with unrelated pending users.
+    // Select the highest relevant team role before a personal workspace.
+    // Admin accounts can also own an automatically-created personal workspace;
+    // choosing that OWNER row hides the real team membership and mislabels
+    // every existing team member as a pending registration.
+    const teamAdminMembership = mine.find(row => String(row.role || "").toLowerCase() === "admin");
+    const teamOwnerMembership = mine.find(row => String(row.role || "").toLowerCase() === "owner");
     const sharedMembership = sharedMemberships[0] || null;
-    const selected = sharedMembership || personalMembership || mine[0] || null;
+    const selected = teamAdminMembership || teamOwnerMembership || sharedMembership || personalMembership || mine[0] || null;
     if (!selected) {
       accessPanel.hidden = true; activeWorkspaceId = null; activeWorkspaceRole = null;
       return;
