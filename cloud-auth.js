@@ -60,6 +60,8 @@ function setSession(session) {
     if (stockSyncTimer) { window.clearTimeout(stockSyncTimer); stockSyncTimer = null; }
   }
   currentSession = session;
+  if (!nextUserId || previousUserId !== nextUserId) void stopAppPresence();
+
   if (previousUserId !== nextUserId || !nextUserId) {
     document.body.classList.remove("cloud-admin");
     // Preserve a local snapshot for recovery, but never display or upload it
@@ -1222,6 +1224,83 @@ const accessPanel = $("userAccessPanel");
 const accessMessage = $("accessMessage");
 const accessBody = $("accessMembersBody");
 const accessRoleLabel = $("accessRoleLabel");
+const activeUsersBody = $("activeUsersBody");
+const activeUsersCount = $("activeUsersCount");
+let appPresenceChannel = null;
+let appPresenceWorkspaceId = null;
+let appPresenceRefreshTimer = null;
+
+function renderActiveUsers() {
+  if (!activeUsersBody || !appPresenceChannel) return;
+  const state = appPresenceChannel.presenceState();
+  const users = Object.values(state).flat().filter(user => user?.user_id);
+  const unique = new Map();
+  for (const user of users) unique.set(user.session_id || user.user_id, user);
+  activeUsersBody.replaceChildren();
+  const rows = [...unique.values()].sort((a,b)=>String(a.email||"").localeCompare(String(b.email||"")));
+  if (activeUsersCount) activeUsersCount.textContent = String(rows.length);
+  for (const user of rows) {
+    const tr = document.createElement("tr");
+    for (const value of [
+      user.email || "(email unavailable)",
+      user.workspace_name || "Van Stock Pro workspace",
+      String(user.role || "member").toUpperCase(),
+      user.last_seen ? new Date(user.last_seen).toLocaleString() : "Just now",
+      "Online"
+    ]) {
+      const td = document.createElement("td");
+      td.textContent = value;
+      tr.append(td);
+    }
+    activeUsersBody.append(tr);
+  }
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 5; td.textContent = "No users currently online.";
+    tr.append(td); activeUsersBody.append(tr);
+  }
+}
+
+async function stopAppPresence() {
+  if (appPresenceRefreshTimer) { clearInterval(appPresenceRefreshTimer); appPresenceRefreshTimer = null; }
+  const old = appPresenceChannel;
+  appPresenceChannel = null;
+  appPresenceWorkspaceId = null;
+  if (old) { try { await supabase.removeChannel(old); } catch {} }
+}
+
+async function startAppPresence(workspaceId, role) {
+  if (!currentSession?.user || !workspaceId) { await stopAppPresence(); return; }
+  if (appPresenceChannel && appPresenceWorkspaceId === workspaceId) return;
+  await stopAppPresence();
+  const user = currentSession.user;
+  const channel = supabase.channel("vsp-active-users-" + workspaceId, {
+    config: { presence: { key: user.id + "-" + (crypto.randomUUID?.() || String(Date.now())) } }
+  });
+  appPresenceChannel = channel;
+  appPresenceWorkspaceId = workspaceId;
+  channel.on("presence", { event: "sync" }, renderActiveUsers);
+  channel.subscribe(async status => {
+    if (status !== "SUBSCRIBED" || currentSession?.user?.id !== user.id) return;
+    const track = async () => {
+      if (appPresenceChannel !== channel || currentSession?.user?.id !== user.id) return;
+      await channel.track({
+        user_id: user.id,
+        email: user.email || "",
+        role: role || "member",
+        workspace_id: workspaceId,
+        workspace_name: "Van Stock Pro",
+        session_id: channel.presenceKey,
+        last_seen: new Date().toISOString()
+      });
+    };
+    await track();
+    if (appPresenceRefreshTimer) clearInterval(appPresenceRefreshTimer);
+    appPresenceRefreshTimer = setInterval(track, 60000);
+  });
+}
+
 let activeWorkspaceId = null;
 let activeWorkspaceRole = null;
 // Prevent overlapping access refreshes from appending the same members twice.
@@ -1328,6 +1407,10 @@ async function refreshAccessPanel() {
     }
     activeWorkspaceId = selected.workspace_id;
     activeWorkspaceRole = selected.role;
+    // Every authorised workspace member publishes their own online presence;
+    // only Owner/Admin clients render the user-monitoring panel below.
+    await startAppPresence(activeWorkspaceId, selected.role);
+
     // Only owners and admins can see/manage this panel.
     if (!["owner", "admin"].includes(String(selected.role || "").toLowerCase())) {
       accessPanel.hidden = true;
