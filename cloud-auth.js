@@ -1475,6 +1475,10 @@ async function refreshAccessPanel() {
       const roleCell = document.createElement("td"); roleCell.textContent = member.role;
       const dateCell = document.createElement("td");
       dateCell.textContent = member.created_at ? new Date(member.created_at).toLocaleDateString() : "—";
+      const loginCell = document.createElement("td");
+      loginCell.textContent = accountDetails?.last_sign_in_at
+        ? new Date(accountDetails.last_sign_in_at).toLocaleString()
+        : "Never / unavailable";
       const actionCell = document.createElement("td");
       if (member.user_id !== currentSession.user.id) {
         const remove = document.createElement("button");
@@ -1482,11 +1486,11 @@ async function refreshAccessPanel() {
         remove.addEventListener("click", () => removeWorkspaceMember(member.user_id, remove));
         actionCell.append(remove);
       } else actionCell.textContent = "You";
-      tr.append(emailCell, roleCell, dateCell, actionCell); accessBody.append(tr);
+      tr.append(emailCell, roleCell, dateCell, loginCell, actionCell); accessBody.append(tr);
     }
     if (!uniqueMembers.length) {
       const tr = document.createElement("tr"); const td = document.createElement("td");
-      td.colSpan = 4; td.textContent = "No members found."; tr.append(td); accessBody.append(tr);
+      td.colSpan = 5; td.textContent = "No members found."; tr.append(td); accessBody.append(tr);
     }
     const pendingTotal = Array.isArray(accessData?.pending) ? accessData.pending.length : 0;
     accessNotice("Workspace access loaded. " + uniqueMembers.length + " authorised account(s), " + pendingTotal + " pending registration(s).", "success");
