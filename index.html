@@ -1912,33 +1912,38 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
  const checked=name=>overlay.querySelector('input[name="'+name+'"]:checked')?.value||'';
  const deviceData={
   V9:[
-   {id:'io',name:'Enforcer I/O board / RS485 interface',note:'Enforcer I/O board supports wired peripherals and RS485 expanders; exact fitted configuration must be checked.'},
-   {id:'digi-gsm',name:'DIGI-GSM communicator',note:'Listed for Enforcer V9 and later. Current draw not verified.'}
+   {id:'io',name:'Enforcer I/O board / RS485 interface',note:'Compatible accessory. Pyronix documentation gives output ratings, not a separate board quiescent current; enter a verified measured/manufacturer figure before relying on the result.'},
+   {id:'digi-gsm',name:'DIGI-GSM communicator',standby:40,alarm:420,source:'Pyronix DIGI-GSM RINS1559-4: 40mA quiescent; 420mA in use. Enforcer V9 and above.'},
+   {id:'digi-1200',name:'DIGI-1200 PSTN communicator',standby:20,alarm:40,source:'Pyronix communications modem datasheet: 20mA quiescent; 40mA in use. Confirm exact Enforcer revision compatibility.'}
   ],
   V10:[
-   {id:'io',name:'Enforcer I/O board / RS485 interface',note:'Enforcer I/O board supports wired peripherals and RS485 expanders; exact fitted configuration must be checked.'},
-   {id:'digi-wifi',name:'DIGI-WIFI communicator',note:'Compatible with Enforcer V10.'},
-   {id:'digi-lan',name:'DIGI-LAN communicator',note:'Compatible with Enforcer V10.'},
-   {id:'digi-gprs',name:'DIGI-GPRS communicator',note:'Compatible with Enforcer V10.'},
-   {id:'digi-gprs-sim',name:'DIGI-GPRS+SIM communicator',note:'Compatible with Enforcer V10.'},
-   {id:'digi-pstn-voice',name:'DIGI-PSTN/VOICE communicator',note:'Compatible with Enforcer V10.'},
-   {id:'digi-1200',name:'DIGI-1200 PSTN communicator',note:'Compatible with Enforcer V10; older product, check availability.'}
+   {id:'io',name:'Enforcer I/O board / RS485 interface',note:'Compatible accessory. Pyronix documentation gives output ratings, not a separate board quiescent current; enter a verified measured/manufacturer figure before relying on the result.'},
+   {id:'digi-wifi',name:'DIGI-WIFI communicator',standby:30,source:'Pyronix communications modem datasheet: 30mA quiescent; no separate in-use current published.'},
+   {id:'digi-lan',name:'DIGI-LAN communicator',standby:30,source:'Pyronix communications modem datasheet: 30mA quiescent; no separate in-use current published.'},
+   {id:'digi-gprs',name:'DIGI-GPRS communicator',standby:30,alarm:420,source:'Pyronix communications modem datasheet: 30mA quiescent; 420mA in use.'},
+   {id:'digi-gsm',name:'DIGI-GSM communicator',standby:40,alarm:420,source:'Pyronix DIGI-GSM RINS1559-4: 40mA quiescent; 420mA in use. Enforcer V9 and above.'},
+   {id:'digi-1200',name:'DIGI-1200 PSTN communicator',standby:20,alarm:40,source:'Pyronix communications modem datasheet: 20mA quiescent; 40mA in use. Confirm exact Enforcer revision compatibility.'}
   ],
   V11:[
-   {id:'io',name:'Enforcer I/O board / RS485 interface',note:'Enforcer I/O board supports wired peripherals and RS485 expanders; exact fitted configuration must be checked.'},
-   {id:'onboard-wifi',name:'Onboard Wi-Fi communicator',note:'Built into Enforcer V11. Already part of the panel base load; do not add it again.',builtIn:true},
-   {id:'digi-lan',name:'DIGI-LAN communicator',note:'Compatible with Enforcer V11.'},
-   {id:'digi-gprs',name:'DIGI-GPRS communicator',note:'Compatible with Enforcer V11.'},
-   {id:'digi-gprs-sim',name:'DIGI-GPRS+SIM communicator',note:'Compatible with Enforcer V11.'},
-   {id:'digi-pstn-voice',name:'DIGI-PSTN/VOICE communicator',note:'Compatible with Enforcer V11.'},
-   {id:'digi-1200',name:'DIGI-1200 PSTN communicator',note:'Compatible with Enforcer V11; older product, check availability.'},
-   {id:'csl-digiair',name:'CSL DigiAir Pyronix Connected Unit (Wi-Fi / LAN / GPRS)',note:'Previously identified as compatible with Enforcer V11. Current draw remains unverified.'}
+   {id:'io',name:'Enforcer I/O board / RS485 interface',note:'Compatible accessory. Pyronix documentation gives output ratings, not a separate board quiescent current; enter a verified measured/manufacturer figure before relying on the result.'},
+   {id:'onboard-wifi',name:'Onboard Wi-Fi communicator',note:'Built into Enforcer V11. Already included in the panel base current; do not add it again.',builtIn:true},
+   {id:'digi-wifi',name:'DIGI-WIFI communicator',standby:30,source:'Pyronix communications modem datasheet: 30mA quiescent; no separate in-use current published.'},
+   {id:'digi-lan',name:'DIGI-LAN communicator',standby:30,source:'Pyronix communications modem datasheet: 30mA quiescent; no separate in-use current published.'},
+   {id:'digi-gprs',name:'DIGI-GPRS communicator',standby:30,alarm:420,source:'Pyronix communications modem datasheet: 30mA quiescent; 420mA in use.'},
+   {id:'digi-gsm',name:'DIGI-GSM communicator',standby:40,alarm:420,source:'Pyronix DIGI-GSM RINS1559-4: 40mA quiescent; 420mA in use. Enforcer V9 and above.'},
+   {id:'digi-1200',name:'DIGI-1200 PSTN communicator',standby:20,alarm:40,source:'Pyronix communications modem datasheet: 20mA quiescent; 40mA in use. Confirm exact Enforcer revision compatibility.'},
+   {id:'csl-digiair',name:'CSL DigiAir Pyronix Connected Unit (Wi-Fi / LAN / GPRS)',note:'Compatibility previously confirmed for Enforcer V11. Current figures are not yet verified for this specific Pyronix-connected variant; enter confirmed figures manually.'}
   ]
  };
  function renderDeviceOptions(){
   const panel=$('vspEBPanel').value;
   const items=deviceData[panel]||[];
-  $('vspEBDeviceOptions').innerHTML=items.map(d=>'<div class="vsp-ebcalc-card" style="padding:9px;margin:7px 0"><label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" data-eb-device="'+d.id+'" '+(d.builtIn?'disabled':'')+'><span><b>'+d.name+(d.builtIn?' (built in)':'')+'</b><div class="vsp-ebcalc-note">'+d.note+'</div></span></label>'+(d.builtIn?'':'<div data-eb-device-fields="'+d.id+'" hidden style="margin-top:8px"><div class="vsp-ebcalc-grid"><label><span class="fieldlabel">Standby current (mA)</span><input class="field" type="number" min="0" step="0.1" data-eb-device-standby="'+d.id+'" placeholder="Enter verified mA"></label><label><span class="fieldlabel">Alarm current (mA)</span><input class="field" type="number" min="0" step="0.1" data-eb-device-alarm="'+d.id+'" placeholder="Enter if specified"></label></div><div class="vsp-ebcalc-note">Enter manufacturer-verified figures. If alarm current is not specified, only the entered standby load will be included.</div></div>')+'</div>').join('');
+  $('vspEBDeviceOptions').innerHTML=items.map(d=>{
+   const hasStandby=Number.isFinite(d.standby),hasAlarm=Number.isFinite(d.alarm);
+   const builtIn=!!d.builtIn;
+   const note=d.note||d.source||'Manufacturer current data not verified; enter confirmed figures.';
+   return '<div class="vsp-ebcalc-card" style="padding:9px;margin:7px 0"><label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" data-eb-device="'+d.id+'" '+(builtIn?'disabled':'')+'><span><b>'+d.name+(builtIn?' (built in)':'')+'</b><div class="vsp-ebcalc-note">'+note+'</div></span></label>'+(builtIn?'':'<div data-eb-device-fields="'+d.id+'" hidden style="margin-top:8px"><div class="vsp-ebcalc-grid"><label><span class="fieldlabel">Standby current (mA)</span><input class="field" type="number" min="0" step="0.1" data-eb-device-standby="'+d.id+'" '+(hasStandby?'value="'+d.standby+'"':'placeholder="Enter verified mA"')+'></label><label><span class="fieldlabel">Alarm / in-use current (mA)</span><input class="field" type="number" min="0" step="0.1" data-eb-device-alarm="'+d.id+'" '+(hasAlarm?'value="'+d.alarm+'"':'placeholder="Enter if verified"')+'></label></div><div class="vsp-ebcalc-note">'+(d.source||'No verified current figures are preloaded. Enter manufacturer-verified values; missing values are excluded and flagged.')+'</div></div>')+'</div>';
+  }).join('');
  }
  $('vspEBDeviceOptions').addEventListener('change',e=>{
   const id=e.target.getAttribute('data-eb-device');
