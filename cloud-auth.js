@@ -1470,8 +1470,15 @@ async function refreshAccessPanel() {
       const tr = document.createElement("tr");
       const emailCell = document.createElement("td");
       const accountDetails = (accessMembers || []).find(user => user.user_id === member.user_id);
-      emailCell.textContent = accountDetails?.email || "(email unavailable)";
-      emailCell.style.cssText = "overflow-wrap:anywhere;font-weight:600";
+      const workspaceDot = document.createElement("span");
+      workspaceDot.title = "Has workspace access";
+      workspaceDot.setAttribute("aria-label", "Has workspace access");
+      workspaceDot.style.cssText = "display:inline-block;width:9px;height:9px;min-width:9px;border-radius:50%;background:#22c983;box-shadow:0 0 0 3px rgba(34,201,131,.14);margin-right:9px;vertical-align:middle";
+      const emailText = document.createElement("span");
+      emailText.textContent = accountDetails?.email || "(email unavailable)";
+      emailText.style.cssText = "overflow-wrap:anywhere";
+      emailCell.style.cssText = "font-weight:600";
+      emailCell.append(workspaceDot, emailText);
       const roleCell = document.createElement("td"); roleCell.textContent = member.role;
       const dateCell = document.createElement("td");
       dateCell.textContent = member.created_at ? new Date(member.created_at).toLocaleDateString() : "—";
