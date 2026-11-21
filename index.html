@@ -1892,8 +1892,8 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
  '<div class="vsp-ebcalc-head"><div><div class="eyebrow">Intruder alarm engineer tool</div><h2 id="vspEBcalcTitle">🔋 Pyronix battery calculator</h2></div><button type="button" class="secondary" id="vspEBCalcClose">✕ Close</button></div>'+
  '<div class="sub" style="margin-bottom:12px">Select an Enforcer panel and choose the bell arrangement. Only the panel and selected external bell-box loads are included.</div>'+
  '<div class="vsp-ebcalc-card"><div class="fieldlabel">1. Pyronix control panel</div><select class="field" id="vspEBPanel"><option value="V9">Enforcer V9</option><option value="V10">Enforcer V10</option><option value="V11">Enforcer V11</option></select><div class="vsp-ebcalc-note" id="vspEBPanelSource">Select the panel. Panel base current and source notes will update automatically.</div></div>'+
- '<div class="vsp-ebcalc-grid" style="margin-top:10px"><label><span class="fieldlabel">Panel standby current (mA)</span><input class="field" id="vspEBPanelStandby" type="number" min="0" step="0.1" value="90" readonly><span class="vsp-ebcalc-note" id="vspEBStandbyNote">Panel base standby current.</span></label><label><span class="fieldlabel">Panel alarm current (mA)</span><input class="field" id="vspEBPanelAlarm" type="number" min="0" step="0.1" value="222" readonly><span class="vsp-ebcalc-note" id="vspEBAlarmNote">Enforcer panel alarm current.</span></label></div><div class="vsp-ebcalc-card"><div class="fieldlabel">3. External bell-box arrangement</div><div style="display:flex;gap:14px;flex-wrap:wrap"><label><input type="radio" name="vspEBBellType" value="Wireless" checked> Wireless bell</label><label><input type="radio" name="vspEBBellType" value="Wired"> Wired bell</label></div><div id="vspEBWiredFields" hidden style="margin-top:10px"><label><span class="fieldlabel">Wired bell-box model</span><select class="field" id="vspEBBellModel"><option value="Deltabell E">Pyronix Deltabell E (Enforcer)</option><option value="Deltabell Plus">Pyronix Deltabell Plus</option><option value="Deltabell X">Pyronix Deltabell X</option><option value="Decibell">Pyronix Decibell</option><option value="Decibell E">Pyronix Decibell E</option><option value="Orisec ES520">Orisec ES520</option></select></label><div id="vspEBGradeWrap" hidden style="margin-top:10px"><span class="fieldlabel">Orisec grade</span><div style="display:flex;gap:14px"><label><input type="radio" name="vspEBGrade" value="Grade 2" checked> Grade 2</label><label><input type="radio" name="vspEBGrade" value="Grade 3"> Grade 3</label></div></div><div class="vsp-ebcalc-card" style="margin-top:10px"><div class="fieldlabel">Selected bell-box current</div><div class="vsp-ebcalc-row"><span>Standby / quiescent</span><b id="vspEBBellStandby">30mA</b></div><div class="vsp-ebcalc-row"><span>Alarm</span><b id="vspEBBellAlarm">250mA</b></div><div class="vsp-ebcalc-note" id="vspEBBellSource">Pyronix Deltabell E installation documentation. Confirm exact model/revision.</div></div></div><div id="vspEBWirelessNote" class="vsp-ebcalc-note">Wireless bell selected: no separate wired bell-box current is added to the Enforcer battery calculation.</div></div>'+
- '<div class="vsp-ebcalc-card"><div class="fieldlabel">4. Battery and autonomy calculation</div><div class="vsp-ebcalc-row"><span>Battery capacity</span><b>2,200mAh (only option)</b></div><div class="vsp-ebcalc-row"><span>Standby period</span><b>12-hour autonomy period*</b></div><div class="vsp-ebcalc-row"><span>Alarm allowance</span><b>2 × 15 minutes</b></div><div class="vsp-ebcalc-row"><span>Ageing allowance</span><b>25% (× 1.25)</b></div><div class="vsp-ebcalc-note">Calculation basis: 12 hours standby plus 30 minutes total alarm, then a 1.25 capacity factor. Verify the required design period and applicable standard for the installation.</div></div>'+
+ '<div class="vsp-ebcalc-grid" style="margin-top:10px"><label><span class="fieldlabel">Panel standby current (mA)</span><input class="field" id="vspEBPanelStandby" type="number" min="0" step="0.1" value="90" readonly><span class="vsp-ebcalc-note" id="vspEBStandbyNote">Panel base standby current.</span></label><label><span class="fieldlabel">Panel alarm current (mA)</span><input class="field" id="vspEBPanelAlarm" type="number" min="0" step="0.1" value="222" readonly><span class="vsp-ebcalc-note" id="vspEBAlarmNote">Enforcer panel alarm current.</span></label></div><div class="vsp-ebcalc-card"><div class="fieldlabel">3. Compatible I/O and communication devices</div><div class="vsp-ebcalc-note">Only devices listed for the selected Enforcer version are shown. Select only equipment actually fitted. Current draw figures are not pre-filled where manufacturer values have not been verified.</div><div id="vspEBDeviceOptions" style="margin-top:9px"></div></div><div class="vsp-ebcalc-card"><div class="fieldlabel">4. External bell-box arrangement</div><div style="display:flex;gap:14px;flex-wrap:wrap"><label><input type="radio" name="vspEBBellType" value="Wireless" checked> Wireless bell</label><label><input type="radio" name="vspEBBellType" value="Wired"> Wired bell</label></div><div id="vspEBWiredFields" hidden style="margin-top:10px"><label><span class="fieldlabel">Wired bell-box model</span><select class="field" id="vspEBBellModel"><option value="Deltabell E">Pyronix Deltabell E (Enforcer)</option><option value="Deltabell Plus">Pyronix Deltabell Plus</option><option value="Deltabell X">Pyronix Deltabell X</option><option value="Decibell">Pyronix Decibell</option><option value="Decibell E">Pyronix Decibell E</option><option value="Orisec ES520">Orisec ES520</option></select></label><div id="vspEBGradeWrap" hidden style="margin-top:10px"><span class="fieldlabel">Orisec grade</span><div style="display:flex;gap:14px"><label><input type="radio" name="vspEBGrade" value="Grade 2" checked> Grade 2</label><label><input type="radio" name="vspEBGrade" value="Grade 3"> Grade 3</label></div></div><div class="vsp-ebcalc-card" style="margin-top:10px"><div class="fieldlabel">Selected bell-box current</div><div class="vsp-ebcalc-row"><span>Standby / quiescent</span><b id="vspEBBellStandby">30mA</b></div><div class="vsp-ebcalc-row"><span>Alarm</span><b id="vspEBBellAlarm">250mA</b></div><div class="vsp-ebcalc-note" id="vspEBBellSource">Pyronix Deltabell E installation documentation. Confirm exact model/revision.</div></div></div><div id="vspEBWirelessNote" class="vsp-ebcalc-note">Wireless bell selected: no separate wired bell-box current is added to the Enforcer battery calculation.</div></div>'+
+ '<div class="vsp-ebcalc-card"><div class="fieldlabel">5. Battery and autonomy calculation</div><div class="vsp-ebcalc-row"><span>Battery capacity</span><b>2,200mAh (only option)</b></div><div class="vsp-ebcalc-row"><span>Standby period</span><b>12-hour autonomy period*</b></div><div class="vsp-ebcalc-row"><span>Alarm allowance</span><b>2 × 15 minutes</b></div><div class="vsp-ebcalc-row"><span>Ageing allowance</span><b>25% (× 1.25)</b></div><div class="vsp-ebcalc-note">Calculation basis: 12 hours standby plus 30 minutes total alarm, then a 1.25 capacity factor. Verify the required design period and applicable standard for the installation.</div></div>'+
  '<div class="vsp-ebcalc-result" id="vspEBResult" aria-live="polite"><div class="sub">Select the Enforcer panel and bell arrangement to calculate the required battery capacity.</div></div>'+
  '<div class="vsp-ebcalc-warning" id="vspEBWarning">Check panel and bell-box current figures against the exact manufacturer documentation and equipment fitted.</div>'+
  '<div class="vsp-ebcalc-note">Bell-box values shown are from the product/installation documents previously reviewed: Deltabell E 30/250mA; Deltabell Plus 73/300mA; Deltabell X 90/300mA; Decibell 30/440mA; Decibell E up to 50/150mA; Orisec ES520 48/210mA Grade 2 or 48/280mA Grade 3. Decibell E figures are maxima. Orisec optional accessories may add further load. Verify exact model and configuration before relying on the result.</div>'+
@@ -1910,6 +1910,42 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
   'Orisec ES520':{standby:48,alarm:210,source:'Orisec ES520 installation instructions; Grade 2 SAB.'}
  };
  const checked=name=>overlay.querySelector('input[name="'+name+'"]:checked')?.value||'';
+ const deviceData={
+  V9:[
+   {id:'io',name:'Enforcer I/O board / RS485 interface',note:'Enforcer I/O board supports wired peripherals and RS485 expanders; exact fitted configuration must be checked.'},
+   {id:'digi-gsm',name:'DIGI-GSM communicator',note:'Listed for Enforcer V9 and later. Current draw not verified.'}
+  ],
+  V10:[
+   {id:'io',name:'Enforcer I/O board / RS485 interface',note:'Enforcer I/O board supports wired peripherals and RS485 expanders; exact fitted configuration must be checked.'},
+   {id:'digi-wifi',name:'DIGI-WIFI communicator',note:'Compatible with Enforcer V10.'},
+   {id:'digi-lan',name:'DIGI-LAN communicator',note:'Compatible with Enforcer V10.'},
+   {id:'digi-gprs',name:'DIGI-GPRS communicator',note:'Compatible with Enforcer V10.'},
+   {id:'digi-gprs-sim',name:'DIGI-GPRS+SIM communicator',note:'Compatible with Enforcer V10.'},
+   {id:'digi-pstn-voice',name:'DIGI-PSTN/VOICE communicator',note:'Compatible with Enforcer V10.'},
+   {id:'digi-1200',name:'DIGI-1200 PSTN communicator',note:'Compatible with Enforcer V10; older product, check availability.'}
+  ],
+  V11:[
+   {id:'io',name:'Enforcer I/O board / RS485 interface',note:'Enforcer I/O board supports wired peripherals and RS485 expanders; exact fitted configuration must be checked.'},
+   {id:'onboard-wifi',name:'Onboard Wi-Fi communicator',note:'Built into Enforcer V11. Already part of the panel base load; do not add it again.',builtIn:true},
+   {id:'digi-lan',name:'DIGI-LAN communicator',note:'Compatible with Enforcer V11.'},
+   {id:'digi-gprs',name:'DIGI-GPRS communicator',note:'Compatible with Enforcer V11.'},
+   {id:'digi-gprs-sim',name:'DIGI-GPRS+SIM communicator',note:'Compatible with Enforcer V11.'},
+   {id:'digi-pstn-voice',name:'DIGI-PSTN/VOICE communicator',note:'Compatible with Enforcer V11.'},
+   {id:'digi-1200',name:'DIGI-1200 PSTN communicator',note:'Compatible with Enforcer V11; older product, check availability.'},
+   {id:'csl-digiair',name:'CSL DigiAir Pyronix Connected Unit (Wi-Fi / LAN / GPRS)',note:'Previously identified as compatible with Enforcer V11. Current draw remains unverified.'}
+  ]
+ };
+ function renderDeviceOptions(){
+  const panel=$('vspEBPanel').value;
+  const items=deviceData[panel]||[];
+  $('vspEBDeviceOptions').innerHTML=items.map(d=>'<div class="vsp-ebcalc-card" style="padding:9px;margin:7px 0"><label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" data-eb-device="'+d.id+'" '+(d.builtIn?'disabled':'')+'><span><b>'+d.name+(d.builtIn?' (built in)':'')+'</b><div class="vsp-ebcalc-note">'+d.note+'</div></span></label>'+(d.builtIn?'':'<div data-eb-device-fields="'+d.id+'" hidden style="margin-top:8px"><div class="vsp-ebcalc-grid"><label><span class="fieldlabel">Standby current (mA)</span><input class="field" type="number" min="0" step="0.1" data-eb-device-standby="'+d.id+'" placeholder="Enter verified mA"></label><label><span class="fieldlabel">Alarm current (mA)</span><input class="field" type="number" min="0" step="0.1" data-eb-device-alarm="'+d.id+'" placeholder="Enter if specified"></label></div><div class="vsp-ebcalc-note">Enter manufacturer-verified figures. If alarm current is not specified, only the entered standby load will be included.</div></div>')+'</div>').join('');
+ }
+ $('vspEBDeviceOptions').addEventListener('change',e=>{
+  const id=e.target.getAttribute('data-eb-device');
+  if(id){const fields=$('vspEBDeviceOptions').querySelector('[data-eb-device-fields="'+id+'"]');if(fields)fields.hidden=!e.target.checked;}
+  calculate();
+ });
+ $('vspEBDeviceOptions').addEventListener('input',calculate);
  let lastText='';
  function bellType(){return checked('vspEBBellType')}
  function updateBell(){
@@ -1936,8 +1972,23 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
   const bStandby=wired?d.standby:0;
   const bAlarmUsed=wired?bAlarm:0;
   const valid=Number.isFinite(pAlarm)&&pAlarm>=0&&Number.isFinite(pStandby)&&pStandby>=0;
-  const combinedStandby=pStandby+bStandby;
-  const combinedAlarm=pAlarm+bAlarmUsed;
+  const selectedDevices=[];
+  let unknownDeviceLoads=0,deviceStandby=0,deviceAlarm=0;
+  overlay.querySelectorAll('[data-eb-device]:checked').forEach(el=>{
+   const id=el.getAttribute('data-eb-device');
+   const def=(deviceData[$('vspEBPanel').value]||[]).find(x=>x.id===id);
+   if(!def||def.builtIn)return;
+   const st=overlay.querySelector('[data-eb-device-standby="'+id+'"]')?.value;
+   const al=overlay.querySelector('[data-eb-device-alarm="'+id+'"]')?.value;
+   const standbyEntered=st!==undefined&&st.trim()!=='';
+   const alarmEntered=al!==undefined&&al.trim()!=='';
+   if(!standbyEntered)unknownDeviceLoads++;
+   else deviceStandby+=Number(st);
+   if(alarmEntered)deviceAlarm+=Number(al);
+   selectedDevices.push({name:def.name,standby:standbyEntered?st:'NOT ENTERED',alarm:alarmEntered?al:'not specified'});
+  });
+  const combinedStandby=pStandby+bStandby+deviceStandby;
+  const combinedAlarm=pAlarm+bAlarmUsed+deviceAlarm;
   const required=valid?1.25*((combinedStandby*12)+(combinedAlarm*0.5)):0;
   const result=$('vspEBResult');
   if(!valid){
@@ -1947,9 +1998,11 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
   }
   const remaining=2200-required;
   result.innerHTML='<div class="sub">'+panelLabel()+' · '+(wired?model:'Wireless bell')+'</div>'+
+   (selectedDevices.length?'<div class="vsp-ebcalc-note">Selected I/O / communication devices: '+selectedDevices.map(d=>d.name).join(', ')+'</div>':'')+
+   (unknownDeviceLoads?'<div class="vsp-ebcalc-warning" style="margin:8px 0">INCOMPLETE: '+unknownDeviceLoads+' selected device(s) have no verified standby current entered. The displayed battery requirement excludes those unknown loads.</div>':'')+
    '<div style="margin:5px 0 2px"><strong>'+required.toFixed(1)+'mAh</strong></div><div class="sub">Required capacity including 25% ageing allowance</div>'+
    '<div style="margin-top:10px;font-size:13px;line-height:1.7">Panel standby: '+pStandby+'mA · Bell standby: '+bStandby+'mA<br>Panel alarm: '+pAlarm+'mA · Bell alarm: '+bAlarmUsed+'mA<br>Bell standby consumption (12h): '+(bStandby*12).toFixed(1)+'mAh<br>Bell alarm consumption (30 min): '+(bAlarmUsed*.5).toFixed(1)+'mAh<br>Total standby consumption (12h): '+(combinedStandby*12).toFixed(1)+'mAh<br>Total alarm consumption (30 min): '+(combinedAlarm*.5).toFixed(1)+'mAh<br>Nominal capacity remaining: '+remaining.toFixed(1)+'mAh<br><b>'+(remaining>=0?'Within nominal 2,200mAh capacity':'Exceeds nominal 2,200mAh capacity')+'</b></div>';
-  lastText='Pyronix battery calculation\nPanel: '+panelLabel()+'\nPanel standby: '+pStandby+'mA\nPanel alarm: '+pAlarm+'mA\nBell arrangement: '+(wired?model:'Wireless bell')+'\nBell standby: '+bStandby+'mA\nBell alarm: '+bAlarmUsed+'mA\nTotal standby current: '+combinedStandby+'mA\nTotal alarm current: '+combinedAlarm+'mA\nStandby duration: 12 hours\nAlarm duration: 30 minutes total (2 x 15 minutes)\nAgeing factor: 1.25\nRequired capacity: '+required.toFixed(1)+'mAh\nNominal battery capacity: 2200mAh\nNominal capacity remaining: '+remaining.toFixed(1)+'mAh\nVerify applicable standards, manufacturer documents, battery discharge data and exact equipment configuration.';
+  lastText='Pyronix battery calculation\nPanel: '+panelLabel()+'\nPanel standby: '+pStandby+'mA\nPanel alarm: '+pAlarm+'mA\nSelected I/O / communication devices: '+(selectedDevices.length?selectedDevices.map(d=>d.name+' (standby '+d.standby+'mA; alarm '+d.alarm+'mA)').join('; '):'None')+'\nUnknown selected device standby loads: '+unknownDeviceLoads+'\nDevice standby entered: '+deviceStandby+'mA\nDevice alarm entered: '+deviceAlarm+'mA\nBell arrangement: '+(wired?model:'Wireless bell')+'\nBell standby: '+bStandby+'mA\nBell alarm: '+bAlarmUsed+'mA\nTotal standby current (entered loads): '+combinedStandby+'mA\nTotal alarm current (entered loads): '+combinedAlarm+'mA\nStandby duration: 12 hours\nAlarm duration: 30 minutes total (2 x 15 minutes)\nAgeing factor: 1.25\nRequired capacity (excluding unknown loads): '+required.toFixed(1)+'mAh\nNominal battery capacity: 2200mAh\nNominal capacity remaining (excluding unknown loads): '+remaining.toFixed(1)+'mAh\nVerify applicable standards, manufacturer documents, battery discharge data and exact equipment configuration.';
   $('vspEBWarning').hidden=false;
  }
  function panelLabel(){const labels={V9:'Enforcer V9',V10:'Enforcer V10',V11:'Enforcer V11'};return labels[$('vspEBPanel').value]||'Pyronix panel';}
@@ -1969,13 +2022,14 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
   $('vspEBAlarmNote').textContent='Enforcer panel alarm: '+v.alarm+'mA.';
  }
  setPanelCurrents();
+ renderDeviceOptions();
  $('vspOpenEnforcerBcalc')?.addEventListener('click',()=>{overlay.hidden=false;document.body.style.overflow='hidden';updateBell()});
  function close(){overlay.hidden=true;document.body.style.overflow=''}
  $('vspEBCalcClose').addEventListener('click',close);
  overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!overlay.hidden)close()});
  overlay.querySelectorAll('input[name="vspEBBellType"],input[name="vspEBGrade"]').forEach(el=>el.addEventListener('change',updateBell));
- $('vspEBPanel').addEventListener('change',()=>{setPanelCurrents();calculate()});
+ $('vspEBPanel').addEventListener('change',()=>{setPanelCurrents();renderDeviceOptions();calculate()});
 
  $('vspEBBellModel').addEventListener('change',updateBell);
  $('vspEBCalculate').addEventListener('click',calculate);
@@ -1985,6 +2039,7 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
   overlay.querySelector('input[name="vspEBBellType"][value="Wireless"]').checked=true;
   overlay.querySelector('input[name="vspEBGrade"][value="Grade 2"]').checked=true;
   setPanelCurrents();
+  renderDeviceOptions();
   $('vspEBWarning').hidden=false;
   updateBell();
  });
