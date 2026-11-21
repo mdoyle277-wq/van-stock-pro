@@ -1370,7 +1370,14 @@ async function refreshPendingRegistrations() {
     const details = document.createElement("div");
     details.style.cssText = "display:block;width:100%;min-width:0;overflow-wrap:anywhere;word-break:break-word";
     const mail = document.createElement("strong");
-    mail.textContent = user.email || "Unknown email";
+    mail.style.cssText = "display:flex;align-items:center;gap:9px;min-width:0;overflow-wrap:anywhere";
+    const workspaceDot = document.createElement("span");
+    workspaceDot.title = "No workspace access";
+    workspaceDot.setAttribute("aria-label", "No workspace access");
+    workspaceDot.style.cssText = "display:inline-block;width:9px;height:9px;min-width:9px;border-radius:50%;background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.14)";
+    const emailText = document.createElement("span");
+    emailText.textContent = user.email || "Unknown email";
+    mail.append(workspaceDot, emailText);
     const meta = document.createElement("div");
     meta.className = "sub";
     meta.textContent = "Registered " + (user.created_at ? new Date(user.created_at).toLocaleDateString() : "date unavailable") + (user.email_confirmed_at ? " · Email confirmed" : " · Email not confirmed");
