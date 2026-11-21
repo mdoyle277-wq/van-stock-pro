@@ -67,12 +67,14 @@ Deno.serve(async (req: Request) => {
       const rejected = new Set((rejectedRows || []).map((row: {user_id:string}) => row.user_id));
       const pending = [];
       const emailByUserId = new Map<string, string>();
+      const lastSignInByUserId = new Map<string, string | null>();
       for (let page = 1; page <= 50; page++) {
         const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
         if (error) throw error;
         const users = data?.users || [];
         for (const user of users) {
           if (user.email) emailByUserId.set(user.id, user.email);
+          lastSignInByUserId.set(user.id, user.last_sign_in_at || null);
           if (user.id !== caller.id && !existing.has(user.id) && !rejected.has(user.id)) {
             pending.push({
               user_id: user.id,
@@ -89,17 +91,8 @@ Deno.serve(async (req: Request) => {
         email: emailByUserId.get(row.user_id) || "(email unavailable)",
         role: row.role || "member",
         created_at: row.created_at || null,
-        last_sign_in_at: null,
+        last_sign_in_at: lastSignInByUserId.get(row.user_id) || null,
       }));
-      const lastSignInByUserId = new Map<string, string | null>();
-      for (let page = 1; page <= 50; page++) {
-        const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-        if (error) throw error;
-        const users = data?.users || [];
-        for (const user of users) lastSignInByUserId.set(user.id, user.last_sign_in_at || null);
-        if (users.length < 1000) break;
-      }
-      for (const member of members) member.last_sign_in_at = lastSignInByUserId.get(member.user_id) || null;
       pending.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
       return reply({ pending, members });
     }
