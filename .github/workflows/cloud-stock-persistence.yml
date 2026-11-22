@@ -66,7 +66,6 @@ jobs:
             'van-stock-pro-user-cache-v1-',
             'ownerUserId: userId',
             '.eq("owner_user_id", userId)',
-            'stock_items_owner_isolation',
             'clearCloudLoadingWithEmptyStock',
             'CLOUD STOCK NOT READY',
             'cloudStockErrorDetail',
@@ -90,7 +89,7 @@ jobs:
             if marker not in sql: raise SystemExit("Missing database safeguard: "+marker)
           if sql.count("do $") != 2 or sql.count("end $;") != 2:
             raise SystemExit("Invalid PostgreSQL dollar quoting in stock migration")
-          for marker in ['drop policy if exists "workspace roles can insert shared workspace stock"', 'owner_user_id = auth.uid()', 'as restrictive']:
+          for marker in ['drop policy if exists "workspace roles can insert shared workspace stock"', 'create policy "stock_items_owner_isolation"', 'owner_user_id = auth.uid()', 'as restrictive']:
             if marker not in private_sql: raise SystemExit("Missing private stock policy safeguard: "+marker)
           print("PASS: syntax, private per-account stock isolation, empty-cloud safety, max stock editing, requested categories and migration safeguards")
           PY
