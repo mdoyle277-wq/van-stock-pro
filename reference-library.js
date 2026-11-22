@@ -537,7 +537,12 @@ if (sharedPanel) {
         sharedViewerNotice.textContent = canPreview
           ? ""
           : "This file type may not preview in your browser. Use Download to save and open it with a compatible app.";
-        sharedViewerFrame.src = canPreview ? sharedViewerUrl : "about:blank";
+        // Ask the browser's PDF viewer to fit the complete page inside the preview.
+        // Image previews are fitted separately by the iframe document styling.
+        const isPdf = /^application\/pdf$/i.test(item.mime_type || "") || /\.pdf$/i.test(item.original_name || "");
+        sharedViewerFrame.src = canPreview
+          ? (isPdf ? sharedViewerUrl + "#view=Fit&zoom=page-fit" : sharedViewerUrl)
+          : "about:blank";
         sharedViewer.hidden = false;
         sharedSay("Reference opened.", "success");
         return;
