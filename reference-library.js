@@ -458,7 +458,8 @@ if (sharedPanel) {
         }));
       } else {
         actions.append(sharedButton("View", () => sharedOpen(item)));
-        actions.append(sharedButton("Download", () => sharedDownload(item)));
+        // Download remains available only in this Owner/Admin management branch.
+        if (sharedCanManage) actions.append(sharedButton("Download", () => sharedDownload(item)));
       }
       actions.append(sharedButton("Rename", () => sharedRename(item)));
       actions.append(sharedButton("Delete", () => sharedDelete(item), "danger smallbtn"));
