@@ -304,7 +304,7 @@ if (panel) {
     session = nextSession;
     if (!nextId) {
       db?.close(); db = null; localItems = []; cloudItems = [];
-      panel.hidden = false;
+      panel.hidden = true;
       say("Sign in to use your private reference library.", "info");
       list.replaceChildren();
       return;
@@ -314,12 +314,16 @@ if (panel) {
       db = await openDb(nextId);
       currentFolder = "";
     }
-    panel.hidden = false;
+    panel.hidden = true;
     try { await refresh(); say("Private library ready for " + (session.user.email || "this account") + ".", "success"); }
     catch (error) { say("Library could not load: " + (error.message || "Unknown error"), "error"); }
   }
-  el("referenceLibraryOpenTop")?.addEventListener("click", () => { panel.hidden = false; panel.scrollIntoView({ behavior: "smooth", block: "start" }); });\n  el("referenceLibraryClose")?.addEventListener("click", () => { panel.hidden = true; });
-  el("sharedReferenceLibraryOpenTop")?.addEventListener("click", () => { if (sharedPanel) { sharedPanel.hidden = false; sharedPanel.scrollIntoView({ behavior: "smooth", block: "start" }); } });\n  el("sharedReferenceLibraryClose")?.addEventListener("click", () => { sharedPanel.hidden = true; });
+  el("referenceLibraryOpenTop")?.addEventListener("click", () => { panel.hidden = false; panel.scrollIntoView({ behavior: "smooth", block: "start" }); });
+  el("referenceLibraryClose")?.addEventListener("click", () => { panel.hidden = true; });
+  el("referenceLibraryClose")?.addEventListener("click", () => { panel.hidden = true; });
+  el("sharedReferenceLibraryOpenTop")?.addEventListener("click", () => { sharedPanel.hidden = false; sharedPanel.scrollIntoView({ behavior: "smooth", block: "start" }); });
+  el("sharedReferenceLibraryClose")?.addEventListener("click", () => { sharedPanel.hidden = true; });
+  el("sharedReferenceLibraryClose")?.addEventListener("click", () => { sharedPanel.hidden = true; });
   el("referenceLibraryAddFolder").addEventListener("click", () => addFolder().catch(error => say(error.message, "error")));
   el("referenceLibraryUploadButton").addEventListener("click", () => uploadInput.click());
   uploadInput.addEventListener("change", async () => {
