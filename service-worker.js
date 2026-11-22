@@ -1,5 +1,5 @@
-const CACHE_NAME="van-stock-pro-offline-v2";
-const SHELL=["./","./index.html","./cloud-auth.js","./supabase-config.js"];
+const CACHE_NAME="van-stock-pro-offline-v3";
+const SHELL=["./","./index.html","./cloud-auth.js","./reference-library.js","./supabase-config.js"];
 self.addEventListener("install",event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE_NAME);
