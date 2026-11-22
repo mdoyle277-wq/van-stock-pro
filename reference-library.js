@@ -510,12 +510,44 @@ if (sharedPanel) {
   }
   const sharedViewer = document.getElementById("sharedReferenceViewer");
   const sharedViewerFrame = document.getElementById("sharedReferenceViewerFrame");
+  const sharedPdfPages = document.getElementById("sharedReferencePdfPages");
   const sharedViewerTitle = document.getElementById("sharedReferenceViewerTitle");
+  let sharedPdfJsPromise = null;
+  async function sharedRenderPdf(blob) {
+    if (!sharedPdfJsPromise) sharedPdfJsPromise = import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs").then(pdfjs => {
+      pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+      return pdfjs;
+    });
+    const pdfjs = await sharedPdfJsPromise;
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+    sharedPdfPages.replaceChildren();
+    const availableWidth = Math.max(240, sharedPdfPages.clientWidth - 20);
+    for (let pageNo = 1; pageNo <= pdf.numPages; pageNo++) {
+      const page = await pdf.getPage(pageNo);
+      const base = page.getViewport({ scale: 1 });
+      const scale = availableWidth / base.width;
+      const viewport = page.getViewport({ scale });
+      const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+      const canvas = document.createElement("canvas");
+      canvas.className = "shared-reference-pdf-page";
+      canvas.width = Math.floor(viewport.width * outputScale);
+      canvas.height = Math.floor(viewport.height * outputScale);
+      canvas.style.width = Math.floor(viewport.width) + "px";
+      canvas.style.height = Math.floor(viewport.height) + "px";
+      sharedPdfPages.append(canvas);
+      const context = canvas.getContext("2d", { alpha: false });
+      await page.render({ canvasContext: context, viewport, transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0] }).promise;
+    }
+  }
   const sharedViewerNotice = document.getElementById("sharedReferenceViewerNotice");
   let sharedViewerUrl = null;
   function sharedCloseViewer() {
     sharedViewer.hidden = true;
     sharedViewerFrame.removeAttribute("src");
+    sharedViewerFrame.hidden = false;
+    sharedPdfPages.hidden = true;
+    sharedPdfPages.replaceChildren();
     if (sharedViewerUrl) URL.revokeObjectURL(sharedViewerUrl);
     sharedViewerUrl = null;
   }
@@ -537,13 +569,20 @@ if (sharedPanel) {
         sharedViewerNotice.textContent = canPreview
           ? ""
           : "This file type may not preview in your browser. Use Download to save and open it with a compatible app.";
-        // Ask the browser's PDF viewer to fit the complete page inside the preview.
-        // Image previews are fitted separately by the iframe document styling.
         const isPdf = /^application\/pdf$/i.test(item.mime_type || "") || /\.pdf$/i.test(item.original_name || "");
-        sharedViewerFrame.src = canPreview
-          ? (isPdf ? sharedViewerUrl + "#view=Fit" : sharedViewerUrl)
-          : "about:blank";
         sharedViewer.hidden = false;
+        if (isPdf) {
+          // Render every PDF page ourselves at the available phone width.
+          // This avoids Android's built-in PDF viewer ignoring fit-to-page hints.
+          sharedViewerFrame.hidden = true;
+          sharedPdfPages.hidden = false;
+          await sharedRenderPdf(blob);
+        } else {
+          sharedPdfPages.hidden = true;
+          sharedPdfPages.replaceChildren();
+          sharedViewerFrame.hidden = false;
+          sharedViewerFrame.src = canPreview ? sharedViewerUrl : "about:blank";
+        }
         sharedSay("Reference opened.", "success");
         return;
       }
