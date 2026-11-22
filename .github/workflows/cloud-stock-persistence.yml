@@ -2,6 +2,7 @@ name: Cloud stock persistence checks
 on:
   push:
     branches:
+      - main
       - fix/cloud-stock-save-audit-20261112
   pull_request:
     branches:
