@@ -161,8 +161,13 @@ if (panel) {
     if (localItems.some(item => item.item_type === "folder" && item.folder_path === currentFolder && item.original_name.toLowerCase() === clean.toLowerCase())) {
       say("That folder already exists.", "error"); return;
     }
-    await store("readwrite", { id: crypto.randomUUID(), user_id: session.user.id, item_type: "folder", original_name: clean, folder_path: currentFolder, mime_type: "", file_size: 0, storage_mode: "local", created_at: new Date().toISOString() });
-    say("Folder created on this device.", "success");
+    const folder = { id: crypto.randomUUID(), user_id: session.user.id, item_type: "folder", original_name: clean, folder_path: currentFolder, mime_type: "", file_size: 0, storage_mode: storageChoice.value === "cloud" ? "both" : "local", created_at: new Date().toISOString() };
+    await store("readwrite", folder);
+    if (storageChoice.value === "cloud") {
+      const { error } = await supabase.from("reference_library_items").insert({ id: folder.id, owner_user_id: session.user.id, item_type: "folder", original_name: clean, folder_path: currentFolder, mime_type: "", file_size: 0, storage_path: null });
+      if (error) throw error;
+      say("Folder created and backed up to your account.", "success");
+    } else { say("Folder created on this device only.", "success"); }
     await refresh();
   }
   async function uploadFile(file) {
@@ -256,9 +261,16 @@ if (panel) {
   async function deleteItem(item) {
     if (!confirm("Delete " + item.original_name + "? This cannot be undone.")) return;
     try {
+      if (item.item_type === "folder") {
+        const folderPath = [item.folder_path, item.original_name].filter(Boolean).join("/");
+        const hasChildren = [...localItems, ...cloudItems].some(child => child.id !== item.id && child.folder_path === folderPath);
+        if (hasChildren) throw new Error("This folder is not empty. Move or delete its contents first.");
+      }
       if (item.cloud) {
-        const { error: storageError } = await supabase.storage.from(BUCKET).remove([item.storage_path]);
-        if (storageError) throw storageError;
+        if (item.item_type === "file" && item.storage_path) {
+          const { error: storageError } = await supabase.storage.from(BUCKET).remove([item.storage_path]);
+          if (storageError) throw storageError;
+        }
         const { error } = await supabase.from("reference_library_items").delete().eq("id", item.id).eq("owner_user_id", session.user.id);
         if (error) throw error;
       }
