@@ -555,9 +555,28 @@ if (sharedPanel) {
     }
     try {
       const { data: memberships, error } = await supabase.from("workspace_members")
-        .select("role").eq("user_id", nextSession.user.id);
+        .select("workspace_id,role").eq("user_id", nextSession.user.id);
       if (error) throw error;
-      sharedCanManage = (memberships || []).some(row => ["owner", "admin"].includes(String(row.role || "").toLowerCase()));
+      const workspaceIds = [...new Set((memberships || []).map(row => row.workspace_id))];
+      let workspaces = [];
+      if (workspaceIds.length) {
+        const { data, error: workspaceError } = await supabase.from("workspaces")
+          .select("id,created_by").in("id", workspaceIds);
+        if (workspaceError) throw workspaceError;
+        workspaces = data || [];
+      }
+      // Do not mistake an account's automatically-created personal workspace
+      // (where it is OWNER) for Owner status in the shared company workspace.
+      // The company owner is the creator/owner; company admins are admins in
+      // a workspace created by someone else.
+      sharedCanManage = (memberships || []).some(row => {
+        const workspace = workspaces.find(item => item.id === row.workspace_id);
+        const role = String(row.role || "").toLowerCase();
+        return !!workspace && (
+          (role === "owner" && workspace.created_by === nextSession.user.id) ||
+          (role === "admin" && workspace.created_by !== nextSession.user.id)
+        );
+      });
       sharedAdminTools.hidden = !sharedCanManage;
       sharedSay(sharedCanManage
         ? "You can manage this shared library as an Owner/Admin. Changes are visible to every account."
