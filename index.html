@@ -325,7 +325,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <div class="home-group-items" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px 12px">
 <button class="secondary" type="button" data-fire-tool="zone">Zone plan reference</button>
 <button class="secondary" type="button" id="referenceLibraryOpenTop" aria-controls="referenceLibraryPanel" aria-expanded="false" onclick="const p=document.getElementById('referenceLibraryPanel');if(p){p.hidden=false;this.setAttribute('aria-expanded','true');p.scrollIntoView({behavior:'smooth',block:'start'});}">📚 My reference folders</button>
-<button class="secondary" type="button" id="sharedReferenceLibraryOpenTop">🏢 Company reference folders</button>
+<button class="secondary" type="button" id="sharedReferenceLibraryOpenTop">🔌 Wiring Reference</button>
 <button class="secondary" type="button" data-fire-tool="spacing">Detector spacing guide</button>
 <button class="secondary" type="button" data-fire-tool="cable">Cable sizing reference</button>
 <button class="secondary" type="button" data-fire-tool="sounder">Sounder circuit fault finder</button>
@@ -587,7 +587,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 </section>
 <section class="panel" id="sharedReferenceLibraryPanel" hidden style="margin-top:16px">
   <div class="panelhead">
-    <div><h2>🏢 Owner &amp; Admin Reference Library</h2><div class="sub">Company reference files shared with every signed-in account</div></div>
+    <div><h2>🔌 Wiring Reference Library</h2><div class="sub">Wiring reference files shared with every signed-in account</div></div>
     <div style="display:flex;align-items:center;gap:8px"><span class="pill">READ ONLY FOR MEMBERS</span><button type="button" class="secondary smallbtn" id="sharedReferenceLibraryClose">✕ Close panel</button></div>
   </div>
   <div class="notice" id="sharedReferenceLibraryRoleNote">All signed-in accounts can view and download these references. Only Owners and Admins can add, rename or delete files and folders.</div>
@@ -603,7 +603,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
   </div>
   <div class="reference-library-location" id="sharedReferenceLibraryCurrentFolder"> / All shared references</div>
   <div id="sharedReferenceLibraryList"><div class="empty">Sign in to view shared reference files.</div></div>
-  <div class="notice" id="sharedReferenceLibraryStatus" role="status" aria-live="polite">Company reference files are stored privately in Supabase. All signed-in accounts can view them; only Owners and Admins can manage them.</div>
+  <div class="notice" id="sharedReferenceLibraryStatus" role="status" aria-live="polite">Wiring reference files are stored privately in Supabase. All signed-in accounts can view them; only Owners and Admins can manage them.</div>
 </section>
 
 <div id="sharedReferenceViewer" class="shared-reference-viewer" hidden role="dialog" aria-modal="true" aria-labelledby="sharedReferenceViewerTitle">
