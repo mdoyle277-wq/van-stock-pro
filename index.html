@@ -328,7 +328,19 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <div class="home-group-items" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px 12px">
 <button class="secondary" type="button" data-fire-tool="zone">Zone plan reference</button>
 <button class="secondary" type="button" id="referenceLibraryOpenTop" aria-controls="referenceLibraryPanel" aria-expanded="false" onclick="const p=document.getElementById('referenceLibraryPanel');if(p){p.hidden=false;this.setAttribute('aria-expanded','true');p.scrollIntoView({behavior:'smooth',block:'start'});}">📚 My reference folders</button>
-<button class="secondary" type="button" id="sharedReferenceLibraryOpenTop">🔌 Wiring Reference</button>
+<button class="secondary" type="button" id="sharedReferenceLibraryOpenTop" style="display:flex;align-items:center;justify-content:flex-start;gap:10px;text-align:left">
+<svg aria-hidden="true" viewBox="0 0 64 52" width="42" height="36" style="flex:0 0 42px;display:block" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+<path d="M5 12H26V5H49V15H58V39H49V46H26V39H5Z"/>
+<path d="M11 12V39M18 12V39M26 12V39M26 5Q26 0 32 0Q38 0 38 5"/>
+<circle cx="5" cy="25.5" r="3.2" fill="#24344b"/><circle cx="11" cy="25.5" r="3.2" fill="#24344b"/><circle cx="18" cy="25.5" r="3.2" fill="#24344b"/>
+<path d="M26 19H34M34 19V28H43M34 28V35H49"/>
+<path d="M30 19V25M32 19V25M30 35V43M33 35V43"/>
+<path d="M49 15Q49 10 54 10Q58 10 58 15"/>
+<circle cx="49" cy="28" r="4.5"/><path d="M46 25L52 31M52 25L46 31"/>
+<path d="M27 46H34M39 43V49M42 43V49M34 46H39M42 46H49"/>
+</svg>
+<span>Wiring Reference</span>
+</button>
 <button class="secondary" type="button" data-fire-tool="spacing">Detector spacing guide</button>
 <button class="secondary" type="button" data-fire-tool="cable">Cable sizing reference</button>
 <button class="secondary" type="button" data-fire-tool="sounder">Sounder circuit fault finder</button>
