@@ -320,9 +320,7 @@ if (panel) {
   }
   el("referenceLibraryOpenTop")?.addEventListener("click", () => { panel.hidden = false; panel.scrollIntoView({ behavior: "smooth", block: "start" }); });
   el("referenceLibraryClose")?.addEventListener("click", () => { panel.hidden = true; });
-  el("referenceLibraryClose")?.addEventListener("click", () => { panel.hidden = true; });
   el("sharedReferenceLibraryOpenTop")?.addEventListener("click", () => { sharedPanel.hidden = false; sharedPanel.scrollIntoView({ behavior: "smooth", block: "start" }); });
-  el("sharedReferenceLibraryClose")?.addEventListener("click", () => { sharedPanel.hidden = true; });
   el("sharedReferenceLibraryClose")?.addEventListener("click", () => { sharedPanel.hidden = true; });
   el("referenceLibraryAddFolder").addEventListener("click", () => addFolder().catch(error => say(error.message, "error")));
   el("referenceLibraryUploadButton").addEventListener("click", () => uploadInput.click());
