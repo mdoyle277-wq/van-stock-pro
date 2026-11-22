@@ -541,7 +541,7 @@ if (sharedPanel) {
         // Image previews are fitted separately by the iframe document styling.
         const isPdf = /^application\/pdf$/i.test(item.mime_type || "") || /\.pdf$/i.test(item.original_name || "");
         sharedViewerFrame.src = canPreview
-          ? (isPdf ? sharedViewerUrl + "#view=Fit&zoom=page-fit" : sharedViewerUrl)
+          ? (isPdf ? sharedViewerUrl + "#view=Fit" : sharedViewerUrl)
           : "about:blank";
         sharedViewer.hidden = false;
         sharedSay("Reference opened.", "success");
