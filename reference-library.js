@@ -26,7 +26,7 @@ if (panel) {
     status.dataset.kind = kind || "info";
   }
   function safeName(value) {
-    return String(value || "document").replace(/[\\\\/]/g, "-").replace(/[^a-zA-Z0-9._() -]/g, "_").slice(0, 140);
+    return String(value || "document").replace(/[\\\/]/g, "-").replace(/[^a-zA-Z0-9._() -]/g, "_").slice(0, 140);
   }
   function openDb(userId) {
     return new Promise((resolve, reject) => {
@@ -88,7 +88,7 @@ if (panel) {
   }
   function render() {
     if (!session) return;
-    folderLabel.textContent = currentFolder ? " / " + currentFolder.replace(/\\//g, " / ") : " / All references";
+    folderLabel.textContent = currentFolder ? " / " + currentFolder.replace(/\//g, " / ") : " / All references";
     list.replaceChildren();
     const items = mergedItems();
     if (currentFolder) {
@@ -359,7 +359,7 @@ if (sharedPanel) {
     sharedStatus.dataset.kind = kind;
   }
   function sharedSafeName(value) {
-    return String(value || "document").replace(/[\\/]/g, "-")
+    return String(value || "document").replace(/[\/]/g, "-")
       .replace(/[^a-zA-Z0-9._() -]/g, "_").slice(0, 140);
   }
   function sharedParent(path) {
@@ -512,7 +512,7 @@ if (sharedPanel) {
         if (sharedViewerUrl) URL.revokeObjectURL(sharedViewerUrl);
         sharedViewerUrl = URL.createObjectURL(blob);
         sharedViewerTitle.textContent = item.original_name;
-        const canPreview = /^application\\/pdf$|^image\\/|^text\\//i.test(item.mime_type || "");
+        const canPreview = /^application\/pdf$|^image\/|^text\//i.test(item.mime_type || "");
         sharedViewerNotice.hidden = canPreview;
         sharedViewerNotice.textContent = canPreview
           ? ""
