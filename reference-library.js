@@ -333,3 +333,262 @@ if (panel) {
   const { data } = await supabase.auth.getSession();
   await loadSession(data.session);
 }
+
+
+// Company-wide Owner/Admin reference library. This is separate from private
+// account libraries: all authenticated accounts can read; only Owner/Admin
+// workspace members can create, rename or delete shared content.
+const sharedPanel = document.getElementById("sharedReferenceLibraryPanel");
+if (sharedPanel) {
+  const sharedList = document.getElementById("sharedReferenceLibraryList");
+  const sharedStatus = document.getElementById("sharedReferenceLibraryStatus");
+  const sharedSearch = document.getElementById("sharedReferenceLibrarySearch");
+  const sharedFolderLabel = document.getElementById("sharedReferenceLibraryCurrentFolder");
+  const sharedAdminTools = document.getElementById("sharedReferenceLibraryAdminTools");
+  const sharedUploadInput = document.getElementById("sharedReferenceLibraryUpload");
+  const SHARED_BUCKET = "shared-reference-library";
+  const SHARED_MAX_BYTES = 20 * 1024 * 1024;
+  let sharedSession = null;
+  let sharedCanManage = false;
+  let sharedCurrentFolder = "";
+  let sharedItems = [];
+
+  function sharedSay(message, kind = "info") {
+    sharedStatus.textContent = message;
+    sharedStatus.dataset.kind = kind;
+  }
+  function sharedSafeName(value) {
+    return String(value || "document").replace(/[\\/]/g, "-")
+      .replace(/[^a-zA-Z0-9._() -]/g, "_").slice(0, 140);
+  }
+  function sharedParent(path) {
+    const parts = String(path || "").split("/").filter(Boolean);
+    parts.pop();
+    return parts.join("/");
+  }
+  function sharedBytes(bytes) {
+    if (!bytes) return "0 B";
+    const units = ["B", "KB", "MB", "GB"];
+    const n = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), 3);
+    return (bytes / Math.pow(1024, n)).toFixed(n ? 1 : 0) + " " + units[n];
+  }
+  function sharedButton(label, action, className = "secondary smallbtn") {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = className;
+    button.textContent = label;
+    button.addEventListener("click", action);
+    return button;
+  }
+  async function sharedRefresh() {
+    if (!sharedSession?.user?.id) return;
+    const { data, error } = await supabase.from("shared_reference_library_items")
+      .select("id,item_type,original_name,folder_path,mime_type,file_size,storage_path,created_by,created_at,updated_at")
+      .order("item_type", { ascending: true }).order("original_name", { ascending: true });
+    if (error) throw error;
+    sharedItems = data || [];
+    sharedRender();
+  }
+  function sharedRender() {
+    if (!sharedSession?.user?.id) return;
+    sharedFolderLabel.textContent = sharedCurrentFolder
+      ? " / " + sharedCurrentFolder.split("/").join(" / ")
+      : " / All shared references";
+    sharedList.replaceChildren();
+    const items = sharedItems.filter(item => item.folder_path === sharedCurrentFolder)
+      .filter(item => !sharedSearch.value || item.original_name.toLowerCase().includes(sharedSearch.value.toLowerCase()));
+    if (sharedCurrentFolder) {
+      const backRow = document.createElement("div");
+      backRow.className = "reference-library-row";
+      backRow.append(sharedButton("← Back", () => {
+        sharedCurrentFolder = sharedParent(sharedCurrentFolder);
+        sharedRender();
+      }));
+      sharedList.append(backRow);
+    }
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = sharedCanManage
+        ? "No shared references here yet. Add a folder or upload a file."
+        : "No shared references in this folder yet.";
+      sharedList.append(empty);
+      return;
+    }
+    for (const item of items) {
+      const row = document.createElement("div");
+      row.className = "reference-library-row";
+      const details = document.createElement("div");
+      details.className = "reference-library-details";
+      const name = document.createElement("strong");
+      name.textContent = (item.item_type === "folder" ? "📁 " : item.mime_type === "application/pdf" ? "📕 " : "📄 ") + item.original_name;
+      const meta = document.createElement("small");
+      meta.textContent = item.item_type === "folder" ? "Shared folder" : sharedBytes(item.file_size) + " · Available to all accounts";
+      details.append(name, meta);
+      const actions = document.createElement("div");
+      actions.className = "reference-library-actions";
+      if (item.item_type === "folder") {
+        actions.append(sharedButton("Open", () => {
+          sharedCurrentFolder = [sharedCurrentFolder, item.original_name].filter(Boolean).join("/");
+          sharedRender();
+        }));
+      } else {
+        actions.append(sharedButton("View", () => sharedOpen(item)));
+        actions.append(sharedButton("Download", () => sharedDownload(item)));
+      }
+      if (sharedCanManage) {
+        actions.append(sharedButton("Rename", () => sharedRename(item)));
+        actions.append(sharedButton("Delete", () => sharedDelete(item), "danger smallbtn"));
+      }
+      row.append(details, actions);
+      sharedList.append(row);
+    }
+  }
+  async function sharedAddFolder() {
+    const name = prompt("New shared folder name");
+    if (!name || !name.trim()) return;
+    const clean = sharedSafeName(name.trim());
+    if (clean.includes("/")) throw new Error("Folder names cannot contain a slash.");
+    if (sharedItems.some(item => item.item_type === "folder" && item.folder_path === sharedCurrentFolder && item.original_name.toLowerCase() === clean.toLowerCase())) {
+      throw new Error("That shared folder already exists.");
+    }
+    const { error } = await supabase.from("shared_reference_library_items").insert({
+      id: crypto.randomUUID(), item_type: "folder", original_name: clean,
+      folder_path: sharedCurrentFolder, mime_type: "", file_size: 0,
+      storage_path: null, created_by: sharedSession.user.id
+    });
+    if (error) throw error;
+    sharedSay("Shared folder created. All signed-in accounts can see it.", "success");
+    await sharedRefresh();
+  }
+  async function sharedUpload(file) {
+    if (!file) return;
+    if (file.size > SHARED_MAX_BYTES) throw new Error("This file is over the 20 MB limit.");
+    const id = crypto.randomUUID();
+    const path = "shared/" + id + "/" + sharedSafeName(file.name);
+    const { error: uploadError } = await supabase.storage.from(SHARED_BUCKET).upload(path, file, {
+      contentType: file.type || "application/octet-stream", upsert: false
+    });
+    if (uploadError) throw uploadError;
+    const { error } = await supabase.from("shared_reference_library_items").insert({
+      id, item_type: "file", original_name: file.name, folder_path: sharedCurrentFolder,
+      mime_type: file.type || "application/octet-stream", file_size: file.size,
+      storage_path: path, created_by: sharedSession.user.id
+    });
+    if (error) {
+      await supabase.storage.from(SHARED_BUCKET).remove([path]);
+      throw error;
+    }
+    sharedSay("Shared file uploaded. It is now visible to every signed-in account.", "success");
+    await sharedRefresh();
+  }
+  async function sharedGetBlob(item) {
+    const { data, error } = await supabase.storage.from(SHARED_BUCKET).download(item.storage_path);
+    if (error) throw error;
+    return data;
+  }
+  async function sharedOpen(item) {
+    try {
+      sharedSay("Opening " + item.original_name + "…");
+      const blob = await sharedGetBlob(item);
+      const url = URL.createObjectURL(blob);
+      const opened = window.open(url, "_blank", "noopener");
+      if (!opened) {
+        const link = document.createElement("a");
+        link.href = url; link.download = item.original_name; link.click();
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      sharedSay("Reference opened.", "success");
+    } catch (error) { sharedSay("Could not open file: " + (error.message || "Unknown error"), "error"); }
+  }
+  async function sharedDownload(item) {
+    try {
+      sharedSay("Preparing download…");
+      const blob = await sharedGetBlob(item);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url; link.download = item.original_name;
+      document.body.append(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      sharedSay("Download started.", "success");
+    } catch (error) { sharedSay("Download failed: " + (error.message || "Unknown error"), "error"); }
+  }
+  async function sharedRename(item) {
+    const name = prompt("New shared name", item.original_name);
+    if (!name || !name.trim() || name.trim() === item.original_name) return;
+    const clean = sharedSafeName(name.trim());
+    try {
+      const { error } = await supabase.from("shared_reference_library_items")
+        .update({ original_name: clean, updated_at: new Date().toISOString() }).eq("id", item.id);
+      if (error) throw error;
+      sharedSay("Shared reference renamed.", "success");
+      await sharedRefresh();
+    } catch (error) { sharedSay("Rename failed: " + (error.message || "Unknown error"), "error"); }
+  }
+  async function sharedDelete(item) {
+    if (!confirm("Delete this shared " + item.item_type + " for every account? This cannot be undone.")) return;
+    try {
+      if (item.item_type === "folder") {
+        const folderPath = [item.folder_path, item.original_name].filter(Boolean).join("/");
+        if (sharedItems.some(child => child.id !== item.id && child.folder_path === folderPath)) {
+          throw new Error("This folder is not empty. Delete or move its contents first.");
+        }
+      } else if (item.storage_path) {
+        const { error: storageError } = await supabase.storage.from(SHARED_BUCKET).remove([item.storage_path]);
+        if (storageError) throw storageError;
+      }
+      const { error } = await supabase.from("shared_reference_library_items").delete().eq("id", item.id);
+      if (error) throw error;
+      sharedSay("Shared reference deleted for all accounts.", "success");
+      await sharedRefresh();
+    } catch (error) { sharedSay("Delete failed: " + (error.message || "Unknown error"), "error"); }
+  }
+  async function sharedLoadSession(nextSession) {
+    sharedSession = nextSession;
+    if (!nextSession?.user?.id) {
+      sharedCanManage = false;
+      sharedItems = [];
+      sharedAdminTools.hidden = true;
+      sharedList.replaceChildren();
+      sharedSay("Sign in to view the Owner/Admin shared library.");
+      return;
+    }
+    try {
+      const { data: memberships, error } = await supabase.from("workspace_members")
+        .select("role").eq("user_id", nextSession.user.id);
+      if (error) throw error;
+      sharedCanManage = (memberships || []).some(row => ["owner", "admin"].includes(String(row.role || "").toLowerCase()));
+      sharedAdminTools.hidden = !sharedCanManage;
+      sharedSay(sharedCanManage
+        ? "You can manage this shared library as an Owner/Admin. Changes are visible to every account."
+        : "View-only access. You can open and download references but cannot edit or delete them.", "success");
+      await sharedRefresh();
+    } catch (error) {
+      sharedAdminTools.hidden = true;
+      sharedSay("Shared library could not load: " + (error.message || "Unknown error"), "error");
+    }
+  }
+  document.getElementById("sharedReferenceLibraryAddFolder").addEventListener("click", () => {
+    if (sharedCanManage) sharedAddFolder().catch(error => sharedSay(error.message, "error"));
+  });
+  document.getElementById("sharedReferenceLibraryUploadButton").addEventListener("click", () => {
+    if (sharedCanManage) sharedUploadInput.click();
+  });
+  sharedUploadInput.addEventListener("change", async () => {
+    const file = sharedUploadInput.files?.[0];
+    sharedUploadInput.value = "";
+    if (!file || !sharedCanManage) return;
+    try { await sharedUpload(file); } catch (error) { sharedSay("Upload failed: " + (error.message || "Unknown error"), "error"); }
+  });
+  sharedSearch.addEventListener("input", sharedRender);
+  document.getElementById("sharedReferenceLibraryHome").addEventListener("click", () => {
+    sharedCurrentFolder = ""; sharedRender();
+  });
+  document.getElementById("sharedReferenceLibraryRefresh").addEventListener("click", () => {
+    sharedRefresh().then(() => sharedSay("Shared references refreshed.", "success"))
+      .catch(error => sharedSay(error.message, "error"));
+  });
+  supabase.auth.onAuthStateChange((_event, nextSession) => { void sharedLoadSession(nextSession); });
+  const { data: sharedInitial } = await supabase.auth.getSession();
+  await sharedLoadSession(sharedInitial.session);
+}
