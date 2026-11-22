@@ -47,8 +47,7 @@ function setSession(session) {
   const previousUserId = currentSession?.user?.id || null;
   const nextUserId = session?.user?.id || null;
   // Before clearing or changing the signed-in account, preserve any stock
-  // edits that have not yet been confirmed in the cloud under their exact
-  // workspace. A later sign-in can safely finish that upload.
+  // edits that have not yet been confirmed in the cloud under that account ID.
   if (previousUserId && hasPendingStockChanges(previousUserId)) {
     try {
       const pendingLocal = localStorage.getItem("van-stock-pro-items-v1");
@@ -86,7 +85,7 @@ function setSession(session) {
     document.body.classList.add("cloud-loading");
     stockSyncReady = false;
     stockWorkspaceId = null;
-    stockWorkspaceOwnerId = null;
+    stockAccountId = null;
     if (typeof window.__VSP_APPLY_CLOUD_STOCK === "function") {
       window.__VSP_APPLY_CLOUD_STOCK([]);
     }
@@ -202,7 +201,7 @@ async function runAuth(action) {
 /* Account-private stock persistence. Workspace membership authorises access,
    but every account owns and syncs only its own stock rows. */
 let stockWorkspaceId = null;
-let stockWorkspaceOwnerId = null;
+let stockAccountId = null;
 let stockSyncTimer = null;
 let stockSyncBusy = false;
 let stockSyncAgain = false;
@@ -422,10 +421,9 @@ async function initialiseCloudStock() {
     const workspace = await getMyStockWorkspace();
     if (currentSession?.user?.id !== userId) return;
     stockWorkspaceId = workspace.id;
-    stockWorkspaceOwnerId = userId;
+    stockAccountId = userId;
     try {
       localStorage.setItem("van-stock-pro-workspace-" + userId, workspace.id);
-      localStorage.setItem("van-stock-pro-workspace-owner-v1-" + workspace.id, workspace.ownerUserId);
     } catch {}
     // Only workspace owners/admins may access app-code backup and restore.
     document.body.classList.toggle("cloud-admin", ["owner", "admin"].includes(String(workspace.role || "").toLowerCase()));
@@ -516,7 +514,7 @@ async function initialiseCloudStock() {
       const cachedWorkspace=localStorage.getItem("van-stock-pro-workspace-"+userId);
       if(cachedWorkspace&&/^[0-9a-f-]{36}$/i.test(cachedWorkspace)){
         stockWorkspaceId=cachedWorkspace;
-        stockWorkspaceOwnerId = userId;
+        stockAccountId = userId;
         // Offline fallback is isolated by account ID, not workspace ID.
         try {
           const userCache = localStorage.getItem("van-stock-pro-user-cache-v1-" + userId);
@@ -527,7 +525,7 @@ async function initialiseCloudStock() {
           const offlineItems = pendingForUser ? parsedPendingSnapshot : parsedUserCache;
           if (Array.isArray(offlineItems)) {
             window.__VSP_APPLY_CLOUD_STOCK(offlineItems);
-            stockSyncReady=!!stockWorkspaceOwnerId;
+            stockSyncReady=!!stockAccountId;
             document.body.classList.remove("cloud-loading");
             message(pendingForUser
               ? "OFFLINE MODE — restored this account's unsynced changes (" + offlineItems.length + " items). They will upload when online."
@@ -602,8 +600,8 @@ window.addEventListener("focus",()=>{
 });
 window.addEventListener("vsp:stock-changed", () => {
   if (!stockSyncReady || !currentSession?.user || !stockWorkspaceId) return;
-  // Mark and snapshot every edit immediately, even while online. This protects
-  // the latest phone copy if the user signs out or the app closes before upload.
+  // Mark and snapshot every edit immediately under this account ID. This prevents
+  // another login on the same phone from inheriting pending stock changes.
   try {
     const raw = localStorage.getItem("van-stock-pro-items-v1");
     const parsed = raw ? JSON.parse(raw) : null;
