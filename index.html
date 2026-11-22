@@ -291,6 +291,9 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 #referenceLibraryStatus[data-kind="success"]{color:var(--mint)}
 @media(max-width:600px){.reference-library-row{align-items:flex-start;flex-direction:column}.reference-library-actions{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.reference-library-actions button{min-width:0}.reference-library-toolbar .field{flex-basis:100%}}
 
+/* Keep member reference tiles in the app's neutral grey button style. */
+#sharedReferenceLibraryList .shared-member-tile{background:#26364d;color:#e8eef8;box-shadow:none;border:1px solid #35465e}
+#sharedReferenceLibraryList .shared-member-tile:active{background:#31445f;filter:none}
 /* Member shared-reference library: large, simple tap-to-open tiles. */
 #sharedReferenceLibraryList.shared-member-list .shared-member-item{display:flex;flex-direction:column;gap:8px;padding:10px 0;border-bottom:0}
 #sharedReferenceLibraryList .shared-member-tile{display:flex;align-items:center;justify-content:center;width:100%;min-height:76px;padding:18px 16px;border:0;border-radius:18px;background:#ff8a00;color:#fff8e8;font-size:clamp(18px,4vw,25px);font-weight:700;text-align:center;line-height:1.25;box-shadow:0 7px 14px rgba(0,0,0,.22);white-space:normal}
