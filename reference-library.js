@@ -436,10 +436,6 @@ if (sharedPanel) {
         }, "shared-member-tile");
         if (item.item_type === "folder") tile.textContent = "📁  " + item.original_name;
         memberRow.append(tile);
-        if (item.item_type === "file") {
-          const download = sharedButton("⬇ Download", () => sharedDownload(item), "secondary smallbtn shared-member-download");
-          memberRow.append(download);
-        }
         sharedList.append(memberRow);
         continue;
       }
@@ -577,7 +573,7 @@ if (sharedPanel) {
         sharedViewerNotice.hidden = canPreview;
         sharedViewerNotice.textContent = canPreview
           ? ""
-          : "This file type may not preview in your browser. Use Download to save and open it with a compatible app.";
+          : "This file type may not preview in your browser. Close this preview and ask an Owner/Admin for an alternative format.";
         const isPdf = /^application\/pdf$/i.test(item.mime_type || "") || /\.pdf$/i.test(item.original_name || "");
         sharedViewer.hidden = false;
         if (isPdf) {
@@ -697,7 +693,7 @@ if (sharedPanel) {
       sharedAdminTools.hidden = !sharedCanManage;
       sharedSay(sharedCanManage
         ? "You can manage this shared library as an Owner/Admin. Changes are visible to every account."
-        : "View-only access. You can open and download references but cannot edit or delete them.", "success");
+        : "View-only access. You can open references but cannot edit or delete them.", "success");
       await sharedRefresh();
     } catch (error) {
       sharedAdminTools.hidden = true;
