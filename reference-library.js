@@ -319,6 +319,7 @@ if (panel) {
     catch (error) { say("Library could not load: " + (error.message || "Unknown error"), "error"); }
   }
   el("referenceLibraryOpenTop")?.addEventListener("click", () => panel.scrollIntoView({ behavior: "smooth", block: "start" }));
+  el("sharedReferenceLibraryOpenTop")?.addEventListener("click", () => document.getElementById("sharedReferenceLibraryPanel")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   el("referenceLibraryAddFolder").addEventListener("click", () => addFolder().catch(error => say(error.message, "error")));
   el("referenceLibraryUploadButton").addEventListener("click", () => uploadInput.click());
   uploadInput.addEventListener("change", async () => {
