@@ -396,6 +396,7 @@ if (sharedPanel) {
       ? " / " + sharedCurrentFolder.split("/").join(" / ")
       : " / All shared references";
     sharedList.replaceChildren();
+    sharedList.classList.toggle("shared-member-list", !sharedCanManage);
     const items = sharedItems.filter(item => item.folder_path === sharedCurrentFolder)
       .filter(item => !sharedSearch.value || item.original_name.toLowerCase().includes(sharedSearch.value.toLowerCase()));
     if (sharedCurrentFolder) {
@@ -417,25 +418,33 @@ if (sharedPanel) {
       return;
     }
     for (const item of items) {
+      if (!sharedCanManage) {
+        const memberRow = document.createElement("div");
+        memberRow.className = "shared-member-item";
+        const tile = sharedButton(item.original_name, () => {
+          if (item.item_type === "folder") {
+            sharedCurrentFolder = [sharedCurrentFolder, item.original_name].filter(Boolean).join("/");
+            sharedRender();
+          } else {
+            sharedOpen(item);
+          }
+        }, "shared-member-tile");
+        if (item.item_type === "folder") tile.textContent = "📁  " + item.original_name;
+        memberRow.append(tile);
+        if (item.item_type === "file") {
+          const download = sharedButton("⬇ Download", () => sharedDownload(item), "secondary smallbtn shared-member-download");
+          memberRow.append(download);
+        }
+        sharedList.append(memberRow);
+        continue;
+      }
+      // Owner/Admin management layout remains unchanged.
       const row = document.createElement("div");
       row.className = "reference-library-row";
       const details = document.createElement("div");
       details.className = "reference-library-details";
       const name = document.createElement("strong");
       name.textContent = (item.item_type === "folder" ? "📁 " : item.mime_type === "application/pdf" ? "📕 " : "📄 ") + item.original_name;
-      if (item.item_type === "file") {
-        name.style.cursor = "pointer";
-        name.title = "Tap to open " + item.original_name;
-        name.setAttribute("role", "button");
-        name.tabIndex = 0;
-        name.addEventListener("click", () => sharedOpen(item));
-        name.addEventListener("keydown", event => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            sharedOpen(item);
-          }
-        });
-      }
       const meta = document.createElement("small");
       meta.textContent = item.item_type === "folder" ? "Shared folder" : sharedBytes(item.file_size) + " · Available to all accounts";
       details.append(name, meta);
@@ -450,10 +459,8 @@ if (sharedPanel) {
         actions.append(sharedButton("View", () => sharedOpen(item)));
         actions.append(sharedButton("Download", () => sharedDownload(item)));
       }
-      if (sharedCanManage) {
-        actions.append(sharedButton("Rename", () => sharedRename(item)));
-        actions.append(sharedButton("Delete", () => sharedDelete(item), "danger smallbtn"));
-      }
+      actions.append(sharedButton("Rename", () => sharedRename(item)));
+      actions.append(sharedButton("Delete", () => sharedDelete(item), "danger smallbtn"));
       row.append(details, actions);
       sharedList.append(row);
     }
