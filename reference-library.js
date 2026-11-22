@@ -516,6 +516,8 @@ if (sharedPanel) {
   const sharedViewer = document.getElementById("sharedReferenceViewer");
   const sharedViewerFrame = document.getElementById("sharedReferenceViewerFrame");
   const sharedPdfPages = document.getElementById("sharedReferencePdfPages");
+  const sharedImageWrap = document.getElementById("sharedReferenceImageWrap");
+  const sharedImage = document.getElementById("sharedReferenceImage");
   const sharedViewerTitle = document.getElementById("sharedReferenceViewerTitle");
   let sharedPdfJsPromise = null;
   async function sharedRenderPdf(blob) {
@@ -553,6 +555,8 @@ if (sharedPanel) {
     sharedViewerFrame.hidden = false;
     sharedPdfPages.hidden = true;
     sharedPdfPages.replaceChildren();
+    sharedImageWrap.hidden = true;
+    sharedImage.removeAttribute("src");
     if (sharedViewerUrl) URL.revokeObjectURL(sharedViewerUrl);
     sharedViewerUrl = null;
   }
@@ -580,11 +584,24 @@ if (sharedPanel) {
           // Render every PDF page ourselves at the available phone width.
           // This avoids Android's built-in PDF viewer ignoring fit-to-page hints.
           sharedViewerFrame.hidden = true;
+          sharedImageWrap.hidden = true;
+          sharedImage.removeAttribute("src");
           sharedPdfPages.hidden = false;
           await sharedRenderPdf(blob);
+        } else if (/^image\//i.test(item.mime_type || "") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(item.original_name || "")) {
+          // Use a contained image element instead of the browser's native image
+          // document, which can open at natural size and crop on mobile screens.
+          sharedViewerFrame.hidden = true;
+          sharedPdfPages.hidden = true;
+          sharedPdfPages.replaceChildren();
+          sharedImageWrap.hidden = false;
+          sharedImage.src = sharedViewerUrl;
+          sharedImage.alt = item.original_name || "Reference image";
         } else {
           sharedPdfPages.hidden = true;
           sharedPdfPages.replaceChildren();
+          sharedImageWrap.hidden = true;
+          sharedImage.removeAttribute("src");
           sharedViewerFrame.hidden = false;
           sharedViewerFrame.src = canPreview ? sharedViewerUrl : "about:blank";
         }
