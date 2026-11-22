@@ -324,7 +324,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 <summary>🔥 Fire alarm tools</summary>
 <div class="home-group-items" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px 12px">
 <button class="secondary" type="button" data-fire-tool="zone">Zone plan reference</button>
-<button class="secondary" type="button" id="referenceLibraryOpenTop">📚 My reference folders</button>
+<button class="secondary" type="button" id="referenceLibraryOpenTop" aria-controls="referenceLibraryPanel" aria-expanded="false" onclick="const p=document.getElementById('referenceLibraryPanel');if(p){p.hidden=false;this.setAttribute('aria-expanded','true');p.scrollIntoView({behavior:'smooth',block:'start'});}">📚 My reference folders</button>
 <button class="secondary" type="button" id="sharedReferenceLibraryOpenTop">🏢 Company reference folders</button>
 <button class="secondary" type="button" data-fire-tool="spacing">Detector spacing guide</button>
 <button class="secondary" type="button" data-fire-tool="cable">Cable sizing reference</button>
@@ -1830,7 +1830,7 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
 })();
 </script>
 <script type="module" src="./cloud-auth.js?v=20261122-cloud-authoritative"></script>
-<script type="module" src="./reference-library.js?v=20261122-fire-alarm-folders"></script><script id="vspMultipleDefects20261118">
+<script type="module" src="./reference-library.js?v=20261122-private-library-open-fix"></script><script id="vspMultipleDefects20261118">
 (function(){
  const root=document.getElementById('siteVisitDefectsEditor');if(!root)return;
  let defects=[],visitId=null,urls=[];
