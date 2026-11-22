@@ -77,7 +77,7 @@ function setSession(session) {
       // next account: on a first sign-in that cache may contain the admin's
       // 62 starter items and would otherwise be imported into a new user's
       // personal workspace.
-      if (previousUserId && Array.isArray(cachedItems)) {
+      if (previousUserId && Array.isArray(cachedItems) && cachedItems.length) {
         const archiveKey = "van-stock-pro-isolated-cache-v2-" + previousUserId;
         localStorage.setItem(archiveKey, cached);
         localStorage.setItem("van-stock-pro-user-cache-v1-" + previousUserId, cached);
@@ -199,8 +199,8 @@ async function runAuth(action) {
   }
 }
 
-/* Workspace-scoped shared stock persistence. The workspace creator owns the
-   canonical stock rows; authorised workspace roles share those rows. */
+/* Account-private stock persistence. Workspace membership authorises access,
+   but every account owns and syncs only its own stock rows. */
 let stockWorkspaceId = null;
 let stockWorkspaceOwnerId = null;
 let stockSyncTimer = null;
@@ -443,7 +443,9 @@ async function initialiseCloudStock() {
     }
     const cloudItems = stockRowsToItems(cloudRows || []);
     // Keep offline snapshots strictly keyed to the signed-in account.
-    try { localStorage.setItem("van-stock-pro-user-cache-v1-" + userId, JSON.stringify(cloudItems)); } catch {}
+    if (cloudItems.length) {
+      try { localStorage.setItem("van-stock-pro-user-cache-v1-" + userId, JSON.stringify(cloudItems)); } catch {}
+    }
     let pendingItems = null;
     try {
       const snapshotKey = stockUserPendingSnapshotKey(userId);
@@ -462,10 +464,10 @@ async function initialiseCloudStock() {
           message("Recovered and synced " + pendingItems.length + " pending changes to this account's private cloud stock.", "success");
         } catch (pendingError) {
           if (currentSession?.user?.id !== userId) return;
-          message("Your latest changes are safe on this phone for this workspace. Cloud sync is waiting: " + (pendingError?.message || "connection unavailable"), "warning");
+          message("Your latest changes are safe on this phone for this account. Cloud sync is waiting: " + (pendingError?.message || "connection unavailable"), "warning");
         }
       } else {
-        message("Loaded this workspace's pending phone changes. They will upload when the connection returns.", "warning");
+        message("Loaded this account's pending phone changes. They will upload when the connection returns.", "warning");
       }
     }
 
@@ -487,8 +489,8 @@ async function initialiseCloudStock() {
       // zero-stock phone case visible to the user and confirms no local upload.
       window.__VSP_APPLY_CLOUD_STOCK(cloudItems);
       message(restoringZeroPhone
-        ? "RECOVERED FROM CLOUD BACKUP — this phone had zero stock. Restored and verified " + cloudItems.length + " shared item(s)."
-        : "Workspace cloud stock loaded and verified: " + cloudItems.length + " item(s).", "success");
+        ? "RECOVERED FROM CLOUD BACKUP — restored this account's " + cloudItems.length + " private item(s)."
+        : "Private account stock loaded and verified: " + cloudItems.length + " item(s).", "success");
     } else {
       const local = readLocalArray("van-stock-pro-user-cache-v1-" + userId);
       const legacyArchive = local.length ? local : readLocalArray("van-stock-pro-isolated-cache-v2-" + userId);
