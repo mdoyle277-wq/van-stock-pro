@@ -93,7 +93,8 @@ body.cloud-authenticated::before{display:none!important;content:none!important}
 
 .shared-reference-viewer{position:fixed;inset:0;z-index:100200;background:rgba(2,8,18,.92);display:flex;align-items:center;justify-content:center;padding:12px}
 .shared-reference-viewer[hidden]{display:none!important}
-.shared-reference-viewer-card{display:flex;flex-direction:column;width:min(1100px,100%);height:min(92dvh,900px);background:#101b2d;border:1px solid #35465e;border-radius:16px;overflow:hidden;box-shadow:0 20px 70px #000b}
+.shared-reference-viewer-card{display:flex;flex-direction:column;width:min(760px,100%);height:min(78dvh,720px);max-height:78dvh;background:#101b2d;border:1px solid #35465e;border-radius:16px;overflow:hidden;box-shadow:0 20px 70px #000b}
+@media(max-width:600px){.shared-reference-viewer{padding:16px}.shared-reference-viewer-card{width:100%;height:min(76dvh,680px);max-height:76dvh;border-radius:14px}.shared-reference-viewer-head{padding:10px 12px}.shared-reference-viewer-head button{padding:9px 12px;font-size:14px}}
 .shared-reference-viewer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid #35465e}
 .shared-reference-viewer-head strong{min-width:0;overflow-wrap:anywhere}
 .shared-reference-viewer-head button{flex:0 0 auto}
@@ -291,14 +292,11 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
 #referenceLibraryStatus[data-kind="success"]{color:var(--mint)}
 @media(max-width:600px){.reference-library-row{align-items:flex-start;flex-direction:column}.reference-library-actions{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.reference-library-actions button{min-width:0}.reference-library-toolbar .field{flex-basis:100%}}
 
-/* Keep member reference tiles in the app's neutral grey button style. */
-#sharedReferenceLibraryList .shared-member-tile{background:#26364d;color:#e8eef8;box-shadow:none;border:1px solid #35465e}
-#sharedReferenceLibraryList .shared-member-tile:active{background:#31445f;filter:none}
-/* Member shared-reference library: large, simple tap-to-open tiles. */
-#sharedReferenceLibraryList.shared-member-list .shared-member-item{display:flex;flex-direction:column;gap:8px;padding:10px 0;border-bottom:0}
-#sharedReferenceLibraryList .shared-member-tile{display:flex;align-items:center;justify-content:center;width:100%;min-height:76px;padding:18px 16px;border:0;border-radius:18px;background:#ff8a00;color:#fff8e8;font-size:clamp(18px,4vw,25px);font-weight:700;text-align:center;line-height:1.25;box-shadow:0 7px 14px rgba(0,0,0,.22);white-space:normal}
-#sharedReferenceLibraryList .shared-member-tile:active{transform:translateY(1px);filter:brightness(.95)}
-#sharedReferenceLibraryList .shared-member-download{align-self:flex-end;min-width:120px}
+/* Member shared-reference library: compact neutral-grey tiles for user accounts. */
+#sharedReferenceLibraryList.shared-member-list .shared-member-item{display:flex;flex-direction:column;gap:8px;padding:8px 0;border-bottom:0}
+#sharedReferenceLibraryList .shared-member-tile{display:flex;align-items:center;justify-content:center;width:100%;min-height:58px;padding:12px 14px;border:1px solid #35465e;border-radius:14px;background:#26364d;color:#fff;font-size:clamp(16px,3.8vw,20px);font-weight:700;text-align:center;line-height:1.25;box-shadow:none;white-space:normal}
+#sharedReferenceLibraryList .shared-member-tile:active{background:#31445f;transform:translateY(1px);filter:none}
+#sharedReferenceLibraryList .shared-member-download{align-self:flex-end;min-width:112px;background:#26364d;color:#fff;border:1px solid #35465e;box-shadow:none}
 </style></head>
 <body><main class="wrap">
 <header class="top"><div class="brand"><img class="logo" src="./van-stock-header-logo.svg?v=1" alt="Van Stock Pro futuristic van logo"><span class="app-version" aria-label="Build number 0001">Build 0001</span><div><h1>Van Stock Pro</h1><div class="title-auth-actions" style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap"><button class="secondary" id="cloudSignInMini" type="button">☁️ Sign in</button><button class="secondary" id="cloudSignOutMini" type="button" aria-label="Sign out of Van Stock Pro" hidden>☁️ Sign out</button></div><div class="sub">Your stock. Your van. Under control.</div></div></div>
