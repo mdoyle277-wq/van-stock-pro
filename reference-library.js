@@ -185,6 +185,7 @@ if (panel) {
     await refresh();
   }
   async function uploadLocalToCloud(item) {
+    await ensureCloudFolders(item.folder_path || "");
     const path = session.user.id + "/" + item.id + "/" + safeName(item.original_name);
     const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, item.blob, {
       contentType: item.mime_type || "application/octet-stream",
@@ -208,6 +209,24 @@ if (panel) {
     }
     await store("readwrite", { ...item, storage_mode: "both" });
     say("Cloud backup complete. A local copy is also kept on this device.", "success");
+  }
+  async function ensureCloudFolders(path) {
+    const parts = String(path || "").split("/").filter(Boolean);
+    let parent = "";
+    for (const part of parts) {
+      const existing = cloudItems.find(x => x.item_type === "folder" && x.folder_path === parent && x.original_name === part);
+      if (!existing) {
+        const localFolder = localItems.find(x => x.item_type === "folder" && x.folder_path === parent && x.original_name === part);
+        const id = localFolder?.id || crypto.randomUUID();
+        const { error } = await supabase.from("reference_library_items").insert({
+          id, owner_user_id: session.user.id, item_type: "folder",
+          original_name: part, folder_path: parent, mime_type: "", file_size: 0, storage_path: null
+        });
+        if (error && !/duplicate key/i.test(error.message || "")) throw error;
+        if (localFolder) await store("readwrite", { ...localFolder, storage_mode: "both" });
+      }
+      parent = [parent, part].filter(Boolean).join("/");
+    }
   }
   async function backupItem(item) {
     try {
