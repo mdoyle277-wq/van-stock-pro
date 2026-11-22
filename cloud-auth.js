@@ -48,16 +48,21 @@ function setSession(session) {
   const nextUserId = session?.user?.id || null;
   // Before clearing or changing the signed-in account, preserve any stock
   // edits that have not yet been confirmed in the cloud under that account ID.
-  if (previousUserId && hasPendingStockChanges(previousUserId)) {
-    try {
-      const pendingLocal = localStorage.getItem("van-stock-pro-items-v1");
-      if (pendingLocal && Array.isArray(JSON.parse(pendingLocal))) {
-        localStorage.setItem(stockUserPendingSnapshotKey(previousUserId), pendingLocal);
-        localStorage.setItem(stockPendingKey(previousUserId), "1");
-        localStorage.setItem("van-stock-pro-user-cache-v1-" + previousUserId, pendingLocal);
-      }
-    } catch {}
+  if (previousUserId !== nextUserId) {
+    // Never allow a delayed upload timer from the previous login to read the
+    // shared active-phone key after another account has signed in.
     if (stockSyncTimer) { window.clearTimeout(stockSyncTimer); stockSyncTimer = null; }
+    stockSyncReady = false;
+    stockSyncAgain = false;
+    if (previousUserId && hasPendingStockChanges(previousUserId)) {
+      try {
+        const pendingLocal = localStorage.getItem("van-stock-pro-items-v1");
+        if (pendingLocal && Array.isArray(JSON.parse(pendingLocal))) {
+          localStorage.setItem(stockUserPendingSnapshotKey(previousUserId), pendingLocal);
+          localStorage.setItem("van-stock-pro-user-cache-v1-" + previousUserId, pendingLocal);
+        }
+      } catch {}
+    }
   }
   currentSession = session;
   if (!nextUserId || previousUserId !== nextUserId) void stopAppPresence();
@@ -449,24 +454,22 @@ async function initialiseCloudStock() {
       const snapshotKey = stockUserPendingSnapshotKey(userId);
       const pendingRaw = snapshotKey ? localStorage.getItem(snapshotKey) : null;
       const parsedPending = pendingRaw ? JSON.parse(pendingRaw) : null;
-      if (Array.isArray(parsedPending) && hasPendingStockChanges(userId)) pendingItems = parsedPending;
+      // The phone has one legacy active-stock key shared by logins. Never let
+      // that key's pending snapshot override a successful online cloud download.
+      // Offline-only recovery is permitted because no cloud copy can be fetched.
+      if (navigator.onLine === false && Array.isArray(parsedPending) && hasPendingStockChanges(userId)) pendingItems = parsedPending;
+      else if (navigator.onLine !== false && hasPendingStockChanges(userId)) {
+        if (Array.isArray(parsedPending)) {
+          localStorage.setItem("van-stock-pro-user-recovery-v1-" + userId, JSON.stringify({
+            savedAt: new Date().toISOString(), items: parsedPending
+          }));
+        }
+        clearPendingStockChanges(userId);
+      }
     } catch {}
     if (pendingItems) {
       window.__VSP_APPLY_CLOUD_STOCK(pendingItems);
-      if (navigator.onLine !== false) {
-        try {
-          await writeCloudStock(pendingItems);
-          if (currentSession?.user?.id !== userId || stockWorkspaceId !== workspace.id) return;
-          try { localStorage.setItem("van-stock-pro-user-cache-v1-" + userId, JSON.stringify(pendingItems)); } catch {}
-          clearPendingStockChanges(userId);
-          message("Recovered and synced " + pendingItems.length + " pending changes to this account's private cloud stock.", "success");
-        } catch (pendingError) {
-          if (currentSession?.user?.id !== userId) return;
-          message("Your latest changes are safe on this phone for this account. Cloud sync is waiting: " + (pendingError?.message || "connection unavailable"), "warning");
-        }
-      } else {
-        message("Loaded this account's pending phone changes. They will upload when the connection returns.", "warning");
-      }
+      message("OFFLINE RECOVERY — loaded this account's saved unsynced copy. It will be kept separate until cloud access returns.", "warning");
     }
 
     // Recovery indicator is account-specific; never use another account's stock.
@@ -490,18 +493,10 @@ async function initialiseCloudStock() {
         ? "RECOVERED FROM CLOUD BACKUP — restored this account's " + cloudItems.length + " private item(s)."
         : "Private account stock loaded and verified: " + cloudItems.length + " item(s).", "success");
     } else {
-      const local = readLocalArray("van-stock-pro-user-cache-v1-" + userId);
-      const legacyArchive = local.length ? local : readLocalArray("van-stock-pro-isolated-cache-v2-" + userId);
-      if (legacyArchive.length) {
-        await writeCloudStock(legacyArchive);
-        if (currentSession?.user?.id !== userId) return;
-        window.__VSP_APPLY_CLOUD_STOCK(legacyArchive);
-        try { localStorage.setItem("van-stock-pro-user-cache-v1-" + userId, JSON.stringify(legacyArchive)); } catch {}
-        message("Restored and verified this account's own saved stock: " + legacyArchive.length + " item(s).", "success");
-      } else {
-        window.__VSP_APPLY_CLOUD_STOCK([]);
-        message("This account's private stock is ready. No stock is saved to this account yet.", "success");
-      }
+      // An online empty cloud result is authoritative. Do not upload a device
+      // cache automatically: it may be stale from an earlier login on this phone.
+      window.__VSP_APPLY_CLOUD_STOCK([]);
+      message("This account has no stock saved in its cloud inventory yet. The phone's older local copies have not been imported.", "warning");
     }
     if (currentSession?.user?.id === userId) {
       stockSyncReady = true;
