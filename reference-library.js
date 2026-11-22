@@ -423,6 +423,19 @@ if (sharedPanel) {
       details.className = "reference-library-details";
       const name = document.createElement("strong");
       name.textContent = (item.item_type === "folder" ? "📁 " : item.mime_type === "application/pdf" ? "📕 " : "📄 ") + item.original_name;
+      if (item.item_type === "file") {
+        name.style.cursor = "pointer";
+        name.title = "Tap to open " + item.original_name;
+        name.setAttribute("role", "button");
+        name.tabIndex = 0;
+        name.addEventListener("click", () => sharedOpen(item));
+        name.addEventListener("keydown", event => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            sharedOpen(item);
+          }
+        });
+      }
       const meta = document.createElement("small");
       meta.textContent = item.item_type === "folder" ? "Shared folder" : sharedBytes(item.file_size) + " · Available to all accounts";
       details.append(name, meta);
