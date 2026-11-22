@@ -102,6 +102,9 @@ body.cloud-authenticated::before{display:none!important;content:none!important}
 #sharedReferencePdfPages{flex:1;min-height:0;width:100%;overflow:auto;background:#303744;padding:10px;box-sizing:border-box}
 #sharedReferencePdfPages[hidden]{display:none!important}
 .shared-reference-pdf-page{display:block;width:100%;height:auto;max-width:100%;margin:0 auto 12px;background:#fff;box-shadow:0 2px 8px #0006}
+.shared-reference-image-wrap{flex:1;min-height:0;min-width:0;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#05080e;padding:8px}
+.shared-reference-image-wrap[hidden]{display:none!important}
+#sharedReferenceImage{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;object-position:center}
 
 #sharedReferenceViewerNotice{padding:12px 16px;margin:0}
 </style>
@@ -613,6 +616,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
       <button type="button" class="secondary" id="sharedReferenceViewerClose" aria-label="Close file viewer">✕ Close</button>
     </div>
     <div id="sharedReferencePdfPages" class="shared-reference-pdf-pages" hidden aria-label="PDF pages"></div>
+    <div id="sharedReferenceImageWrap" class="shared-reference-image-wrap" hidden><img id="sharedReferenceImage" alt="Reference image preview"></div>
     <iframe id="sharedReferenceViewerFrame" title="Reference document preview"></iframe>
     <div class="notice" id="sharedReferenceViewerNotice" hidden></div>
   </div>
@@ -1830,7 +1834,7 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
 })();
 </script>
 <script type="module" src="./cloud-auth.js?v=20261122-cloud-authoritative"></script>
-<script type="module" src="./reference-library.js?v=20261122-private-library-open-fix"></script><script id="vspMultipleDefects20261118">
+<script type="module" src="./reference-library.js?v=20261122-reference-image-fit"></script><script id="vspMultipleDefects20261118">
 (function(){
  const root=document.getElementById('siteVisitDefectsEditor');if(!root)return;
  let defects=[],visitId=null,urls=[];
