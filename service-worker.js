@@ -1,4 +1,4 @@
-const CACHE_NAME="van-stock-pro-offline-v5";
+const CACHE_NAME="van-stock-pro-offline-v6";
 const SHELL=["./","./index.html","./cloud-auth.js","./reference-library.js","./supabase-config.js"];
 self.addEventListener("install",event=>{
   event.waitUntil((async()=>{
