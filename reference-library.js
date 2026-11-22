@@ -488,10 +488,40 @@ if (sharedPanel) {
     if (error) throw error;
     return data;
   }
+  const sharedViewer = document.getElementById("sharedReferenceViewer");
+  const sharedViewerFrame = document.getElementById("sharedReferenceViewerFrame");
+  const sharedViewerTitle = document.getElementById("sharedReferenceViewerTitle");
+  const sharedViewerNotice = document.getElementById("sharedReferenceViewerNotice");
+  let sharedViewerUrl = null;
+  function sharedCloseViewer() {
+    sharedViewer.hidden = true;
+    sharedViewerFrame.removeAttribute("src");
+    if (sharedViewerUrl) URL.revokeObjectURL(sharedViewerUrl);
+    sharedViewerUrl = null;
+  }
+  document.getElementById("sharedReferenceViewerClose").addEventListener("click", sharedCloseViewer);
+  sharedViewer.addEventListener("click", event => { if (event.target === sharedViewer) sharedCloseViewer(); });
+  document.addEventListener("keydown", event => { if (event.key === "Escape" && !sharedViewer.hidden) sharedCloseViewer(); });
   async function sharedOpen(item) {
     try {
       sharedSay("Opening " + item.original_name + "…");
       const blob = await sharedGetBlob(item);
+      // Ordinary member accounts get an in-app preview with a clear Close control.
+      // Owner/Admins retain the existing separate-tab behaviour.
+      if (!sharedCanManage) {
+        if (sharedViewerUrl) URL.revokeObjectURL(sharedViewerUrl);
+        sharedViewerUrl = URL.createObjectURL(blob);
+        sharedViewerTitle.textContent = item.original_name;
+        const canPreview = /^application\\/pdf$|^image\\/|^text\\//i.test(item.mime_type || "");
+        sharedViewerNotice.hidden = canPreview;
+        sharedViewerNotice.textContent = canPreview
+          ? ""
+          : "This file type may not preview in your browser. Use Download to save and open it with a compatible app.";
+        sharedViewerFrame.src = canPreview ? sharedViewerUrl : "about:blank";
+        sharedViewer.hidden = false;
+        sharedSay("Reference opened.", "success");
+        return;
+      }
       const url = URL.createObjectURL(blob);
       const opened = window.open(url, "_blank", "noopener");
       if (!opened) {
