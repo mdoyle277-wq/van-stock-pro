@@ -50,6 +50,7 @@ jobs:
           auth=Path("cloud-auth.js").read_text()
           app=Path("index.html").read_text()
           sql=Path("supabase/migrations/20261112_user_stock_cloud_sync.sql").read_text()
+          private_sql=Path("supabase/migrations/20261122_private_stock_per_account.sql").read_text()
           required_auth=[
             'select("id,workspace_id,owner_user_id,legacy_id")',
             'event === "INITIAL_SESSION"',
@@ -61,7 +62,11 @@ jobs:
             'Saving stock to the cloud',
             'beforeunload',
             'isPersonal: !!personal',
-            'workspace.isPersonal',
+            'stockUserPendingSnapshotKey',
+            'van-stock-pro-user-cache-v1-',
+            'ownerUserId: userId',
+            '.eq("owner_user_id", userId)',
+            'stock_items_owner_isolation',
             'clearCloudLoadingWithEmptyStock',
             'CLOUD STOCK NOT READY',
             'cloudStockErrorDetail',
@@ -83,7 +88,9 @@ jobs:
             if marker not in app: raise SystemExit("Missing app safeguard: "+marker)
           for marker in ['add column if not exists owner_user_id','set legacy_id = id::text','stock_items_workspace_owner_legacy_uidx','owner_user_id = auth.uid()','drop policy if exists "workspace editors can delete stock items"']:
             if marker not in sql: raise SystemExit("Missing database safeguard: "+marker)
-          if sql.count("do $$") != 2 or sql.count("end $$;") != 2:
+          if sql.count("do $") != 2 or sql.count("end $;") != 2:
             raise SystemExit("Invalid PostgreSQL dollar quoting in stock migration")
-          print("PASS: syntax, per-user isolation, empty-cloud safety, max stock editing, requested categories and migration safeguards")
+          for marker in ['drop policy if exists "workspace roles can insert shared workspace stock"', 'owner_user_id = auth.uid()', 'as restrictive']:
+            if marker not in private_sql: raise SystemExit("Missing private stock policy safeguard: "+marker)
+          print("PASS: syntax, private per-account stock isolation, empty-cloud safety, max stock editing, requested categories and migration safeguards")
           PY
