@@ -299,6 +299,10 @@ if (panel) {
     } catch (error) { say("Delete failed: " + (error.message || "Unknown error"), "error"); }
   }
   async function loadSession(nextSession) {
+    // Hide immediately on an account/session change, before any async work.
+    // Do not hide again after awaiting IndexedDB: the user may have opened
+    // the panel while account initialisation was still completing.
+    panel.hidden = true;
     const nextId = nextSession?.user?.id || null;
     const oldId = session?.user?.id || null;
     session = nextSession;
@@ -314,7 +318,6 @@ if (panel) {
       db = await openDb(nextId);
       currentFolder = "";
     }
-    panel.hidden = true;
     try { await refresh(); say("Private library ready for " + (session.user.email || "this account") + ".", "success"); }
     catch (error) { say("Library could not load: " + (error.message || "Unknown error"), "error"); }
   }
