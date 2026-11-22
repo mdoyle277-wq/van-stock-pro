@@ -318,6 +318,7 @@ if (panel) {
     try { await refresh(); say("Private library ready for " + (session.user.email || "this account") + ".", "success"); }
     catch (error) { say("Library could not load: " + (error.message || "Unknown error"), "error"); }
   }
+  el("referenceLibraryOpenTop")?.addEventListener("click", () => panel.scrollIntoView({ behavior: "smooth", block: "start" }));
   el("referenceLibraryAddFolder").addEventListener("click", () => addFolder().catch(error => say(error.message, "error")));
   el("referenceLibraryUploadButton").addEventListener("click", () => uploadInput.click());
   uploadInput.addEventListener("change", async () => {
