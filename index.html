@@ -1794,18 +1794,34 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
   if(inline.length)box.append(reviewLine('Battery details on visit',inline.join('\n')));
  }
  document.getElementById('vspCopyAllJobInfo').addEventListener('click',async()=>{
-  updateReview();
-  const details=document.getElementById('vspJobReviewDetails');
-  const report=['JOB REPORT',(details?.innerText||'No job information available.').trim()].join(String.fromCharCode(10)+String.fromCharCode(10));
+  const sections=[];
+  const systemType=document.getElementById('siteVisitSystem')?.value.trim();
+  const workCarriedOut=document.getElementById('siteVisitNotes')?.value.trim();
+  const followUp=document.getElementById('siteVisitFollowUp')?.value.trim();
+  const defectsRaw=window.__VSP_DEFECT_EDITOR?.serialise()||'';
+  const defects=formatSiteDefects(defectsRaw).trim();
+  if(systemType)sections.push('System type:\\n'+systemType);
+  if(workCarriedOut)sections.push('Work carried out:\\n'+formatSiteVisitNotes(workCarriedOut));
+  if(stagedJobUsage.length){
+   const stockLines=stagedJobUsage.map(line=>{
+    const identifier=line.sku||line.category;
+    return '• '+line.itemName+(identifier?' ('+identifier+')':'')+' — Qty '+Number(line.quantity||0);
+   });
+   sections.push('Stock used:\\n'+stockLines.join('\\n'));
+  }
+  if(defects)sections.push('Defects:\\n'+defects);
+  if(followUp)sections.push('Follow-up:\\n'+followUp);
+  const report=sections.join('\\n\\n');
+  if(!report){toast('There is no job information to copy yet.');return;}
   try{
    if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(report);}
    else{
     const temp=document.createElement('textarea');temp.value=report;temp.setAttribute('readonly','');temp.style.position='fixed';temp.style.opacity='0';document.body.appendChild(temp);temp.select();
     const copied=document.execCommand('copy');temp.remove();if(!copied)throw new Error('Clipboard access is unavailable on this device.');
    }
-   if(typeof toast==='function')toast('All job information copied. You can now paste it into an email or message.');
-   else alert('All job information copied.');
-  }catch(error){if(typeof toast==='function')toast('Could not copy job information: '+(error?.message||error));else alert('Could not copy job information.');}
+   if(typeof toast==='function')toast('Job summary copied. You can now paste it into an email or message.');
+   else alert('Job summary copied.');
+  }catch(error){if(typeof toast==='function')toast('Could not copy job summary: '+(error?.message||error));else alert('Could not copy job summary.');}
  });
 
  function showStep(next){
