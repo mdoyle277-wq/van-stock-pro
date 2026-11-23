@@ -1089,19 +1089,19 @@ function updateSiteBatterySections(){const system=$('siteVisitSystem').value;con
 function buildSiteVisitNotesTemplate(kind,system){
  const s=system||'System';
  const checks={
-  'Fire alarm':'Panel status and indications:\\nDevices / zones tested:\\nManual call points tested:\\nSounders and visual alarms tested:\\nCause-and-effect / outputs checked as applicable:\\nAlarm transmission / monitoring checked:\\nStandby batteries and power supply checked:',
-  'Intruder alarm':'Control panel status and event log:\\nDetectors and zones tested:\\nEntry / exit routes and setting tested:\\nExternal sounder / bell tested:\\nSignalling to ARC / monitoring centre checked:\\nStandby battery and power supply checked:',
-  'Access control':'Controller and power supply status:\\nReaders and credentials tested:\\nDoor release / locking operation tested:\\nRequest-to-exit and door contacts tested:\\nFire alarm release interface checked where applicable:',
-  'CCTV':'Recorder / NVR status and storage checked:\\nCameras and live views checked:\\nRecording and playback tested:\\nDate / time and network connection checked:\\nRemote viewing tested where applicable:'
+  'Fire alarm':'Panel status and indications:\nDevices / zones tested:\nManual call points tested:\nSounders and visual alarms tested:\nCause-and-effect / outputs checked as applicable:\nAlarm transmission / monitoring checked:\nStandby batteries and power supply checked:',
+  'Intruder alarm':'Control panel status and event log:\nDetectors and zones tested:\nEntry / exit routes and setting tested:\nExternal sounder / bell tested:\nSignalling to ARC / monitoring centre checked:\nStandby battery and power supply checked:',
+  'Access control':'Controller and power supply status:\nReaders and credentials tested:\nDoor release / locking operation tested:\nRequest-to-exit and door contacts tested:\nFire alarm release interface checked where applicable:',
+  'CCTV':'Recorder / NVR status and storage checked:\nCameras and live views checked:\nRecording and playback tested:\nDate / time and network connection checked:\nRemote viewing tested where applicable:'
  };
- const systemChecks=system==='Multiple systems'?Object.entries(checks).map(([name,lines])=>name+':\\n'+lines).join('\\n\\n'):checks[system]||'Equipment / devices checked:\\nInputs, outputs and interfaces tested as applicable:\\nPower supply and backup checked:';
+ const systemChecks=system==='Multiple systems'?Object.entries(checks).map(([name,lines])=>name+':\n'+lines).join('\n\n'):checks[system]||'Equipment / devices checked:\nInputs, outputs and interfaces tested as applicable:\nPower supply and backup checked:';
  const endings={
-  routine:'Work completed / adjustments made:\\nOutstanding issues:\\nSystem left in the following condition:',
-  fault:'Reported fault / symptoms:\\nFault-finding checks and measurements:\\nCause identified (if confirmed):\\nRepair / corrective action completed:\\nRetest results:\\nSystem left in the following condition:',
-  installation:'Equipment installed / replaced:\\nConfiguration and programming completed:\\nFunctional tests completed:\\nHandover / user instructions provided:\\nOutstanding items:',
-  inspection:'Inspection carried out:\\nTests and results:\\nItems not tested and reason (if any):\\nObservations / limitations:\\nSystem left in the following condition:'
+  routine:'Work completed / adjustments made:\nOutstanding issues:\nSystem left in the following condition:',
+  fault:'Reported fault / symptoms:\nFault-finding checks and measurements:\nCause identified (if confirmed):\nRepair / corrective action completed:\nRetest results:\nSystem left in the following condition:',
+  installation:'Equipment installed / replaced:\nConfiguration and programming completed:\nFunctional tests completed:\nHandover / user instructions provided:\nOutstanding items:',
+  inspection:'Inspection carried out:\nTests and results:\nItems not tested and reason (if any):\nObservations / limitations:\nSystem left in the following condition:'
  };
- return ' '+s+' — '+({routine:'Routine service',fault:'Fault finding / repair',installation:'Installation / commissioning',inspection:'Inspection / testing'}[kind]||'Job notes')+'\\n\\n'+systemChecks+'\\n\\n'+endings[kind]+'\\n\\nTested in accordance with the agreed scope and relevant manufacturer instructions, where applicable.';
+ return ' '+s+' — '+({routine:'Routine service',fault:'Fault finding / repair',installation:'Installation / commissioning',inspection:'Inspection / testing'}[kind]||'Job notes')+'\n\n'+systemChecks+'\n\n'+endings[kind]+'\n\nTested in accordance with the agreed scope and relevant manufacturer instructions, where applicable.';
 }
 $('siteVisitNotesTemplate').addEventListener('change',()=>{
  const selector=$('siteVisitNotesTemplate'),kind=selector.value;
