@@ -1796,7 +1796,7 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
  document.getElementById('vspCopyAllJobInfo').addEventListener('click',async()=>{
   updateReview();
   const details=document.getElementById('vspJobReviewDetails');
-  const report='JOB REPORT\\n\\n'+(details?.innerText||'No job information available.').trim();
+  const report=['JOB REPORT',(details?.innerText||'No job information available.').trim()].join(String.fromCharCode(10)+String.fromCharCode(10));
   try{
    if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(report);}
    else{
