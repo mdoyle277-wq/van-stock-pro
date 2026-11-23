@@ -807,9 +807,11 @@ $('copyHomeJobNoteTemplate')?.addEventListener('click',async()=>{
   toast('Job note copied. Paste it into your job notes.');
  }catch(error){toast('Could not copy note: '+(error?.message||error))}
 });
+function resizeJobUseVisitNotes(){const field=$('jobUseVisitNotes');if(!field)return;field.style.height='auto';field.style.overflowY='hidden';field.style.height=Math.max(120,field.scrollHeight)+'px';}
+$('jobUseVisitNotes')?.addEventListener('input',resizeJobUseVisitNotes);
 $('applyJobNoteTemplate')?.addEventListener('click',async()=>{
  const id=$('jobNoteTemplateSelect').value;if(!id)return toast('Choose a template first');
- try{const list=await window.__VSP_JOB_NOTE_TEMPLATE_STORE.getAll(),item=list.find(t=>t.id===id);if(!item)throw new Error('Template not found.');$('jobUseVisitNotes').value=item.body;$('jobNoteTemplateName').value=item.name;toast('Template copied into visit notes. Edit it before saving the job if needed.')}
+ try{const list=await window.__VSP_JOB_NOTE_TEMPLATE_STORE.getAll(),item=list.find(t=>t.id===id);if(!item)throw new Error('Template not found.');$('jobUseVisitNotes').value=item.body;resizeJobUseVisitNotes();$('jobNoteTemplateName').value=item.name;toast('Template copied into visit notes. Edit it before saving the job if needed.')}
  catch(error){toast('Could not apply template: '+(error?.message||error))}
 });
 $('saveJobNoteTemplate')?.addEventListener('click',async()=>{
