@@ -510,7 +510,7 @@ body:not(.cloud-admin) #backupAppFunctionality{display:none!important}
     <div><label class="fieldlabel" for="siteVisitDate">Visit date *</label><input class="field" id="siteVisitDate" type="date" required></div>
     <div><label class="fieldlabel" for="siteVisitEngineer">Engineer</label><input class="field" id="siteVisitEngineer" maxlength="80" placeholder="Engineer attending"></div>
     <div class="full"><label class="fieldlabel" for="siteVisitSystem">System type</label><select class="field" id="siteVisitSystem"><option value="">Choose system type</option><option>Fire alarm</option><option>Intruder alarm</option><option>Access control</option><option>CCTV</option><option>Multiple systems</option><option>Other</option></select></div>
-    <div class="full"><label class="fieldlabel" for="siteVisitNotesTemplate">Job notes template</label><select class="field" id="siteVisitNotesTemplate"><option value="">Choose a notes template to fill work carried out…</option><option value="routine">Routine service</option><option value="fault">Fault finding / repair</option><option value="installation">Installation / commissioning</option><option value="inspection">Inspection / testing</option></select><div class="sub" style="margin-top:5px">Choose a template to fill the work carried out box. You can edit the wording afterwards.</div></div>
+    <div class="full"><label class="fieldlabel" for="siteVisitNotesTemplate">Job notes template</label><select class="field" id="siteVisitNotesTemplate"><option value="">Choose a saved private template…</option></select><div class="sub" style="margin-top:5px">Choose one of your saved private templates. It will fill the work carried out box, where you can edit it.</div></div>
     <div class="full" id="fireBatteryFields" style="border:1px solid var(--line);border-radius:12px;padding:12px">
      <strong>🔥 Fire alarm batteries</strong>
      <div class="formgrid" style="margin-top:8px">
@@ -712,11 +712,11 @@ $('stockRows').addEventListener('click',async function handleUseOnJob(e){
 });
 function closeJobUsePanel(){const panel=$('jobUsePanel');panel.hidden=true;panel.style.display='none';panel.style.position='';panel.style.inset='';panel.style.zIndex='';panel.style.background='';panel.style.padding='';panel.style.margin='';pendingUsageItemId=null}
 async function loadPrivateJobNoteTemplates(){
- const select=$('jobNoteTemplateSelect'),homeSelect=$('homeJobNoteTemplateSelect'),historySelect=$('historyJobNoteTemplateSelect');
- [select,homeSelect,historySelect].filter(Boolean).forEach(s=>s.replaceChildren(new Option('Choose a saved template…','')));
+ const select=$('jobNoteTemplateSelect'),homeSelect=$('homeJobNoteTemplateSelect'),historySelect=$('historyJobNoteTemplateSelect'),siteVisitSelect=$('siteVisitNotesTemplate');
+ [select,homeSelect,historySelect,siteVisitSelect].filter(Boolean).forEach(s=>s.replaceChildren(new Option('Choose a saved private template…','')));
  try{
   const templates=await window.__VSP_JOB_NOTE_TEMPLATE_STORE.getAll();
-  for(const t of templates){if(select)select.add(new Option(t.name,t.id));if(homeSelect)homeSelect.add(new Option(t.name,t.id));if(historySelect)historySelect.add(new Option(t.name,t.id))}
+  for(const t of templates){if(select)select.add(new Option(t.name,t.id));if(homeSelect)homeSelect.add(new Option(t.name,t.id));if(historySelect)historySelect.add(new Option(t.name,t.id));if(siteVisitSelect)siteVisitSelect.add(new Option(t.name,t.id))}
   const status=templates.length+' private template(s) saved to your account.';
   if($('jobNoteTemplateStatus'))$('jobNoteTemplateStatus').textContent=status;
   if($('homeJobNoteTemplateStatus'))$('homeJobNoteTemplateStatus').textContent=status;
@@ -1086,31 +1086,20 @@ $('jobSiteHistoryPanel').insertBefore($('jobReportPanel'),$('jobSiteHistoryPanel
 $('jobSiteHistoryPanel').insertBefore($('jobUsePanel'),$('jobSiteVisitForm').parentElement);
 $('showEmbeddedJobReport').addEventListener('click',async()=>{const p=$('jobReportPanel');p.hidden=!p.hidden;if(!p.hidden){await loadJobUsageHistory();p.scrollIntoView({behavior:'smooth',block:'start'})}});
 function updateSiteBatterySections(){const system=$('siteVisitSystem').value;const fire=system==='Fire alarm'||system==='Multiple systems';const intruder=system==='Intruder alarm'||system==='Multiple systems';$('fireBatteryFields').hidden=!fire;$('intruderBatteryFields').hidden=!intruder;}
-function buildSiteVisitNotesTemplate(kind,system){
- const s=system||'System';
- const checks={
-  'Fire alarm':'Panel status and indications:\nDevices / zones tested:\nManual call points tested:\nSounders and visual alarms tested:\nCause-and-effect / outputs checked as applicable:\nAlarm transmission / monitoring checked:\nStandby batteries and power supply checked:',
-  'Intruder alarm':'Control panel status and event log:\nDetectors and zones tested:\nEntry / exit routes and setting tested:\nExternal sounder / bell tested:\nSignalling to ARC / monitoring centre checked:\nStandby battery and power supply checked:',
-  'Access control':'Controller and power supply status:\nReaders and credentials tested:\nDoor release / locking operation tested:\nRequest-to-exit and door contacts tested:\nFire alarm release interface checked where applicable:',
-  'CCTV':'Recorder / NVR status and storage checked:\nCameras and live views checked:\nRecording and playback tested:\nDate / time and network connection checked:\nRemote viewing tested where applicable:'
- };
- const systemChecks=system==='Multiple systems'?Object.entries(checks).map(([name,lines])=>name+':\n'+lines).join('\n\n'):checks[system]||'Equipment / devices checked:\nInputs, outputs and interfaces tested as applicable:\nPower supply and backup checked:';
- const endings={
-  routine:'Work completed / adjustments made:\nOutstanding issues:\nSystem left in the following condition:',
-  fault:'Reported fault / symptoms:\nFault-finding checks and measurements:\nCause identified (if confirmed):\nRepair / corrective action completed:\nRetest results:\nSystem left in the following condition:',
-  installation:'Equipment installed / replaced:\nConfiguration and programming completed:\nFunctional tests completed:\nHandover / user instructions provided:\nOutstanding items:',
-  inspection:'Inspection carried out:\nTests and results:\nItems not tested and reason (if any):\nObservations / limitations:\nSystem left in the following condition:'
- };
- return ' '+s+' — '+({routine:'Routine service',fault:'Fault finding / repair',installation:'Installation / commissioning',inspection:'Inspection / testing'}[kind]||'Job notes')+'\n\n'+systemChecks+'\n\n'+endings[kind]+'\n\nTested in accordance with the agreed scope and relevant manufacturer instructions, where applicable.';
-}
-$('siteVisitNotesTemplate').addEventListener('change',()=>{
- const selector=$('siteVisitNotesTemplate'),kind=selector.value;
- if(!kind)return;
+$('siteVisitNotesTemplate').addEventListener('focus',loadPrivateJobNoteTemplates);
+$('siteVisitNotesTemplate').addEventListener('change',async()=>{
+ const selector=$('siteVisitNotesTemplate'),id=selector.value;
+ if(!id)return;
  const notes=$('siteVisitNotes'),current=notes.value.trim();
- if(current&&!confirm('Replace the existing work carried out notes with this template? Your current notes will be cleared.')){selector.value='';return;}
- notes.value=buildSiteVisitNotesTemplate(kind,$('siteVisitSystem').value).trim();
- notes.dispatchEvent(new Event('input',{bubbles:true}));
- notes.focus();
+ if(current&&!confirm('Replace the existing work carried out notes with the selected saved template? Your current notes will be cleared.')){selector.value='';return;}
+ try{
+  const templates=await window.__VSP_JOB_NOTE_TEMPLATE_STORE.getAll(),item=templates.find(t=>t.id===id);
+  if(!item)throw new Error('Saved template not found. Reopen the list and try again.');
+  notes.value=item.body;
+  notes.dispatchEvent(new Event('input',{bubbles:true}));
+  notes.focus();
+  toast('Saved template loaded into work carried out. You can edit it before saving the job.');
+ }catch(error){toast('Could not load saved template: '+(error?.message||error))}
  selector.value='';
 });
 $('siteVisitSystem').addEventListener('change',updateSiteBatterySections);
