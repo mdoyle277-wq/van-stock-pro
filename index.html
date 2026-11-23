@@ -1754,7 +1754,7 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
  review.className='panel';
  review.id='vspJobReview';
  review.style.cssText='margin:0;padding:12px';
- review.innerHTML='<h3 style="margin-top:0">4. Review and complete</h3><div class="sub" style="margin-bottom:10px">Check the job details and anything recorded before saving.</div><div id="vspJobReviewDetails" style="display:grid;gap:8px"></div><div class="entryactions" style="margin-top:14px"><button type="button" class="secondary" id="vspWizardBack3">Back</button></div>';
+ review.innerHTML='<h3 style="margin-top:0">4. Review and complete</h3><div class="sub" style="margin-bottom:10px">Check the job details and anything recorded before saving.</div><div id="vspJobReviewDetails" style="display:grid;gap:8px"></div><div class="entryactions" style="margin-top:12px"><button type="button" class="secondary" id="vspCopyAllJobInfo">Copy all information from job</button></div><div class="entryactions" style="margin-top:14px"><button type="button" class="secondary" id="vspWizardBack3">Back</button></div>';
  const panels=[visitCard,stockCard,batteryCard,review];
  const nav=document.createElement('div');
  nav.className='entryactions';
@@ -1793,6 +1793,21 @@ vspRenderCategoryTiles();if(window.__VSP_CATEGORY_STORE)vspLoadCategories();rend
   });
   if(inline.length)box.append(reviewLine('Battery details on visit',inline.join('\n')));
  }
+ document.getElementById('vspCopyAllJobInfo').addEventListener('click',async()=>{
+  updateReview();
+  const details=document.getElementById('vspJobReviewDetails');
+  const report='JOB REPORT\\n\\n'+(details?.innerText||'No job information available.').trim();
+  try{
+   if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(report);}
+   else{
+    const temp=document.createElement('textarea');temp.value=report;temp.setAttribute('readonly','');temp.style.position='fixed';temp.style.opacity='0';document.body.appendChild(temp);temp.select();
+    const copied=document.execCommand('copy');temp.remove();if(!copied)throw new Error('Clipboard access is unavailable on this device.');
+   }
+   if(typeof toast==='function')toast('All job information copied. You can now paste it into an email or message.');
+   else alert('All job information copied.');
+  }catch(error){if(typeof toast==='function')toast('Could not copy job information: '+(error?.message||error));else alert('Could not copy job information.');}
+ });
+
  function showStep(next){
   step=Math.max(0,Math.min(3,next));
   panels.forEach((p,i)=>{p.hidden=i!==step;p.style.display=i===step?'':'none';});
