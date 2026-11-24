@@ -39,10 +39,7 @@ details summary{cursor:pointer;font-weight:750}
 <main>
 <header>
   <div><div class="sub">VAN STOCK PRO · INTRUDER ALARM TOOLS</div><h1>Honeywell Galaxy 16 / 16+ Descriptor</h1></div>
-  <div class="actions">
-    <a class="btn" href="./index.html">← Back</a>
-    <a class="btn" href="https://descriptor.weather.gg/" target="_blank" rel="noopener">Original online tool ↗</a>
-  </div>
+  <div class="actions"><a class="btn" href="./index.html">← Back</a></div>
 </header>
 
 <section class="panel">
@@ -101,67 +98,29 @@ details summary{cursor:pointer;font-weight:750}
     const tokens=[];
     const unsupported=[];
     chars.forEach((ch,index)=>{
-      if(Object.prototype.hasOwnProperty.call(map,ch)){
-        tokens.push({char:ch,code:map[ch]});
-      }else{
-        unsupported.push({char:ch,index:index+1});
-        tokens.push({char:ch,code:null});
-      }
+      if(Object.prototype.hasOwnProperty.call(map,ch)) tokens.push({char:ch,code:map[ch]});
+      else {unsupported.push({char:ch,index:index+1});tokens.push({char:ch,code:null});}
     });
     currentCodes=tokens.filter(t=>t.code!==null).map(t=>t.code);
     output.replaceChildren();
-    if(chars.length===0){
-      output.textContent='Your codes will appear here.';
-    }else{
-      tokens.forEach((t,i)=>{
-        if(i) output.append(' ');
-        if(t.code===null){
-          const span=document.createElement('span');
-          span.className='bad';
-          span.textContent=t.char;
-          span.title='Unsupported character';
-          output.append(span);
-        }else{
-          output.append(t.code);
-        }
-      });
-    }
+    if(chars.length===0) output.textContent='Your codes will appear here.';
+    else tokens.forEach((t,i)=>{if(i)output.append(' ');if(t.code===null){const span=document.createElement('span');span.className='bad';span.textContent=t.char;span.title='Unsupported character';output.append(span);}else output.append(t.code);});
     count.textContent=chars.length+' character'+(chars.length===1?'':'s');
-    if(unsupported.length){
-      warning.hidden=false;
-      warning.textContent='Unsupported character'+(unsupported.length===1?'':'s')+': '+unsupported.map(x=>(x.char===' '?'space':JSON.stringify(x.char))+' at position '+x.index).join(', ')+'. These characters are highlighted and are not included when copying codes.';
-    }else{
-      warning.hidden=true;
-      warning.textContent='';
-    }
+    if(unsupported.length){warning.hidden=false;warning.textContent='Unsupported character'+(unsupported.length===1?'':'s')+': '+unsupported.map(x=>(x.char===' '?'space':JSON.stringify(x.char))+' at position '+x.index).join(', ')+'. These characters are highlighted and are not included when copying codes.';}
+    else {warning.hidden=true;warning.textContent='';}
   }
-
   input.addEventListener('input',convert);
   document.getElementById('clearBtn').addEventListener('click',()=>{input.value='';convert();input.focus();});
   document.getElementById('copyBtn').addEventListener('click',async()=>{
     if(!currentCodes.length){alert('There are no supported codes to copy.');return;}
     const text=currentCodes.join(' ');
-    try{
-      if(navigator.clipboard&&window.isSecureContext) await navigator.clipboard.writeText(text);
-      else{
-        const temp=document.createElement('textarea');temp.value=text;temp.style.position='fixed';temp.style.opacity='0';document.body.appendChild(temp);temp.select();
-        const ok=document.execCommand('copy');temp.remove();if(!ok)throw new Error('Copy unavailable');
-      }
+    try{if(navigator.clipboard&&window.isSecureContext) await navigator.clipboard.writeText(text);else{const temp=document.createElement('textarea');temp.value=text;temp.style.position='fixed';temp.style.opacity='0';document.body.appendChild(temp);temp.select();const ok=document.execCommand('copy');temp.remove();if(!ok)throw new Error('Copy unavailable');}
       const btn=document.getElementById('copyBtn');const old=btn.textContent;btn.textContent='Copied';setTimeout(()=>btn.textContent=old,1300);
     }catch(e){alert('Copy was not available on this device. Select the codes and copy them manually.');}
   });
-
   const rows=document.getElementById('mappingRows');
-  const entries=Object.entries(map).filter(([ch])=>ch!==ch.toLowerCase()||!/[a-z]/.test(ch));
   const display=[...Array.from({length:10},(_,n)=>[String(n),map[String(n)]]),...Object.entries(letters),['Space','10'],['-','46'],['/','45'],['.','43'],['(','49'],[')','50'],['+','47']];
-  for(let i=0;i<Math.ceil(display.length/2);i++){
-    const tr=document.createElement('tr');
-    for(let j=0;j<2;j++){
-      const item=display[i+j*Math.ceil(display.length/2)];
-      for(let k=0;k<2;k++){const td=document.createElement('td');td.textContent=item?(k===0?item[0]:item[1]):'';tr.append(td);}
-    }
-    rows.append(tr);
-  }
+  for(let i=0;i<Math.ceil(display.length/2);i++){const tr=document.createElement('tr');for(let j=0;j<2;j++){const item=display[i+j*Math.ceil(display.length/2)];for(let k=0;k<2;k++){const td=document.createElement('td');td.textContent=item?(k===0?item[0]:item[1]):'';tr.append(td);}}rows.append(tr);}
   convert();
 })();
 </script>
