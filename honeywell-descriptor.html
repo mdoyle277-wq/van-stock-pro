@@ -4,21 +4,166 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#101827">
-<title>Honeywell Zone Descriptor | Van Stock Pro</title>
+<title>Honeywell Galaxy 16 / 16+ Descriptor | Van Stock Pro</title>
 <style>
-:root{color-scheme:dark;--bg:#0b1220;--panel:#121d2e;--line:#29384e;--text:#eef4ff;--muted:#91a3bc;--mint:#49e0b0}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}.bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;padding:12px;background:#101b2b;border-bottom:1px solid var(--line)}button,a{font:inherit}.btn{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:9px 13px;border:1px solid var(--line);border-radius:10px;background:#24344b;color:var(--text);font-weight:700;text-decoration:none}.title{font-weight:800}.sub{color:var(--muted);font-size:12px;margin-left:auto}.frame-wrap{height:calc(100dvh - 66px);min-height:480px}iframe{width:100%;height:100%;border:0;background:#fff}.fallback{padding:18px;max-width:720px;margin:auto}.fallback a{color:var(--mint)}.hint{color:var(--muted);font-size:13px}
+:root{color-scheme:dark;--bg:#0b1220;--panel:#121d2e;--line:#29384e;--text:#eef4ff;--muted:#91a3bc;--mint:#49e0b0;--red:#ff7885;--blue:#68a8ff}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at top right,#152641 0,#0b1220 55%);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:21px;margin:0;letter-spacing:-.03em}
+.sub{color:var(--muted);font-size:12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button,a.btn{font:inherit;display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:9px 13px;border:1px solid var(--line);border-radius:10px;background:#24344b;color:var(--text);font-weight:700;text-decoration:none;cursor:pointer}
+button.primary{background:var(--mint);color:#071a19;border-color:var(--mint)}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.panel{background:linear-gradient(145deg,rgba(25,38,58,.97),rgba(17,28,44,.97));border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+label{display:block;font-weight:750;margin-bottom:7px}
+textarea{display:block;width:100%;min-height:116px;resize:vertical;background:#0b1524;color:var(--text);border:1px solid var(--line);border-radius:11px;padding:13px;font:18px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+.result{min-height:76px;padding:13px;background:#0b1524;border:1px solid var(--line);border-radius:11px;font:20px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+.result .bad{color:var(--red);text-decoration:underline wavy}
+.warning{margin-top:10px;padding:10px 12px;border-radius:10px;background:#482531;color:#ffdce2;font-size:13px}
+.warning[hidden]{display:none}
+.meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:8px;color:var(--muted);font-size:12px}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+code{color:#c9f7e9}
+details summary{cursor:pointer;font-weight:750}
+.note{color:var(--muted);font-size:12px;margin:10px 0 0}
+@media(max-width:520px){main{padding:12px}.panel{padding:13px}h1{font-size:19px}.result{font-size:18px}}
 </style>
 </head>
 <body>
-<header class="bar">
-<a class="btn" href="./index.html">← Back</a>
-<div><div class="title">Honeywell Zone Descriptor</div><div class="sub" style="margin:0">Third-party tool · weather.gg</div></div>
-<a class="btn" href="https://descriptor.weather.gg/" target="_blank" rel="noopener">Open standalone ↗</a>
+<main>
+<header>
+  <div><div class="sub">VAN STOCK PRO · INTRUDER ALARM TOOLS</div><h1>Honeywell Galaxy 16 / 16+ Descriptor</h1></div>
+  <div class="actions">
+    <a class="btn" href="./index.html">← Back</a>
+    <a class="btn" href="https://descriptor.weather.gg/" target="_blank" rel="noopener">Original online tool ↗</a>
+  </div>
 </header>
-<main class="frame-wrap">
-<iframe src="https://descriptor.weather.gg/" title="Honeywell Descriptor tool" loading="eager" allow="clipboard-read; clipboard-write"></iframe>
+
+<section class="panel">
+  <label for="descriptorInput">Enter zone descriptor</label>
+  <textarea id="descriptorInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type a descriptor, e.g. FRONT DOOR"></textarea>
+  <div class="meta"><span id="charCount">0 characters</span><span>Galaxy 16 / 16+ mapping</span></div>
+</section>
+
+<section class="panel">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+    <label for="descriptorOutput" style="margin:0">Converted codes</label>
+    <div class="actions">
+      <button type="button" class="primary" id="copyBtn">Copy codes</button>
+      <button type="button" id="clearBtn">Clear</button>
+    </div>
+  </div>
+  <div class="result" id="descriptorOutput" aria-live="polite">Your codes will appear here.</div>
+  <div class="warning" id="unsupportedWarning" hidden></div>
+  <p class="note">Each supported character is converted separately. Spaces are represented by code 10. Unsupported characters are highlighted and omitted from the copied code string.</p>
+</section>
+
+<section class="panel">
+  <details>
+    <summary>Show confirmed character mappings</summary>
+    <div class="table-wrap" style="margin-top:10px">
+      <table>
+        <thead><tr><th>Input</th><th>Code</th><th>Input</th><th>Code</th></tr></thead>
+        <tbody id="mappingRows"></tbody>
+      </table>
+    </div>
+    <p class="note">Mappings transcribed from the third-party Descriptor tool screenshots supplied during testing. This is not a Honeywell-endorsed application.</p>
+  </details>
+</section>
+
+<p class="note">Use the correct panel family and verify the generated descriptor on the actual control panel before saving or commissioning.</p>
 </main>
-<noscript><div class="fallback">JavaScript is required by the descriptor tool. <a href="https://descriptor.weather.gg/">Open Descriptor directly</a>.</div></noscript>
+<script>
+(function(){
+  const letters = {
+    A:'13',B:'15',C:'16',D:'17',E:'18',F:'19',G:'20',H:'21',I:'22',J:'23',K:'24',L:'25',M:'26',
+    N:'27',O:'30',P:'31',Q:'32',R:'33',S:'34',T:'35',U:'36',V:'38',W:'39',X:'40',Y:'41',Z:'42'
+  };
+  const map = {};
+  for(let n=0;n<=9;n++) map[String(n)]=String(n).padStart(2,'0');
+  Object.entries(letters).forEach(([ch,code])=>{map[ch]=code;map[ch.toLowerCase()]=code;});
+  Object.assign(map,{' ':'10','-':'46','/':'45','.':'43','(':'49',')':'50','+':'47'});
+
+  const input=document.getElementById('descriptorInput');
+  const output=document.getElementById('descriptorOutput');
+  const warning=document.getElementById('unsupportedWarning');
+  const count=document.getElementById('charCount');
+  let currentCodes=[];
+
+  function convert(){
+    const chars=Array.from(input.value);
+    const tokens=[];
+    const unsupported=[];
+    chars.forEach((ch,index)=>{
+      if(Object.prototype.hasOwnProperty.call(map,ch)){
+        tokens.push({char:ch,code:map[ch]});
+      }else{
+        unsupported.push({char:ch,index:index+1});
+        tokens.push({char:ch,code:null});
+      }
+    });
+    currentCodes=tokens.filter(t=>t.code!==null).map(t=>t.code);
+    output.replaceChildren();
+    if(chars.length===0){
+      output.textContent='Your codes will appear here.';
+    }else{
+      tokens.forEach((t,i)=>{
+        if(i) output.append(' ');
+        if(t.code===null){
+          const span=document.createElement('span');
+          span.className='bad';
+          span.textContent=t.char;
+          span.title='Unsupported character';
+          output.append(span);
+        }else{
+          output.append(t.code);
+        }
+      });
+    }
+    count.textContent=chars.length+' character'+(chars.length===1?'':'s');
+    if(unsupported.length){
+      warning.hidden=false;
+      warning.textContent='Unsupported character'+(unsupported.length===1?'':'s')+': '+unsupported.map(x=>(x.char===' '?'space':JSON.stringify(x.char))+' at position '+x.index).join(', ')+'. These characters are highlighted and are not included when copying codes.';
+    }else{
+      warning.hidden=true;
+      warning.textContent='';
+    }
+  }
+
+  input.addEventListener('input',convert);
+  document.getElementById('clearBtn').addEventListener('click',()=>{input.value='';convert();input.focus();});
+  document.getElementById('copyBtn').addEventListener('click',async()=>{
+    if(!currentCodes.length){alert('There are no supported codes to copy.');return;}
+    const text=currentCodes.join(' ');
+    try{
+      if(navigator.clipboard&&window.isSecureContext) await navigator.clipboard.writeText(text);
+      else{
+        const temp=document.createElement('textarea');temp.value=text;temp.style.position='fixed';temp.style.opacity='0';document.body.appendChild(temp);temp.select();
+        const ok=document.execCommand('copy');temp.remove();if(!ok)throw new Error('Copy unavailable');
+      }
+      const btn=document.getElementById('copyBtn');const old=btn.textContent;btn.textContent='Copied';setTimeout(()=>btn.textContent=old,1300);
+    }catch(e){alert('Copy was not available on this device. Select the codes and copy them manually.');}
+  });
+
+  const rows=document.getElementById('mappingRows');
+  const entries=Object.entries(map).filter(([ch])=>ch!==ch.toLowerCase()||!/[a-z]/.test(ch));
+  const display=[...Array.from({length:10},(_,n)=>[String(n),map[String(n)]]),...Object.entries(letters),['Space','10'],['-','46'],['/','45'],['.','43'],['(','49'],[')','50'],['+','47']];
+  for(let i=0;i<Math.ceil(display.length/2);i++){
+    const tr=document.createElement('tr');
+    for(let j=0;j<2;j++){
+      const item=display[i+j*Math.ceil(display.length/2)];
+      for(let k=0;k<2;k++){const td=document.createElement('td');td.textContent=item?(k===0?item[0]:item[1]):'';tr.append(td);}
+    }
+    rows.append(tr);
+  }
+  convert();
+})();
+</script>
 </body>
 </html>
