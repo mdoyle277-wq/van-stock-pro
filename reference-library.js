@@ -307,9 +307,9 @@ if (panel) {
       if (privateViewerUrl) URL.revokeObjectURL(privateViewerUrl);
       privateViewerUrl = URL.createObjectURL(blob);
       privateViewerTitle.textContent = item.original_name;
-      const isPdf = /^application\\/pdf$/i.test(item.mime_type || "") || /\\.pdf$/i.test(item.original_name || "");
-      const isImage = /^image\\//i.test(item.mime_type || "") || /\\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(item.original_name || "");
-      const isText = /^text\\//i.test(item.mime_type || "") || /\\.(txt|csv)$/i.test(item.original_name || "");
+      const isPdf = /^application\/pdf$/i.test(item.mime_type || "") || /\.pdf$/i.test(item.original_name || "");
+      const isImage = /^image\//i.test(item.mime_type || "") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(item.original_name || "");
+      const isText = /^text\//i.test(item.mime_type || "") || /\.(txt|csv)$/i.test(item.original_name || "");
       privateViewerNotice.hidden = true;
       privateViewer.hidden = false;
       if (isPdf) {
