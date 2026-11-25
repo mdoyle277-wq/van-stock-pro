@@ -496,6 +496,17 @@ if (sharedPanel) {
     sharedStatus.textContent = message;
     sharedStatus.dataset.kind = kind;
   }
+  function sharedShareFileType(blob, fileName, mimeType) {
+    const name = String(fileName || "reference");
+    const known = mimeType || blob.type || "";
+    const pdf = /^application\/pdf$/i.test(known) || /\.pdf$/i.test(name);
+    const type = pdf ? "application/pdf" :
+      known && known !== "application/octet-stream" ? known :
+      /\.(png)$/i.test(name) ? "image/png" :
+      /\.(jpe?g)$/i.test(name) ? "image/jpeg" :
+      /\.(txt)$/i.test(name) ? "text/plain" : "application/octet-stream";
+    return { type, name: pdf && !/\.pdf$/i.test(name) ? name + ".pdf" : name };
+  }
   function sharedSafeName(value) {
     return String(value || "document").replace(/[\/]/g, "-")
       .replace(/[^a-zA-Z0-9._() -]/g, "_").slice(0, 140);
@@ -684,7 +695,7 @@ if (sharedPanel) {
   let sharedViewerMime = "";
   async function shareSharedReference() {
     if (!sharedViewerBlob) return;
-    const info = shareFileType(sharedViewerBlob, sharedViewerFileName, sharedViewerMime);
+    const info = sharedShareFileType(sharedViewerBlob, sharedViewerFileName, sharedViewerMime);
     const file = new File([sharedViewerBlob], info.name, { type: info.type });
     if (navigator.share) {
       try {
