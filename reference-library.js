@@ -272,23 +272,20 @@ if (panel) {
   async function shareReferenceFile(blob, fileName, mimeType, report) {
     const info = shareFileType(blob, fileName, mimeType);
     const file = new File([blob], info.name, { type: info.type });
-    if (navigator.share) {
-      try {
-        if (navigator.canShare && !navigator.canShare({ files: [file] })) throw new Error("This browser does not support sharing this file type.");
-        await navigator.share({ files: [file], title: file.name });
-        report("Share sheet opened.", "success");
-        return;
-      } catch (error) {
-        if (error.name === "AbortError") return;
-        // Keep the download fallback for browsers that genuinely cannot share files.
-      }
+    if (!navigator.share) {
+      report("This browser does not provide Android sharing. Open Van Stock Pro in Chrome and try Share again.", "error");
+      return;
     }
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url; link.download = info.name;
-    document.body.append(link); link.click(); link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-    report("Direct file sharing is not supported by this browser. The file has been downloaded so you can share it from Downloads.", "info");
+    try {
+      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+        report("This browser cannot share this file directly. No download was started.", "error");
+        return;
+      }
+      await navigator.share({ files: [file], title: file.name });
+      report("Android share menu opened.", "success");
+    } catch (error) {
+      if (error.name !== "AbortError") report("Android sharing failed: " + (error.message || "Please open Van Stock Pro in Chrome and try again."), "error");
+    }
   }
   el("privateReferenceViewerShare")?.addEventListener("click", () => {
     if (privateViewerBlob) void shareReferenceFile(privateViewerBlob, privateViewerFileName, privateViewerMime, say);
@@ -697,23 +694,20 @@ if (sharedPanel) {
     if (!sharedViewerBlob) return;
     const info = sharedShareFileType(sharedViewerBlob, sharedViewerFileName, sharedViewerMime);
     const file = new File([sharedViewerBlob], info.name, { type: info.type });
-    if (navigator.share) {
-      try {
-        if (navigator.canShare && !navigator.canShare({ files: [file] })) throw new Error("This browser does not support sharing this file type.");
-        await navigator.share({ files: [file], title: file.name });
-        sharedSay("Share sheet opened.", "success");
-        return;
-      } catch (error) {
-        if (error.name === "AbortError") return;
-        // Keep the download fallback for browsers that genuinely cannot share files.
-      }
+    if (!navigator.share) {
+      sharedSay("This browser does not provide Android sharing. Open Van Stock Pro in Chrome and try Share again.", "error");
+      return;
     }
-    const url = URL.createObjectURL(sharedViewerBlob);
-    const link = document.createElement("a");
-    link.href = url; link.download = info.name;
-    document.body.append(link); link.click(); link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-    sharedSay("Direct file sharing is not supported by this browser. The file has been downloaded so you can share it from Downloads.", "info");
+    try {
+      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+        sharedSay("This browser cannot share this file directly. No download was started.", "error");
+        return;
+      }
+      await navigator.share({ files: [file], title: file.name });
+      sharedSay("Android share menu opened.", "success");
+    } catch (error) {
+      if (error.name !== "AbortError") sharedSay("Android sharing failed: " + (error.message || "Please open Van Stock Pro in Chrome and try again."), "error");
+    }
   }
   document.getElementById("sharedReferenceViewerShare")?.addEventListener("click", () => { void shareSharedReference(); });
   function sharedCloseViewer() {
