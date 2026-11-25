@@ -333,11 +333,13 @@ if (panel) {
         privateViewerFrame.hidden = false;
         privateViewerFrame.src = privateViewerUrl;
       } else {
-        closePrivateViewer();
         const link = document.createElement("a");
         link.href = privateViewerUrl;
         link.download = item.original_name;
+        document.body.append(link);
         link.click();
+        link.remove();
+        window.setTimeout(closePrivateViewer, 1000);
         say("This file type cannot be previewed here, so its download has started.", "info");
         return;
       }
