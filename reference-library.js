@@ -253,9 +253,31 @@ if (panel) {
   const privateImage = el("privateReferenceImage");
   const privateViewerNotice = el("privateReferenceViewerNotice");
   let privateViewerUrl = null;
+  let privateViewerBlob = null;
+  let privateViewerFileName = "reference";
+  let privateViewerMime = "";
   let privatePdfJsPromise = null;
+  async function shareReferenceFile(blob, fileName, mimeType, report) {
+    const type = mimeType || blob.type || "application/octet-stream";
+    const file = new File([blob], fileName || "reference", { type });
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: file.name }); report("Share sheet opened.", "success"); }
+      catch (error) { if (error.name !== "AbortError") report("Share failed: " + (error.message || "Unknown error"), "error"); }
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = fileName || "reference";
+    document.body.append(link); link.click(); link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    report("Your browser cannot share files directly. The file has been downloaded so you can share it from Downloads.", "info");
+  }
+  el("privateReferenceViewerShare")?.addEventListener("click", () => {
+    if (privateViewerBlob) void shareReferenceFile(privateViewerBlob, privateViewerFileName, privateViewerMime, say);
+  });
   function closePrivateViewer() {
     privateViewer.hidden = true;
+    privateViewerBlob = null;
     privateViewerFrame.removeAttribute("src");
     privateViewerFrame.hidden = false;
     privatePdfPages.hidden = true;
@@ -306,6 +328,9 @@ if (panel) {
       if (!(blob instanceof Blob)) throw new Error("The saved document data could not be read. Refresh the library and try again.");
       if (privateViewerUrl) URL.revokeObjectURL(privateViewerUrl);
       privateViewerUrl = URL.createObjectURL(blob);
+      privateViewerBlob = blob;
+      privateViewerFileName = item.original_name || "reference";
+      privateViewerMime = item.mime_type || blob.type || "";
       privateViewerTitle.textContent = item.original_name;
       const header = new Uint8Array(await blob.slice(0, 5).arrayBuffer());
       const hasPdfSignature = header.length === 5 && header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46 && header[4] === 0x2d;
@@ -636,8 +661,16 @@ if (sharedPanel) {
   }
   const sharedViewerNotice = document.getElementById("sharedReferenceViewerNotice");
   let sharedViewerUrl = null;
+  let sharedViewerBlob = null;
+  let sharedViewerFileName = "reference";
+  let sharedViewerMime = "";
+  async function shareSharedReference() {
+    if (sharedViewerBlob) await shareReferenceFile(sharedViewerBlob, sharedViewerFileName, sharedViewerMime, sharedSay);
+  }
+  document.getElementById("sharedReferenceViewerShare")?.addEventListener("click", () => { void shareSharedReference(); });
   function sharedCloseViewer() {
     sharedViewer.hidden = true;
+    sharedViewerBlob = null;
     sharedViewerFrame.removeAttribute("src");
     sharedViewerFrame.hidden = false;
     sharedPdfPages.hidden = true;
@@ -659,6 +692,9 @@ if (sharedPanel) {
       if (!sharedCanManage) {
         if (sharedViewerUrl) URL.revokeObjectURL(sharedViewerUrl);
         sharedViewerUrl = URL.createObjectURL(blob);
+        sharedViewerBlob = blob;
+        sharedViewerFileName = item.original_name || "reference";
+        sharedViewerMime = item.mime_type || blob.type || "";
         sharedViewerTitle.textContent = item.original_name;
         const canPreview = /^application\/pdf$|^image\/|^text\//i.test(item.mime_type || "");
         sharedViewerNotice.hidden = canPreview;
