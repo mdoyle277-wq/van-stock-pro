@@ -665,7 +665,19 @@ if (sharedPanel) {
   let sharedViewerFileName = "reference";
   let sharedViewerMime = "";
   async function shareSharedReference() {
-    if (sharedViewerBlob) await shareReferenceFile(sharedViewerBlob, sharedViewerFileName, sharedViewerMime, sharedSay);
+    if (!sharedViewerBlob) return;
+    const file = new File([sharedViewerBlob], sharedViewerFileName, { type: sharedViewerMime || sharedViewerBlob.type || "application/octet-stream" });
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: file.name }); sharedSay("Share sheet opened.", "success"); }
+      catch (error) { if (error.name !== "AbortError") sharedSay("Share failed: " + (error.message || "Unknown error"), "error"); }
+      return;
+    }
+    const url = URL.createObjectURL(sharedViewerBlob);
+    const link = document.createElement("a");
+    link.href = url; link.download = sharedViewerFileName;
+    document.body.append(link); link.click(); link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    sharedSay("Your browser cannot share files directly. The file has been downloaded so you can share it from Downloads.", "info");
   }
   document.getElementById("sharedReferenceViewerShare")?.addEventListener("click", () => { void shareSharedReference(); });
   function sharedCloseViewer() {
