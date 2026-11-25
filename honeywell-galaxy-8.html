@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>Galaxy 8/18/60/500/512 Descriptor | Van Stock Pro</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#121d2e;--line:#29384e;--text:#eef4ff;--muted:#91a3bc;--mint:#49e0b0;--red:#ff7885;--blue:#68a8ff;--amber:#f4c66b}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top right,#152641 0,#0b1220 55%);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:20px;margin:0;letter-spacing:-.03em}.sub,.note{color:var(--muted);font-size:12px}
+a.btn,button{font:inherit;display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:9px 13px;border:1px solid var(--line);border-radius:10px;background:#24344b;color:var(--text);font-weight:700;text-decoration:none;cursor:pointer}
+button.primary{background:var(--mint);color:#071a19;border-color:var(--mint)}
+button:focus-visible,a:focus-visible,textarea:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.panel{background:linear-gradient(145deg,rgba(25,38,58,.97),rgba(17,28,44,.97));border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+.status{border:1px solid #876a31;background:#3a301d;color:#ffe6ae;padding:11px 13px;border-radius:11px;font-size:13px;margin-bottom:12px}
+label{display:block;font-weight:750;margin-bottom:7px}
+textarea{display:block;width:100%;min-height:105px;resize:vertical;background:#0b1524;color:var(--text);border:1px solid var(--line);border-radius:11px;padding:13px;font:18px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+.result{min-height:70px;padding:13px;background:#0b1524;border:1px solid var(--line);border-radius:11px;font:20px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+.result .bad{color:var(--red);text-decoration:underline wavy}
+.warning{margin-top:10px;padding:10px 12px;border-radius:10px;background:#482531;color:#ffdce2;font-size:13px}
+.warning[hidden]{display:none}
+.meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:8px;color:var(--muted);font-size:12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.testpass{color:var(--mint);font-weight:750}.testpending{color:var(--amber);font-weight:750}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+details summary{cursor:pointer;font-weight:750}.note{margin:10px 0 0}
+@media(max-width:520px){main{padding:12px}.panel{padding:13px}h1{font-size:18px}.result{font-size:17px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div><div class="sub">VAN STOCK PRO · HONEYWELL ZONE DESCRIPTOR · SECTION 2</div><h1>Galaxy 8/18/60/500/512</h1></div>
+<a class="btn" href="./honeywell-descriptor-menu.html">← Panel families</a>
+</header>
+
+<div class="status"><strong>TEST BUILD — NOT YET PANEL-VERIFIED.</strong> This first pass uses the known Galaxy character sequence as a provisional map. Confirm it against a compatible panel before using it on a live installation. The Galaxy 16 / 16+ decoder is kept separate and unchanged.</div>
+
+<section class="panel">
+<label for="descriptorInput">Enter zone descriptor (maximum 16 characters)</label>
+<textarea id="descriptorInput" maxlength="16" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. FRONT DOOR"></textarea>
+<div class="meta"><span id="charCount">0 / 16 characters</span><span>16-character panel limit</span></div>
+</section>
+
+<section class="panel">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+<label for="descriptorOutput" style="margin:0">Converted test codes</label>
+<div class="actions">
+<button type="button" class="primary" id="copyBtn">Copy test codes</button>
+<button type="button" id="clearBtn">Clear</button>
+</div>
+</div>
+<div class="result" id="descriptorOutput" aria-live="polite">Your codes will appear here.</div>
+<div class="warning" id="unsupportedWarning" hidden></div>
+<p class="note">One two-digit code is shown for each character. Lowercase letters use the same character code as uppercase. Unsupported characters are highlighted and omitted from the copied sequence.</p>
+</section>
+
+<section class="panel">
+<strong>Built-in software checks</strong>
+<div id="testStatus" class="note">Running checks…</div>
+<p class="note">These checks verify the page's conversion logic only. They do not replace a physical panel test.</p>
+</section>
+
+<section class="panel">
+<details>
+<summary>Show provisional character mappings</summary>
+<div class="table-wrap" style="margin-top:10px">
+<table><thead><tr><th>Character</th><th>Code</th><th>Character</th><th>Code</th></tr></thead><tbody id="mappingRows"></tbody></table>
+</div>
+<p class="note">The punctuation positions 44 and 48 are included from the Galaxy character sequence listed by the reference tool. Confirm all characters on the target panel before relying on them.</p>
+</details>
+</section>
+
+<section class="panel">
+<strong>Not included in this first pass</strong>
+<p class="note">The 538-word panel library is not yet encoded in this page. The reference tool lists library words separately; library-word insertion will be added only after its code format is confirmed.</p>
+</section>
+
+<p class="note">Panel-family reference: Galaxy 8/18/60/500/512 programming documentation describes zone descriptors as alphanumeric text with a maximum of 16 characters. Always verify the generated result on the actual panel before saving or commissioning.</p>
+</main>
+<script>
+(function(){
+  const letters={A:'13',B:'15',C:'16',D:'17',E:'18',F:'19',G:'20',H:'21',I:'22',J:'23',K:'24',L:'25',M:'26',N:'27',O:'30',P:'31',Q:'32',R:'33',S:'34',T:'35',U:'36',V:'38',W:'39',X:'40',Y:'41',Z:'42'};
+  const map={};
+  for(let n=0;n<=9;n++)map[String(n)]=String(n).padStart(2,'0');
+  Object.entries(letters).forEach(([ch,code])=>{map[ch]=code;map[ch.toLowerCase()]=code;});
+  Object.assign(map,{' ':'10','.':'43',',':'44','/':'45','-':'46','+':'47','&':'48','(':'49',')':'50'});
+  const input=document.getElementById('descriptorInput');
+  const output=document.getElementById('descriptorOutput');
+  const warning=document.getElementById('unsupportedWarning');
+  const count=document.getElementById('charCount');
+  let currentCodes=[];
+  function encode(value){return Array.from(value).map(ch=>Object.prototype.hasOwnProperty.call(map,ch)?map[ch]:null);}
+  function convert(){
+    const chars=Array.from(input.value),tokens=chars.map(ch=>({char:ch,code:Object.prototype.hasOwnProperty.call(map,ch)?map[ch]:null}));
+    currentCodes=tokens.filter(t=>t.code!==null).map(t=>t.code);
+    output.replaceChildren();
+    if(!chars.length)output.textContent='Your codes will appear here.';
+    else tokens.forEach((t,i)=>{if(i)output.append(' ');if(t.code===null){const span=document.createElement('span');span.className='bad';span.textContent=t.char;span.title='Unsupported character';output.append(span);}else output.append(t.code);});
+    count.textContent=chars.length+' / 16 characters';
+    const bad=tokens.map((t,i)=>({...t,index:i+1})).filter(t=>t.code===null);
+    if(bad.length){warning.hidden=false;warning.textContent='Unsupported character'+(bad.length===1?'':'s')+': '+bad.map(x=>JSON.stringify(x.char)+' at position '+x.index).join(', ')+'. Highlighted characters are excluded from the copied test codes.';}
+    else{warning.hidden=true;warning.textContent='';}
+  }
+  input.addEventListener('input',convert);
+  document.getElementById('clearBtn').addEventListener('click',()=>{input.value='';convert();input.focus();});
+  document.getElementById('copyBtn').addEventListener('click',async()=>{
+    if(!currentCodes.length){alert('There are no supported codes to copy.');return;}
+    const text=currentCodes.join(' ');
+    try{
+      if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(text);
+      else{const temp=document.createElement('textarea');temp.value=text;temp.style.position='fixed';temp.style.opacity='0';document.body.appendChild(temp);temp.select();const ok=document.execCommand('copy');temp.remove();if(!ok)throw new Error('Copy unavailable');}
+      const btn=document.getElementById('copyBtn'),old=btn.textContent;btn.textContent='Copied';setTimeout(()=>btn.textContent=old,1300);
+    }catch(e){alert('Copy was not available on this device. Select the codes and copy them manually.');}
+  });
+  const rows=document.getElementById('mappingRows');
+  const display=[...Array.from({length:10},(_,n)=>[String(n),map[String(n)]]),...Object.entries(letters),['Space','10'],['.','43'],[',','44'],['/','45'],['-','46'],['+','47'],['&','48'],['(','49'],[')','50']];
+  const half=Math.ceil(display.length/2);
+  for(let i=0;i<half;i++){const tr=document.createElement('tr');for(let side=0;side<2;side++){const item=display[i+side*half];for(let col=0;col<2;col++){const td=document.createElement('td');td.textContent=item?(col===0?item[0]:item[1]):'';tr.append(td);}}rows.append(tr);}
+  const tests=[
+    ['TEST', '35 18 34 35'],
+    ['FRONT DOOR','19 33 30 27 35 10 17 30 30 33'],
+    ['123','01 02 03'],
+    ['.,/-+&()','43 44 45 46 47 48 49 50']
+  ];
+  const failures=tests.filter(([input,expected])=>encode(input).join(' ')!==expected);
+  const testStatus=document.getElementById('testStatus');
+  if(!failures.length)testStatus.innerHTML='<span class="testpass">4/4 software checks passed.</span> Expected outputs match the provisional mapping.';
+  else testStatus.innerHTML='<span class="testpending">'+(tests.length-failures.length)+'/4 checks passed.</span> Review the mapping before continuing.';
+  convert();
+})();
+</script>
+</body>
+</html>
