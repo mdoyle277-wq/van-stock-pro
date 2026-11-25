@@ -257,20 +257,38 @@ if (panel) {
   let privateViewerFileName = "reference";
   let privateViewerMime = "";
   let privatePdfJsPromise = null;
+  function shareFileType(blob, fileName, mimeType) {
+    const name = String(fileName || "reference");
+    const known = mimeType || blob.type || "";
+    const pdf = /^application\/pdf$/i.test(known) || /\.pdf$/i.test(name);
+    const type = pdf ? "application/pdf" :
+      known && known !== "application/octet-stream" ? known :
+      /\.(png)$/i.test(name) ? "image/png" :
+      /\.(jpe?g)$/i.test(name) ? "image/jpeg" :
+      /\.(txt)$/i.test(name) ? "text/plain" : "application/octet-stream";
+    const safeName = pdf && !/\.pdf$/i.test(name) ? name + ".pdf" : name;
+    return { type, name: safeName };
+  }
   async function shareReferenceFile(blob, fileName, mimeType, report) {
-    const type = mimeType || blob.type || "application/octet-stream";
-    const file = new File([blob], fileName || "reference", { type });
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: file.name }); report("Share sheet opened.", "success"); }
-      catch (error) { if (error.name !== "AbortError") report("Share failed: " + (error.message || "Unknown error"), "error"); }
-      return;
+    const info = shareFileType(blob, fileName, mimeType);
+    const file = new File([blob], info.name, { type: info.type });
+    if (navigator.share) {
+      try {
+        if (navigator.canShare && !navigator.canShare({ files: [file] })) throw new Error("This browser does not support sharing this file type.");
+        await navigator.share({ files: [file], title: file.name });
+        report("Share sheet opened.", "success");
+        return;
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        // Keep the download fallback for browsers that genuinely cannot share files.
+      }
     }
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = url; link.download = fileName || "reference";
+    link.href = url; link.download = info.name;
     document.body.append(link); link.click(); link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-    report("Your browser cannot share files directly. The file has been downloaded so you can share it from Downloads.", "info");
+    report("Direct file sharing is not supported by this browser. The file has been downloaded so you can share it from Downloads.", "info");
   }
   el("privateReferenceViewerShare")?.addEventListener("click", () => {
     if (privateViewerBlob) void shareReferenceFile(privateViewerBlob, privateViewerFileName, privateViewerMime, say);
@@ -666,18 +684,25 @@ if (sharedPanel) {
   let sharedViewerMime = "";
   async function shareSharedReference() {
     if (!sharedViewerBlob) return;
-    const file = new File([sharedViewerBlob], sharedViewerFileName, { type: sharedViewerMime || sharedViewerBlob.type || "application/octet-stream" });
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: file.name }); sharedSay("Share sheet opened.", "success"); }
-      catch (error) { if (error.name !== "AbortError") sharedSay("Share failed: " + (error.message || "Unknown error"), "error"); }
-      return;
+    const info = shareFileType(sharedViewerBlob, sharedViewerFileName, sharedViewerMime);
+    const file = new File([sharedViewerBlob], info.name, { type: info.type });
+    if (navigator.share) {
+      try {
+        if (navigator.canShare && !navigator.canShare({ files: [file] })) throw new Error("This browser does not support sharing this file type.");
+        await navigator.share({ files: [file], title: file.name });
+        sharedSay("Share sheet opened.", "success");
+        return;
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        // Keep the download fallback for browsers that genuinely cannot share files.
+      }
     }
     const url = URL.createObjectURL(sharedViewerBlob);
     const link = document.createElement("a");
-    link.href = url; link.download = sharedViewerFileName;
+    link.href = url; link.download = info.name;
     document.body.append(link); link.click(); link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-    sharedSay("Your browser cannot share files directly. The file has been downloaded so you can share it from Downloads.", "info");
+    sharedSay("Direct file sharing is not supported by this browser. The file has been downloaded so you can share it from Downloads.", "info");
   }
   document.getElementById("sharedReferenceViewerShare")?.addEventListener("click", () => { void shareSharedReference(); });
   function sharedCloseViewer() {
