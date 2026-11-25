@@ -245,22 +245,108 @@ if (panel) {
       await refresh();
     } catch (error) { say("Download failed: " + (error.message || "Unknown error"), "error"); }
   }
+  const privateViewer = el("privateReferenceViewer");
+  const privateViewerTitle = el("privateReferenceViewerTitle");
+  const privateViewerFrame = el("privateReferenceViewerFrame");
+  const privatePdfPages = el("privateReferencePdfPages");
+  const privateImageWrap = el("privateReferenceImageWrap");
+  const privateImage = el("privateReferenceImage");
+  const privateViewerNotice = el("privateReferenceViewerNotice");
+  let privateViewerUrl = null;
+  let privatePdfJsPromise = null;
+  function closePrivateViewer() {
+    privateViewer.hidden = true;
+    privateViewerFrame.removeAttribute("src");
+    privateViewerFrame.hidden = false;
+    privatePdfPages.hidden = true;
+    privatePdfPages.replaceChildren();
+    privateImageWrap.hidden = true;
+    privateImage.removeAttribute("src");
+    if (privateViewerUrl) URL.revokeObjectURL(privateViewerUrl);
+    privateViewerUrl = null;
+  }
+  el("privateReferenceViewerClose")?.addEventListener("click", closePrivateViewer);
+  privateViewer?.addEventListener("click", event => { if (event.target === privateViewer) closePrivateViewer(); });
+  document.addEventListener("keydown", event => { if (event.key === "Escape" && privateViewer && !privateViewer.hidden) closePrivateViewer(); });
+  async function renderPrivatePdf(blob) {
+    if (!privatePdfJsPromise) privatePdfJsPromise = import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs").then(pdfjs => {
+      pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+      return pdfjs;
+    });
+    const pdfjs = await privatePdfJsPromise;
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+    privatePdfPages.replaceChildren();
+    const availableWidth = Math.max(240, privatePdfPages.clientWidth - 20);
+    for (let pageNo = 1; pageNo <= pdf.numPages; pageNo++) {
+      const page = await pdf.getPage(pageNo);
+      const base = page.getViewport({ scale: 1 });
+      const scale = availableWidth / base.width;
+      const viewport = page.getViewport({ scale });
+      const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+      const canvas = document.createElement("canvas");
+      canvas.className = "shared-reference-pdf-page";
+      canvas.width = Math.floor(viewport.width * outputScale);
+      canvas.height = Math.floor(viewport.height * outputScale);
+      canvas.style.width = Math.floor(viewport.width) + "px";
+      canvas.style.height = Math.floor(viewport.height) + "px";
+      privatePdfPages.append(canvas);
+      await page.render({ canvasContext: canvas.getContext("2d", { alpha: false }), viewport, transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0] }).promise;
+    }
+  }
   async function openItem(item) {
     try {
+      say("Opening " + item.original_name + "…");
       let blob = item.blob;
       if (!blob) {
         const { data, error } = await supabase.storage.from(BUCKET).download(item.storage_path);
         if (error) throw error;
         blob = data;
       }
-      const url = URL.createObjectURL(blob);
-      const opened = window.open(url, "_blank", "noopener");
-      if (!opened) {
-        const a = document.createElement("a");
-        a.href = url; a.download = item.original_name; a.click();
+      if (!(blob instanceof Blob)) throw new Error("The saved document data could not be read. Refresh the library and try again.");
+      if (privateViewerUrl) URL.revokeObjectURL(privateViewerUrl);
+      privateViewerUrl = URL.createObjectURL(blob);
+      privateViewerTitle.textContent = item.original_name;
+      const isPdf = /^application\\/pdf$/i.test(item.mime_type || "") || /\\.pdf$/i.test(item.original_name || "");
+      const isImage = /^image\\//i.test(item.mime_type || "") || /\\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(item.original_name || "");
+      const isText = /^text\\//i.test(item.mime_type || "") || /\\.(txt|csv)$/i.test(item.original_name || "");
+      privateViewerNotice.hidden = true;
+      privateViewer.hidden = false;
+      if (isPdf) {
+        privateViewerFrame.hidden = true;
+        privateImageWrap.hidden = true;
+        privateImage.removeAttribute("src");
+        privatePdfPages.hidden = false;
+        await renderPrivatePdf(blob);
+      } else if (isImage) {
+        privateViewerFrame.hidden = true;
+        privatePdfPages.hidden = true;
+        privatePdfPages.replaceChildren();
+        privateImageWrap.hidden = false;
+        privateImage.src = privateViewerUrl;
+        privateImage.alt = item.original_name || "Reference image";
+      } else if (isText) {
+        privatePdfPages.hidden = true;
+        privatePdfPages.replaceChildren();
+        privateImageWrap.hidden = true;
+        privateImage.removeAttribute("src");
+        privateViewerFrame.hidden = false;
+        privateViewerFrame.src = privateViewerUrl;
+      } else {
+        closePrivateViewer();
+        const link = document.createElement("a");
+        link.href = privateViewerUrl;
+        link.download = item.original_name;
+        link.click();
+        say("This file type cannot be previewed here, so its download has started.", "info");
+        return;
       }
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-    } catch (error) { say("Could not open file: " + (error.message || "Unknown error"), "error"); }
+      say("Reference opened.", "success");
+    } catch (error) {
+      privateViewerNotice.hidden = false;
+      privateViewerNotice.textContent = "Could not preview this file: " + (error.message || "Unknown error");
+      say("Could not open file: " + (error.message || "Unknown error"), "error");
+    }
   }
   async function renameItem(item) {
     const name = prompt("New name", item.original_name);
