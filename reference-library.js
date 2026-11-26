@@ -96,7 +96,7 @@ if (panel) {
   function updateBackupAllButton() {
     const cloudIds = new Set(cloudItems.map(item => item.id));
     const count = localItems.filter(item =>
-      item.item_type === "file" && item.storage_mode !== "both" && !cloudIds.has(item.id)
+      item.item_type === "file" && !cloudIds.has(item.id)
     ).length;
     backupAllButton.textContent = count ? "☁ Back up all local files (" + count + ")" : "✓ All local files backed up";
     backupAllButton.disabled = count === 0;
@@ -263,10 +263,10 @@ if (panel) {
       const snapshot = await store("readonly");
       const cloudIds = new Set(cloudItems.map(item => item.id));
       const files = snapshot.filter(item =>
-        item.item_type === "file" && item.storage_mode !== "both" && !cloudIds.has(item.id)
+        item.item_type === "file" && !cloudIds.has(item.id)
       );
       const folders = snapshot.filter(item =>
-        item.item_type === "folder" && item.storage_mode !== "both" && !cloudIds.has(item.id)
+        item.item_type === "folder" && !cloudIds.has(item.id)
       );
       if (!files.length) {
         say("There are no local-only documents waiting for cloud backup.", "success");
