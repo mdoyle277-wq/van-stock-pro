@@ -288,7 +288,10 @@ if (panel) {
     }
   }
   el("privateReferenceViewerShare")?.addEventListener("click", () => {
-    if (privateViewerBlob) void shareReferenceFile(privateViewerBlob, privateViewerFileName, privateViewerMime, say);
+    if (!privateViewerBlob) { say("Share could not start: the document data is not loaded. Close and reopen the file.", "error"); return; }
+    say("Preparing Android share…", "info");
+    void shareReferenceFile(privateViewerBlob, privateViewerFileName, privateViewerMime, say)
+      .catch(error => say("Share failed: " + (error.message || "Unknown error"), "error"));
   });
   function closePrivateViewer() {
     privateViewer.hidden = true;
@@ -709,7 +712,11 @@ if (sharedPanel) {
       if (error.name !== "AbortError") sharedSay("Android sharing failed: " + (error.message || "Please open Van Stock Pro in Chrome and try again."), "error");
     }
   }
-  document.getElementById("sharedReferenceViewerShare")?.addEventListener("click", () => { void shareSharedReference(); });
+  document.getElementById("sharedReferenceViewerShare")?.addEventListener("click", () => {
+    if (!sharedViewerBlob) { sharedSay("Share could not start: the document data is not loaded. Close and reopen the file.", "error"); return; }
+    sharedSay("Preparing Android share…", "info");
+    void shareSharedReference().catch(error => sharedSay("Share failed: " + (error.message || "Unknown error"), "error"));
+  });
   function sharedCloseViewer() {
     sharedViewer.hidden = true;
     sharedViewerBlob = null;
