@@ -1,5 +1,5 @@
-const CACHE_NAME="van-stock-pro-offline-v17";
-const SHELL=["./","./index.html","./honeywell-descriptor.html","./honeywell-descriptor-menu.html","./cloud-auth.js","./reference-library.js?v=20261126-android-share-v4","./supabase-config.js"];
+const CACHE_NAME="van-stock-pro-offline-v18";
+const SHELL=["./","./index.html","./honeywell-descriptor.html","./honeywell-descriptor-menu.html","./cloud-auth.js","./reference-library.js?v=20261126-cloud-backup-v1","./supabase-config.js"];
 self.addEventListener("install",event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE_NAME);
