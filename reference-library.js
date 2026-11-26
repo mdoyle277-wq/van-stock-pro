@@ -271,19 +271,30 @@ if (panel) {
   }
   async function shareReferenceFile(blob, fileName, mimeType, report) {
     const info = shareFileType(blob, fileName, mimeType);
-    const file = new File([blob], info.name, { type: info.type });
     if (!navigator.share) {
-      report("This browser does not provide Android sharing. Open Van Stock Pro in Chrome and try Share again.", "error");
+      report("This browser does not provide Android file sharing. Open Van Stock Pro in Chrome and try Share again.", "error");
       return;
     }
     try {
-      // Some Android WebView/Samsung browser builds report canShare({files}) as
-      // false even though navigator.share({files}) is implemented. Let the
-      // native share call decide instead of blocking the Android share sheet.
-      await navigator.share({ files: [file], title: file.name });
+      // Rebuild the payload from raw bytes. Some Android WebView builds reject
+      // a File wrapping an IndexedDB/Supabase Blob as "Invalid share data".
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const cleanBlob = new Blob([bytes], { type: info.type });
+      const file = new File([cleanBlob], info.name, {
+        type: info.type,
+        lastModified: Date.now()
+      });
+      if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [file] })) {
+        report("This browser cannot attach files to Android sharing. Open Van Stock Pro in Chrome (not the installed app shortcut) and try again.", "error");
+        return;
+      }
+      await navigator.share({ files: [file] });
       report("Android share menu opened.", "success");
     } catch (error) {
-      if (error.name !== "AbortError") report("Android sharing failed: " + (error.message || "Please open Van Stock Pro in Chrome and try again."), "error");
+      if (error.name !== "AbortError") {
+        const reason = error.message || "Unknown sharing error";
+        report("Android sharing failed: " + reason + ". Try opening Van Stock Pro in Chrome.", "error");
+      }
     }
   }
   el("privateReferenceViewerShare")?.addEventListener("click", () => {
@@ -695,20 +706,22 @@ if (sharedPanel) {
   async function shareSharedReference() {
     if (!sharedViewerBlob) return;
     const info = sharedShareFileType(sharedViewerBlob, sharedViewerFileName, sharedViewerMime);
-    const file = new File([sharedViewerBlob], info.name, { type: info.type });
     if (!navigator.share) {
-      sharedSay("This browser does not provide Android sharing. Open Van Stock Pro in Chrome and try Share again.", "error");
+      sharedSay("This browser does not provide Android file sharing. Open Van Stock Pro in Chrome and try Share again.", "error");
       return;
     }
     try {
-      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
-        sharedSay("This browser cannot share this file directly. No download was started.", "error");
+      const bytes = new Uint8Array(await sharedViewerBlob.arrayBuffer());
+      const cleanBlob = new Blob([bytes], { type: info.type });
+      const file = new File([cleanBlob], info.name, { type: info.type, lastModified: Date.now() });
+      if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [file] })) {
+        sharedSay("This browser cannot attach files to Android sharing. Open Van Stock Pro in Chrome (not the installed app shortcut) and try again.", "error");
         return;
       }
-      await navigator.share({ files: [file], title: file.name });
+      await navigator.share({ files: [file] });
       sharedSay("Android share menu opened.", "success");
     } catch (error) {
-      if (error.name !== "AbortError") sharedSay("Android sharing failed: " + (error.message || "Please open Van Stock Pro in Chrome and try again."), "error");
+      if (error.name !== "AbortError") sharedSay("Android sharing failed: " + (error.message || "Unknown sharing error") + ". Try opening Van Stock Pro in Chrome.", "error");
     }
   }
   document.getElementById("sharedReferenceViewerShare")?.addEventListener("click", () => {
