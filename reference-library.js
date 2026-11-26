@@ -277,10 +277,9 @@ if (panel) {
       return;
     }
     try {
-      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
-        report("This browser cannot share this file directly. No download was started.", "error");
-        return;
-      }
+      // Some Android WebView/Samsung browser builds report canShare({files}) as
+      // false even though navigator.share({files}) is implemented. Let the
+      // native share call decide instead of blocking the Android share sheet.
       await navigator.share({ files: [file], title: file.name });
       report("Android share menu opened.", "success");
     } catch (error) {
