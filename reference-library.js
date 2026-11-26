@@ -86,8 +86,27 @@ if (panel) {
     button.addEventListener("click", action);
     return button;
   }
+  const backupAllButton = makeButton("Back up all local files", () => {
+    void backupAllLocal();
+  }, "secondary smallbtn");
+  backupAllButton.id = "referenceLibraryBackupAll";
+  const referenceToolbar = storageChoice?.closest(".reference-library-toolbar");
+  if (referenceToolbar) referenceToolbar.append(backupAllButton);
+
+  function updateBackupAllButton() {
+    const cloudIds = new Set(cloudItems.map(item => item.id));
+    const count = localItems.filter(item =>
+      item.item_type === "file" && item.storage_mode !== "both" && !cloudIds.has(item.id)
+    ).length;
+    backupAllButton.textContent = count ? "☁ Back up all local files (" + count + ")" : "✓ All local files backed up";
+    backupAllButton.disabled = count === 0;
+    backupAllButton.title = count
+      ? "Back up " + count + " local-only document(s) to this account's private cloud library"
+      : "There are no local-only documents waiting for backup";
+  }
   function render() {
     if (!session) return;
+    updateBackupAllButton();
     folderLabel.textContent = currentFolder ? " / " + currentFolder.replace(/\//g, " / ") : " / All references";
     list.replaceChildren();
     const items = mergedItems();
@@ -234,6 +253,78 @@ if (panel) {
       await uploadLocalToCloud(item);
       await refresh();
     } catch (error) { say("Backup failed: " + (error.message || "Unknown error"), "error"); }
+  }
+  async function backupAllLocal() {
+    if (!session?.user?.id) {
+      say("Sign in before backing up reference files.", "error");
+      return;
+    }
+    try {
+      const snapshot = await store("readonly");
+      const cloudIds = new Set(cloudItems.map(item => item.id));
+      const files = snapshot.filter(item =>
+        item.item_type === "file" && item.storage_mode !== "both" && !cloudIds.has(item.id)
+      );
+      const folders = snapshot.filter(item =>
+        item.item_type === "folder" && item.storage_mode !== "both" && !cloudIds.has(item.id)
+      );
+      if (!files.length) {
+        say("There are no local-only documents waiting for cloud backup.", "success");
+        return;
+      }
+      const totalBytes = files.reduce((sum, item) => sum + Number(item.file_size || item.blob?.size || 0), 0);
+      if (!confirm(
+        "Back up " + files.length + " local document(s) (" + formatBytes(totalBytes) +
+        ") to your private cloud library?\n\nYour local copies will remain on this device. " +
+        "Only your signed-in account will be able to access the cloud copies."
+      )) return;
+
+      let completed = 0;
+      const failures = [];
+      say("Preparing your private cloud backup…");
+      // Back up folder records first, including empty folders, without moving or deleting local data.
+      folders.sort((a, b) => String(a.folder_path || "").split("/").length - String(b.folder_path || "").split("/").length);
+      for (const folder of folders) {
+        try {
+          const { error } = await supabase.from("reference_library_items").insert({
+            id: folder.id,
+            owner_user_id: session.user.id,
+            item_type: "folder",
+            original_name: folder.original_name,
+            folder_path: folder.folder_path || "",
+            mime_type: "",
+            file_size: 0,
+            storage_path: null
+          });
+          if (error && !/duplicate key/i.test(error.message || "")) throw error;
+          await store("readwrite", { ...folder, storage_mode: "both" });
+        } catch (error) {
+          failures.push(folder.original_name + ": " + (error.message || "Folder backup failed"));
+        }
+      }
+
+      for (let index = 0; index < files.length; index++) {
+        const item = files[index];
+        try {
+          if (!(item.blob instanceof Blob)) throw new Error("Local file data is unavailable on this device");
+          say("Backing up " + (index + 1) + " of " + files.length + ": " + item.original_name);
+          await uploadLocalToCloud(item);
+          completed++;
+        } catch (error) {
+          failures.push(item.original_name + ": " + (error.message || "Backup failed"));
+        }
+      }
+      await refresh();
+      if (failures.length) {
+        say("Backup finished: " + completed + " of " + files.length +
+          " documents backed up. " + failures.length + " need attention. First issue: " +
+          failures[0], "error");
+      } else {
+        say("Cloud backup complete: " + completed + " document(s) backed up. Local copies are still on this device.", "success");
+      }
+    } catch (error) {
+      say("Cloud backup could not start: " + (error.message || "Unknown error"), "error");
+    }
   }
   async function saveOffline(item) {
     try {
